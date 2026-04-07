@@ -1,0 +1,5 @@
+timestamp_utc=20260406T235538Z
+benchmark_type=throughput_tcp
+cni_name=flannel
+namespace=cni-test
+source=cronjob/iperf3-client
