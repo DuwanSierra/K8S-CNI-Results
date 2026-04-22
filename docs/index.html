@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Integral CNIs - Tesis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-12" id="reporte-body">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        
+        <header class="mb-8 text-center bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+            <h1 class="text-4xl font-extrabold tracking-tight text-blue-900 mb-4">Evaluación Integral de Rendimiento CNI</h1>
+            <p class="text-lg text-slate-500 max-w-4xl mx-auto">
+                Resultados experimentales automatizados procesados con el algoritmo duro de <strong>Limpieza IQR</strong> en Backend (Javascript V8).
+            </p>
+            <div class="mt-6">
+                <button onclick="descargarPDF()" class="bg-indigo-600 text-white font-medium px-5 py-2.5 rounded-lg shadow-sm hover:bg-indigo-700 transition">
+                    📄 Exportar Reporte a PDF
+                </button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            
+            <!-- TARJETA THROUGHPUT -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col relative" id="card-throughput">
+                <button onclick="descargarPNG('chartThroughput', 'Rendimiento_Throughput_CNI')" class="absolute top-4 right-4 text-xs bg-slate-100 px-2 py-1 rounded text-slate-600 hover:bg-slate-200">📸 PNG</button>
+                <h2 class="text-xl font-bold mb-1 flex items-center text-slate-800"><span class="text-emerald-500 mr-2">🚀</span> Throughput L3 TCP</h2>
+                <p class="text-sm text-slate-500 mb-2"><strong>La Autopista:</strong> Capacidad bruta y velocidad de transmisión.</p>
+                <div class="flex-grow w-full relative" style="min-height: 200px;"><canvas id="chartThroughput"></canvas></div>
+                <div class="mt-4 p-3 bg-emerald-50 rounded-lg text-xs text-emerald-800" id="resThroughput">Calculando...</div>
+            </div>
+
+            <!-- TARJETA RETRANSMISIONES -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col relative" id="card-retransmits">
+                <button onclick="descargarPNG('chartRetransmits', 'Estabilidad_Retransmisiones_CNI')" class="absolute top-4 right-4 text-xs bg-slate-100 px-2 py-1 rounded text-slate-600 hover:bg-slate-200">📸 PNG</button>
+                <h2 class="text-xl font-bold mb-1 flex items-center text-slate-800"><span class="text-rose-500 mr-2">📦</span> Retransmisiones TCP</h2>
+                <p class="text-sm text-slate-500 mb-2"><strong>Carros accidentados:</strong> El CNI bota el paquete y debe re-enviarlo. Destruye la red.</p>
+                <div class="flex-grow w-full relative" style="min-height: 200px;"><canvas id="chartRetransmits"></canvas></div>
+                <div class="mt-4 p-3 bg-rose-50 rounded-lg text-xs text-rose-800" id="resRetransmits">Calculando...</div>
+            </div>
+
+             <!-- TARJETA LATENCIA MAXIMA -->
+             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col relative" id="card-latmax">
+                <button onclick="descargarPNG('chartLatMax', 'Latencia_Maxima_CNI')" class="absolute top-4 right-4 text-xs bg-slate-100 px-2 py-1 rounded text-slate-600 hover:bg-slate-200">📸 PNG</button>
+                <h2 class="text-xl font-bold mb-1 flex items-center text-slate-800"><span class="text-red-600 mr-2">🚨</span> Latencia Máxima (Max)</h2>
+                <p class="text-sm text-slate-500 mb-2"><strong>El peor caso:</strong> Lo máximo que tardó en conectar bajo estrés. Crítico (SLA).</p>
+                <div class="flex-grow w-full relative" style="min-height: 200px;"><canvas id="chartLatMax"></canvas></div>
+                <div class="mt-4 p-3 bg-red-50 rounded-lg text-xs text-red-800" id="resLatMax">Calculando...</div>
+            </div>
+
+            <!-- TARJETA LATENCIA PROMEDIO-->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col relative" id="card-latencia">
+                <button onclick="descargarPNG('chartLatencia', 'Latencia_Base_CNI')" class="absolute top-4 right-4 text-xs bg-slate-100 px-2 py-1 rounded text-slate-600 hover:bg-slate-200">📸 PNG</button>
+                <h2 class="text-xl font-bold mb-1 flex items-center text-slate-800"><span class="text-amber-500 mr-2">⏱️</span> Latencia Base (Avg)</h2>
+                <p class="text-sm text-slate-500 mb-2"><strong>El arranque:</strong> Tiempo de respuesta (RTT) en ms. Afecta transacciones.</p>
+                <div class="flex-grow w-full relative" style="min-height: 200px;"><canvas id="chartLatencia"></canvas></div>
+                <div class="mt-4 p-3 bg-amber-50 rounded-lg text-xs text-amber-800" id="resLatencia">Calculando...</div>
+            </div>
+
+            <!-- TARJETA JITTER -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col relative" id="card-jitter">
+                <button onclick="descargarPNG('chartJitter', 'Jitter_Previsibilidad_CNI')" class="absolute top-4 right-4 text-xs bg-slate-100 px-2 py-1 rounded text-slate-600 hover:bg-slate-200">📸 PNG</button>
+                <h2 class="text-xl font-bold mb-1 flex items-center text-slate-800"><span class="text-orange-500 mr-2">📉</span> Jitter (MDEV)</h2>
+                <p class="text-sm text-slate-500 mb-2"><strong>El Desorden:</strong> ¿Es predecible la latencia o la tabla varía brutalmente?</p>
+                <div class="flex-grow w-full relative" style="min-height: 200px;"><canvas id="chartJitter"></canvas></div>
+                <div class="mt-4 p-3 bg-orange-50 rounded-lg text-xs text-orange-800" id="resJitter">Calculando...</div>
+            </div>
+
+             <!-- TARJETA RECURSOS CPU -->
+             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col relative" id="card-cpu">
+                <button onclick="descargarPNG('chartCPU', 'Costo_CPU_CNI')" class="absolute top-4 right-4 text-xs bg-slate-100 px-2 py-1 rounded text-slate-600 hover:bg-slate-200">📸 PNG</button>
+                <h2 class="text-xl font-bold mb-1 flex items-center text-slate-800"><span class="text-purple-500 mr-2">⚙️</span> Sobredimensionamiento CPU</h2>
+                <p class="text-sm text-slate-500 mb-2"><strong>Eficiencia Térmica:</strong> ¿Cuánto porcentaje sacrifica el nodo en red en vez de apps?</p>
+                <div class="flex-grow w-full relative" style="min-height: 200px;"><canvas id="chartCPU"></canvas></div>
+                <div class="mt-4 p-3 bg-purple-50 rounded-lg text-xs text-purple-800" id="resCPU">Calculando...</div>
+            </div>
+
+            <!-- TARJETA RECURSOS RAM -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col relative lg:col-start-2" id="card-ram">
+                <button onclick="descargarPNG('chartRAM', 'Costo_RAM_CNI')" class="absolute top-4 right-4 text-xs bg-slate-100 px-2 py-1 rounded text-slate-600 hover:bg-slate-200">📸 PNG</button>
+                <h2 class="text-xl font-bold mb-1 flex items-center text-slate-800"><span class="text-indigo-500 mr-2">🧠</span> RAM de Nodos</h2>
+                <p class="text-sm text-slate-500 mb-2"><strong>Baúl de carga:</strong> Memoria MB tomada permanentemente en memoria residente.</p>
+                <div class="flex-grow w-full relative" style="min-height: 200px;"><canvas id="chartRAM"></canvas></div>
+                <div class="mt-4 p-3 bg-indigo-50 rounded-lg text-xs text-indigo-800" id="resRAM">Calculando...</div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- CARGA DE DATOS ESTÁTICOS PROCESADOS POR NODE -->
+    <script src="datos_consolidados.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
