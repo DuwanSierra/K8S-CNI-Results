@@ -3,7 +3,8 @@ const path = require('path');
 
 // Apunta al directorio raíz 'results' del repositorio oficial
 const baseDir = path.join(__dirname, '..', 'results', 'cni-benchmarks');
-const cnis = ['flannel', 'calico'];
+// Detecta automáticamente las carpetas (flannel, calico, cilium, antrea...)
+const cnis = fs.existsSync(baseDir) ? fs.readdirSync(baseDir).filter(f => fs.statSync(path.join(baseDir, f)).isDirectory()) : [];
 const outputData = {};
 
 /**
