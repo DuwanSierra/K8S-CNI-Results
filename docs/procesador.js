@@ -100,6 +100,43 @@ cnis.forEach(cni => {
         cpu_usada_pct: parseFloat(avgCpuPct.toFixed(2)),
         ram_usada_mb: parseFloat((avgMemBytes / (1024 * 1024)).toFixed(2))
     };
+
+    // --- Procesamiento Automático de Network Policies (Overhead) ---
+    const npDir = path.join(cniDir, 'with_network_policy');
+    if (fs.existsSync(npDir)) {
+        const npCases = fs.readdirSync(npDir).filter(f => fs.statSync(path.join(npDir, f)).isDirectory());
+        if (npCases.length > 0) {
+            outputData[cni].network_policy = {};
+            npCases.forEach(npCase => {
+                const caseDir = path.join(npDir, npCase);
+                const npLatencyMs = processJSONs(path.join(caseDir, 'latency_tcp_connect'), 'tcp_connect_avg_ms');
+                const npThroughputBps = processJSONs(path.join(caseDir, 'throughput_tcp'), 'summary.receiver_bits_per_second');
+                
+                let overhead_latencia_pct = null;
+                let overhead_throughput_pct = null;
+                
+                const npLatencyMsFormatted = npLatencyMs > 0 ? parseFloat(npLatencyMs.toFixed(2)) : null;
+                const npThroughputMbpsFormatted = npThroughputBps > 0 ? parseFloat((npThroughputBps / 1000000).toFixed(2)) : null;
+
+                // overhead_latencia = (NP - Baseline) / Baseline * 100
+                if (avgLatencyMs > 0 && npLatencyMs > 0) {
+                    overhead_latencia_pct = parseFloat((((npLatencyMs - avgLatencyMs) / avgLatencyMs) * 100).toFixed(2));
+                }
+                
+                // overhead_throughput = (Baseline - NP) / Baseline * 100
+                if (avgThroughputBps > 0 && npThroughputBps > 0) {
+                    overhead_throughput_pct = parseFloat((((avgThroughputBps - npThroughputBps) / avgThroughputBps) * 100).toFixed(2));
+                }
+
+                outputData[cni].network_policy[npCase] = {
+                    latencia_ms: npLatencyMsFormatted,
+                    throughput_mbps: npThroughputMbpsFormatted,
+                    overhead_latencia_pct: overhead_latencia_pct,
+                    overhead_throughput_pct: overhead_throughput_pct
+                };
+            });
+        }
+    }
 });
 
 const fileContent = `const CNI_DATA = ${JSON.stringify(outputData, null, 4)};`;

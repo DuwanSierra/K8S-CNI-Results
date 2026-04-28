@@ -90,6 +90,49 @@
             </div>
 
         </div>
+
+        <!-- SECCIÓN DE NETWORK POLICIES (OVERHEAD) -->
+        <div class="mt-12 mb-8 text-center bg-white p-8 rounded-2xl shadow-sm border border-slate-200" id="np-section" style="display: none;">
+            <h1 class="text-3xl font-extrabold tracking-tight text-blue-900 mb-4">🛡️ Impacto de Seguridad (Overhead Network Policies)</h1>
+            <p class="text-lg text-slate-500 max-w-4xl mx-auto mb-6">
+                Evaluación del costo de rendimiento al activar reglas de micro-segmentación. (Flannel no soporta NP).
+            </p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+                <!-- TARJETA OVERHEAD THROUGHPUT -->
+                <div class="bg-slate-50 rounded-xl border border-slate-200 p-6 relative">
+                    <button onclick="descargarPNG('chartNpThroughput', 'Overhead_Throughput_CNI')" class="absolute top-4 right-4 text-xs bg-white border px-2 py-1 rounded text-slate-600 hover:bg-slate-100">📸 PNG</button>
+                    <h2 class="text-lg font-bold mb-1 flex items-center text-slate-800"><span class="text-emerald-500 mr-2">🚀</span> Pérdida de Throughput (%)</h2>
+                    <p class="text-xs text-slate-500 mb-4">Overhead porcentual en velocidad por evaluar reglas. (Promedio de todos los casos). Menos es mejor.</p>
+                    <div class="flex-grow w-full relative" style="min-height: 200px;"><canvas id="chartNpThroughput"></canvas></div>
+                </div>
+
+                <!-- TARJETA OVERHEAD LATENCIA -->
+                <div class="bg-slate-50 rounded-xl border border-slate-200 p-6 relative">
+                    <button onclick="descargarPNG('chartNpLatencia', 'Overhead_Latencia_CNI')" class="absolute top-4 right-4 text-xs bg-white border px-2 py-1 rounded text-slate-600 hover:bg-slate-100">📸 PNG</button>
+                    <h2 class="text-lg font-bold mb-1 flex items-center text-slate-800"><span class="text-red-500 mr-2">⏱️</span> Aumento de Latencia (%)</h2>
+                    <p class="text-xs text-slate-500 mb-4">Overhead porcentual en tiempo de conexión. (Promedio de todos los casos). Menos es mejor.</p>
+                    <div class="flex-grow w-full relative" style="min-height: 200px;"><canvas id="chartNpLatencia"></canvas></div>
+                </div>
+            </div>
+            
+            <!-- TARJETA CASOS DE USO (TABLA) -->
+            <div class="mt-8 bg-white rounded-xl border border-slate-200 overflow-x-auto text-left">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead class="bg-slate-100">
+                        <tr>
+                            <th class="px-6 py-3 text-left font-medium text-slate-500 uppercase tracking-wider">CNI</th>
+                            <th class="px-6 py-3 text-left font-medium text-slate-500 uppercase tracking-wider">Zero Trust (Overhead)</th>
+                            <th class="px-6 py-3 text-left font-medium text-slate-500 uppercase tracking-wider">Multi-Tier (Overhead)</th>
+                            <th class="px-6 py-3 text-left font-medium text-slate-500 uppercase tracking-wider">Egress Block (Overhead)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-slate-200" id="np-table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
     <!-- CARGA DE DATOS ESTÁTICOS PROCESADOS POR NODE -->

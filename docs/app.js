@@ -90,6 +90,82 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('resRAM').innerHTML = 
         `<strong>${bestRAM.toUpperCase()}</strong> retiene menos espacio en disco vivo (<strong>${CNI_DATA[bestRAM].ram_usada_mb} MB</strong>) promedio.`;
+
+    // -- RENDER NETWORK POLICIES --
+    let hasNPData = false;
+    const npThroughputsAvg = [];
+    const npLatenciasAvg = [];
+    const npLabels = [];
+    const tbody = document.getElementById('np-table-body');
+
+    cnis.forEach(cni => {
+        const row = document.createElement('tr');
+        const cellCni = document.createElement('td');
+        cellCni.className = 'px-6 py-4 whitespace-nowrap font-bold text-slate-800 bg-slate-50';
+        cellCni.textContent = cni.toUpperCase();
+        row.appendChild(cellCni);
+
+        if (CNI_DATA[cni].network_policy) {
+            hasNPData = true;
+            npLabels.push(cni.toUpperCase());
+            const np = CNI_DATA[cni].network_policy;
+            
+            let totalThr = 0, countThr = 0;
+            let totalLat = 0, countLat = 0;
+
+            ['zero_trust', 'multi_tier', 'egress_block'].forEach(caso => {
+                const td = document.createElement('td');
+                td.className = 'px-6 py-4 whitespace-nowrap';
+                
+                if (np[caso] && np[caso].overhead_throughput_pct !== null && np[caso].overhead_latencia_pct !== null) {
+                    const oThr = np[caso].overhead_throughput_pct;
+                    const oLat = np[caso].overhead_latencia_pct;
+                    
+                    totalThr += oThr; countThr++;
+                    totalLat += oLat; countLat++;
+
+                    td.innerHTML = `<div class="font-medium text-emerald-600 mb-1">▼ Thr: -${oThr}%</div> <div class="font-medium text-red-500">▲ Lat: +${oLat}%</div>`;
+                } else {
+                    td.innerHTML = '<span class="text-slate-400 italic">Pendiente de ejecución...</span>';
+                }
+                row.appendChild(td);
+            });
+
+            if (countThr > 0) npThroughputsAvg.push((totalThr / countThr).toFixed(2));
+            if (countLat > 0) npLatenciasAvg.push((totalLat / countLat).toFixed(2));
+
+        } else {
+            // Flannel o sin NP
+            const td = document.createElement('td');
+            td.colSpan = 3;
+            td.className = 'px-6 py-4 whitespace-nowrap text-slate-400 italic text-center bg-slate-50';
+            td.innerHTML = '⚠️ No soporta Network Policies nativas (Capacidad 0/10)';
+            row.appendChild(td);
+        }
+        tbody.appendChild(row);
+    });
+
+    if (hasNPData) {
+        document.getElementById('np-section').style.display = 'block';
+        
+        new Chart(document.getElementById('chartNpThroughput'), {
+            type: 'bar',
+            data: {
+                labels: npLabels,
+                datasets: [{ label: 'Pérdida de Throughput (%)', data: npThroughputsAvg, backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 6 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+
+        new Chart(document.getElementById('chartNpLatencia'), {
+            type: 'bar',
+            data: {
+                labels: npLabels,
+                datasets: [{ label: 'Aumento de Latencia (%)', data: npLatenciasAvg, backgroundColor: 'rgba(239, 68, 68, 0.8)', borderRadius: 6 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+    }
 });
 
 // -- EXPORT FUNCTIONALITY --
