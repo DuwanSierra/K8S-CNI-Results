@@ -4,7 +4,7 @@ node_modules/
 # React/Vite build outputs
 dist/
 cni-recommender-spa/dist/
-docs/recommender/
+# docs/recommender/ → Se commitea intencionalmente para GitHub Pages (sin CI configurado)
 
 # Generated benchmark/dashboard data
 docs/datos_consolidados.js
