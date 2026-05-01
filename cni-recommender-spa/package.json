@@ -1,0 +1,24 @@
+{
+  "name": "cni-recommender-spa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "sync:data": "node ../docs/procesador.js && node scripts/export-spa-data.cjs",
+    "build": "vite build",
+    "build:pages": "vite build --base ./ --outDir ../docs/recommender --emptyOutDir true",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^7.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17"
+  }
+}

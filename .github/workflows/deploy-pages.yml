@@ -2,9 +2,8 @@ name: Deploy K8s Dashboard to Core Pages
 
 on:
   schedule:
-    - cron: '0 3 * * *' # Corre 1 vez al día a las 3:00 AM UTC (Madrugada)
-  workflow_dispatch: # Permite correrlo manualmente desde GitHub si tienes afán
-
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,33 +11,39 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: pages
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout del código base
+      - name: Checkout codigo base
         uses: actions/checkout@v4
-      
+
       - name: Instalar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          
-      - name: Ejecutar Extractor Matemático (Limpieza IQR)
+
+      - name: Ejecutar extractor matematico
         run: node docs/procesador.js
-        
+
+      - name: Construir motor recomendador CNI
+        working-directory: ./cni-recommender-spa
+        run: |
+          npm ci
+          npm run sync:data
+          npm run build:pages
+
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
-        
-      - name: Subir Documentos Generados (Artifact)
+
+      - name: Subir documentos generados
         uses: actions/upload-pages-artifact@v3
         with:
-          # Sube explícitamente la carpeta pre-computada al Host
-          path: './docs'
-          
+          path: ./docs
+
   deploy:
     environment:
       name: github-pages
@@ -46,6 +51,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Desplegar hacia GitHub Pages Serverless
+      - name: Desplegar hacia GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
