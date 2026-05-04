@@ -1,0 +1,27 @@
+{
+  "timestamp_utc": "20260504T115104Z",
+  "benchmark_type": "latency_tcp_connect",
+  "cni_name": "antrea",
+  "network_policy_case": "zero_trust",
+  "namespace": "cni-np-test",
+  "source": "cronjob/latency-client-np",
+  "measurement_human": {
+    "objective": "Medir latencia TCP connect con Network Policy activa (caso: zero_trust)",
+    "what_is_measured": "min/avg/max/mdev tcp_connect_ms y porcentaje de fallas",
+    "traffic_profile": "30 intentos, timeout 2s, intervalo 1s",
+    "target": "iperf3-server-np.cni-np-test.svc.cluster.local:5201",
+    "decision_usage": "Calcular overhead de latencia con NP vs baseline"
+  },
+  "target_host": "iperf3-server-np.cni-np-test.svc.cluster.local",
+  "target_port": 5201,
+  "tcp_status": "ok",
+  "samples_attempted": 30,
+  "samples_succeeded": 30,
+  "samples_failed": 0,
+  "connect_failure_percent": 0.00,
+  "tcp_connect_min_ms": 16,
+  "tcp_connect_avg_ms": 28.867,
+  "tcp_connect_max_ms": 56,
+  "tcp_connect_mdev_ms": 11.369,
+  "samples": [{"sample":1,"timestamp_utc":"2026-05-04T11:51:04Z","status":"ok","tcp_connect_ms":56},{"sample":2,"timestamp_utc":"2026-05-04T11:51:05Z","status":"ok","tcp_connect_ms":53},{"sample":3,"timestamp_utc":"2026-05-04T11:51:06Z","status":"ok","tcp_connect_ms":28},{"sample":4,"timestamp_utc":"2026-05-04T11:51:07Z","status":"ok","tcp_connect_ms":52},{"sample":5,"timestamp_utc":"2026-05-04T11:51:08Z","status":"ok","tcp_connect_ms":31},{"sample":6,"timestamp_utc":"2026-05-04T11:51:09Z","status":"ok","tcp_connect_ms":23},{"sample":7,"timestamp_utc":"2026-05-04T11:51:10Z","status":"ok","tcp_connect_ms":16},{"sample":8,"timestamp_utc":"2026-05-04T11:51:11Z","status":"ok","tcp_connect_ms":18},{"sample":9,"timestamp_utc":"2026-05-04T11:51:12Z","status":"ok","tcp_connect_ms":33},{"sample":10,"timestamp_utc":"2026-05-04T11:51:13Z","status":"ok","tcp_connect_ms":21},{"sample":11,"timestamp_utc":"2026-05-04T11:51:14Z","status":"ok","tcp_connect_ms":19},{"sample":12,"timestamp_utc":"2026-05-04T11:51:15Z","status":"ok","tcp_connect_ms":31},{"sample":13,"timestamp_utc":"2026-05-04T11:51:17Z","status":"ok","tcp_connect_ms":27},{"sample":14,"timestamp_utc":"2026-05-04T11:51:18Z","status":"ok","tcp_connect_ms":26},{"sample":15,"timestamp_utc":"2026-05-04T11:51:19Z","status":"ok","tcp_connect_ms":17},{"sample":16,"timestamp_utc":"2026-05-04T11:51:20Z","status":"ok","tcp_connect_ms":17},{"sample":17,"timestamp_utc":"2026-05-04T11:51:21Z","status":"ok","tcp_connect_ms":30},{"sample":18,"timestamp_utc":"2026-05-04T11:51:22Z","status":"ok","tcp_connect_ms":27},{"sample":19,"timestamp_utc":"2026-05-04T11:51:23Z","status":"ok","tcp_connect_ms":48},{"sample":20,"timestamp_utc":"2026-05-04T11:51:24Z","status":"ok","tcp_connect_ms":25},{"sample":21,"timestamp_utc":"2026-05-04T11:51:25Z","status":"ok","tcp_connect_ms":44},{"sample":22,"timestamp_utc":"2026-05-04T11:51:26Z","status":"ok","tcp_connect_ms":17},{"sample":23,"timestamp_utc":"2026-05-04T11:51:27Z","status":"ok","tcp_connect_ms":25},{"sample":24,"timestamp_utc":"2026-05-04T11:51:28Z","status":"ok","tcp_connect_ms":38},{"sample":25,"timestamp_utc":"2026-05-04T11:51:29Z","status":"ok","tcp_connect_ms":23},{"sample":26,"timestamp_utc":"2026-05-04T11:51:30Z","status":"ok","tcp_connect_ms":36},{"sample":27,"timestamp_utc":"2026-05-04T11:51:31Z","status":"ok","tcp_connect_ms":23},{"sample":28,"timestamp_utc":"2026-05-04T11:51:32Z","status":"ok","tcp_connect_ms":26},{"sample":29,"timestamp_utc":"2026-05-04T11:51:33Z","status":"ok","tcp_connect_ms":20},{"sample":30,"timestamp_utc":"2026-05-04T11:51:34Z","status":"ok","tcp_connect_ms":16}]
+}
