@@ -1,0 +1,10 @@
+{
+  "timestamp_utc": "20260506T085624Z",
+  "cni_name": "cilium",
+  "cni_pod_pattern": "cilium-.*",
+  "export_window_minutes": 45,
+  "criterio_c2": {
+    "cni_pod_cpu_avg_cores": 0.009696,
+    "cni_pod_mem_avg_mib": 78.507
+  }
+}
