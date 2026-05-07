@@ -5,15 +5,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const cnis = Object.keys(CNI_DATA);
+
+    function isFiniteMetric(value) {
+        return typeof value === 'number' && Number.isFinite(value);
+    }
+
+    function toChartValue(value) {
+        return isFiniteMetric(value) ? value : null;
+    }
+
+    function setBestResult(elementId, bestCni, template) {
+        const element = document.getElementById(elementId);
+
+        if (!bestCni) {
+            element.textContent = 'Sin datos suficientes para esta metrica.';
+            return;
+        }
+
+        element.innerHTML = template(bestCni);
+    }
     
     // Preparar Data (Añade Peor Escenario)
-    const throughputs = cnis.map(c => CNI_DATA[c].throughput_mbps);
-    const retransmits = cnis.map(c => CNI_DATA[c].retransmits);
-    const latMax = cnis.map(c => CNI_DATA[c].latencia_max_ms);
-    const latencias = cnis.map(c => CNI_DATA[c].latencia_ms);
-    const jitters = cnis.map(c => CNI_DATA[c].jitter_ms);
-    const cpus = cnis.map(c => CNI_DATA[c].cpu_usada_pct);
-    const rams = cnis.map(c => CNI_DATA[c].ram_usada_mb);
+    const throughputs = cnis.map(c => toChartValue(CNI_DATA[c].throughput_mbps));
+    const retransmits = cnis.map(c => toChartValue(CNI_DATA[c].retransmits));
+    const latMax = cnis.map(c => toChartValue(CNI_DATA[c].latencia_max_ms));
+    const latencias = cnis.map(c => toChartValue(CNI_DATA[c].latencia_ms));
+    const jitters = cnis.map(c => toChartValue(CNI_DATA[c].jitter_ms));
+    const cpus = cnis.map(c => toChartValue(CNI_DATA[c].cpu_usada_pct));
+    const rams = cnis.map(c => toChartValue(CNI_DATA[c].ram_usada_mb));
 
     Chart.defaults.font.family = "'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
     Chart.defaults.color = '#64748b';
@@ -55,7 +74,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- AUTO-EXPLICACIÓN INFERENCIAL ---
     const getBest = (key, higherIsBetter = false) => {
-        return cnis.reduce((a, b) => {
+        const validCnis = cnis.filter(cni => isFiniteMetric(CNI_DATA[cni][key]));
+        if (validCnis.length === 0) return null;
+
+        return validCnis.reduce((a, b) => {
             return higherIsBetter ? 
                 (CNI_DATA[a][key] > CNI_DATA[b][key] ? a : b) : 
                 (CNI_DATA[a][key] < CNI_DATA[b][key] ? a : b);
@@ -70,26 +92,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const bestCPU = getBest('cpu_usada_pct', false);
     const bestRAM = getBest('ram_usada_mb', false);
 
-    document.getElementById('resThroughput').innerHTML = 
-        `<strong>${bestThroughput.toUpperCase()}</strong> lidera la autopista con <strong>${CNI_DATA[bestThroughput].throughput_mbps} Mbps</strong>.`;
-    
-    document.getElementById('resRetransmits').innerHTML = 
-        `<strong>${bestRetransmits.toUpperCase()}</strong> tuvo solo <strong>${CNI_DATA[bestRetransmits].retransmits} accidentes de paquetes</strong> (red muchísimo estable).`;
+    setBestResult('resThroughput', bestThroughput, bestCni =>
+        `<strong>${bestCni.toUpperCase()}</strong> lidera la autopista con <strong>${CNI_DATA[bestCni].throughput_mbps} Mbps</strong>.`
+    );
 
-    document.getElementById('resLatMax').innerHTML = 
-        `<strong>${bestLatMax.toUpperCase()}</strong> garantizó un peor-escenario más bajo, tocando techo en tan solo <strong>${CNI_DATA[bestLatMax].latencia_max_ms} ms</strong> frente al estrés.`;
+    setBestResult('resRetransmits', bestRetransmits, bestCni =>
+        `<strong>${bestCni.toUpperCase()}</strong> tuvo solo <strong>${CNI_DATA[bestCni].retransmits} accidentes de paquetes</strong> (red muchísimo estable).`
+    );
 
-    document.getElementById('resLatencia').innerHTML = 
-        `<strong>${bestLatencia.toUpperCase()}</strong> ofrece en promedio menos demora (<strong>${CNI_DATA[bestLatencia].latencia_ms} ms</strong>).`;
-    
-    document.getElementById('resJitter').innerHTML = 
-        `<strong>${bestJitter.toUpperCase()}</strong> es más ordenado, variando solo en <strong>${CNI_DATA[bestJitter].jitter_ms} ms</strong> sus transmisiones.`;
+    setBestResult('resLatMax', bestLatMax, bestCni =>
+        `<strong>${bestCni.toUpperCase()}</strong> garantizó un peor-escenario más bajo, tocando techo en tan solo <strong>${CNI_DATA[bestCni].latencia_max_ms} ms</strong> frente al estrés.`
+    );
 
-    document.getElementById('resCPU').innerHTML = 
-        `<strong>${bestCPU.toUpperCase()}</strong> salva el baúl térmico de tu servidor usando casi la mitad de procesador (<strong>${CNI_DATA[bestCPU].cpu_usada_pct}%</strong>).`;
-    
-    document.getElementById('resRAM').innerHTML = 
-        `<strong>${bestRAM.toUpperCase()}</strong> retiene menos espacio en disco vivo (<strong>${CNI_DATA[bestRAM].ram_usada_mb} MB</strong>) promedio.`;
+    setBestResult('resLatencia', bestLatencia, bestCni =>
+        `<strong>${bestCni.toUpperCase()}</strong> ofrece en promedio menos demora (<strong>${CNI_DATA[bestCni].latencia_ms} ms</strong>).`
+    );
+
+    setBestResult('resJitter', bestJitter, bestCni =>
+        `<strong>${bestCni.toUpperCase()}</strong> es más ordenado, variando solo en <strong>${CNI_DATA[bestCni].jitter_ms} ms</strong> sus transmisiones.`
+    );
+
+    setBestResult('resCPU', bestCPU, bestCni =>
+        `<strong>${bestCni.toUpperCase()}</strong> salva el baúl térmico de tu servidor usando casi la mitad de procesador (<strong>${CNI_DATA[bestCni].cpu_usada_pct}%</strong>).`
+    );
+
+    setBestResult('resRAM', bestRAM, bestCni =>
+        `<strong>${bestCni.toUpperCase()}</strong> retiene menos espacio en disco vivo (<strong>${CNI_DATA[bestCni].ram_usada_mb} MB</strong>) promedio.`
+    );
 
     // -- RENDER NETWORK POLICIES --
     let hasNPData = false;
@@ -131,8 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 row.appendChild(td);
             });
 
-            if (countThr > 0) npThroughputsAvg.push((totalThr / countThr).toFixed(2));
-            if (countLat > 0) npLatenciasAvg.push((totalLat / countLat).toFixed(2));
+            if (countThr > 0) npThroughputsAvg.push(Number((totalThr / countThr).toFixed(2)));
+            if (countLat > 0) npLatenciasAvg.push(Number((totalLat / countLat).toFixed(2)));
 
         } else {
             // Flannel o sin NP

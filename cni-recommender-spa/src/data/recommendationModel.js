@@ -227,8 +227,15 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function toFiniteNumber(value) {
+  const numericValue = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
 function average(values) {
-  const validValues = values.filter((value) => Number.isFinite(value));
+  const validValues = values
+    .map((value) => toFiniteNumber(value))
+    .filter((value) => Number.isFinite(value));
   if (!validValues.length) return 0;
   return validValues.reduce((sum, value) => sum + value, 0) / validValues.length;
 }
@@ -247,7 +254,7 @@ function scoreFromRange(value, min, max, higherIsBetter) {
 function getMetricRange(entries, metric) {
   const definition = metricDefinitions[metric];
   const values = entries
-    .map(([, data]) => Number(data?.[definition.key]))
+    .map(([, data]) => toFiniteNumber(data?.[definition.key]))
     .filter((value) => Number.isFinite(value));
 
   if (!values.length) {
@@ -264,8 +271,8 @@ function getNetworkPolicyOverhead(data) {
   if (!data?.network_policy) return null;
 
   const caseValues = Object.values(data.network_policy).flatMap((policyCase) => [
-    Number(policyCase?.overhead_latencia_pct),
-    Number(policyCase?.overhead_throughput_pct),
+    toFiniteNumber(policyCase?.overhead_latencia_pct),
+    toFiniteNumber(policyCase?.overhead_throughput_pct),
   ]);
 
   const validValues = caseValues.filter((value) => Number.isFinite(value));
