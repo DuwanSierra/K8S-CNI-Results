@@ -1,0 +1,215 @@
+\subsection{3.9 Trazabilidad del diseño frente al problema de investigación}
+
+El diseño de la solución no se planteó como una arquitectura aislada, sino como una respuesta directa al problema formulado en el anteproyecto: las organizaciones adoptan Kubernetes como plataforma de orquestación, pero la calidad final del despliegue depende en gran medida del plano de red, de la selección del CNI y de la forma en que se controlan las comunicaciones internas del clúster \cite{ref29}. En el documento base se identifica que el reto no es únicamente instalar un plugin de red, sino contar con un modelo práctico que permita seleccionar, implementar, validar y mantener la solución de red con criterios objetivos. Esta formulación condiciona todo el diseño: cada componente de la arquitectura debe producir evidencia, reducir incertidumbre técnica o automatizar una decisión que normalmente se toma con información parcial.
+
+Desde la perspectiva del anteproyecto, el problema se expresa en cuatro vacíos principales. El primero es la falta de criterios claros para comparar CNIs; el segundo, la ausencia de observabilidad suficiente sobre el tráfico interno; el tercero, la configuración incompleta o insegura de políticas de red; y el cuarto, el sobredimensionamiento de recursos por operar bajo supuestos en lugar de mediciones. Por esta razón, la solución se diseñó como un sistema de evaluación integral y no como un benchmark aislado. La arquitectura debe medir rendimiento, medir consumo de recursos, validar seguridad, procesar estadísticamente la evidencia y convertirla en una recomendación verificable \cite{ref29}.
+
+La trazabilidad entre problema, objetivo y componente técnico se resume en la Tabla~\ref{tab:trazabilidad-diseno}. Esta tabla cumple una función metodológica: evita que el capítulo de diseño se convierta en una descripción de herramientas y demuestra que cada decisión responde a una necesidad de investigación.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\caption{Trazabilidad entre problema de investigación, objetivo y decisión de diseño.}
+\label{tab:trazabilidad-diseno}
+\begin{tabularx}{\textwidth}{|Y|Y|Y|}
+\hline
+\textbf{Necesidad identificada} & \textbf{Objetivo asociado} & \textbf{Respuesta de diseño} \\
+\hline
+Comparar CNIs sin depender de recomendaciones informales o documentación dispersa. & Evaluar cuantitativamente Calico, Cilium, Flannel y Antrea en escenarios controlados. & Testbed reproducible sobre Kubernetes, ejecución automatizada de pruebas y consolidación de métricas por CNI. \\
+\hline
+Controlar el riesgo de comunicaciones internas abiertas por defecto. & Evaluar políticas de red seguras y automatizadas para reducir superficie de ataque. & Diseño de NetworkPolicies bajo enfoque Zero Trust, casos de denegación por defecto, segmentación por capas y restricción de egress. \\
+\hline
+Convertir resultados técnicos heterogéneos en una decisión comprensible. & Definir criterios, umbrales y ponderaciones para comparación objetiva. & Modelo MCDA con criterios de rendimiento, eficiencia de recursos e impacto de seguridad. \\
+\hline
+Apoyar a una organización que necesita seleccionar y configurar un CNI. & Implementar un prototipo funcional de recomendación. & Prototipo web que consume datos procesados, aplica perfiles de decisión y explica la recomendación resultante. \\
+\hline
+Evitar sobredimensionamiento de infraestructura por falta de evidencia. & Relacionar desempeño de red con consumo de CPU y memoria. & Captura de recursos del CNI mediante Prometheus/Grafana y cálculo de eficiencia relativa por perfil. \\
+\hline
+\end{tabularx}
+\end{table*}
+
+El diseño también conserva una relación directa con las preguntas de investigación planteadas en el anteproyecto. La pregunta sobre diferencias de velocidad de respuesta entre CNIs se materializa en pruebas de throughput, latencia y retransmisiones. La pregunta sobre seguridad y rendimiento se refleja en la medición del overhead de Network Policies. La pregunta sobre consumo energético se aborda indirectamente mediante CPU y memoria como aproximaciones operativas al costo computacional. La pregunta sobre visibilidad del tráfico se responde con el plano de observabilidad, mientras que la reducción del desperdicio de recursos se aborda con el modelo de recomendación y los perfiles de decisión \cite{ref29}.
+
+\subsection{3.10 Requisitos de diseño derivados del contexto telemático}
+
+El primer requisito de diseño es la reproducibilidad. Una comparación entre tecnologías de red no puede depender del momento en que se ejecuta una prueba ni de la habilidad manual del investigador. Por ello, el entorno se concibió bajo infraestructura como código, despliegue declarativo y automatización de experimentos. Terraform permite reconstruir la base de infraestructura; Kubernetes permite programar cargas y mantener objetos declarativos; ArgoCD permite sostener el estado deseado mediante GitOps. Esta combinación convierte el laboratorio en un sistema repetible y auditable.
+
+El segundo requisito es el aislamiento de variables. La evaluación se centra en el CNI, por lo que los demás elementos deben mantenerse constantes: proveedor cloud, tipo de instancia, versión de Kubernetes, topología, namespace de pruebas, duración de las corridas, protocolo de tráfico y forma de captura. En una red Kubernetes real existen muchas fuentes de variabilidad: programación de Pods, carga del nodo, congestión de red, cachés, reintentos TCP y comportamiento del plano de control. El diseño no elimina toda variabilidad, pero la reduce y la documenta para que las diferencias observadas puedan atribuirse principalmente al plano de datos del CNI.
+
+El tercer requisito es la medición integral. Un CNI no debe evaluarse solo por throughput. Un plugin puede alcanzar una tasa alta de transferencia, pero consumir demasiada CPU, introducir jitter, no soportar NetworkPolicies o carecer de visibilidad suficiente. Por eso el diseño agrupa métricas en tres criterios: rendimiento de red, eficiencia de recursos e impacto de seguridad. Esta agrupación coincide con el objetivo del anteproyecto de construir un modelo de evaluación y selección, no únicamente un reporte de pruebas \cite{ref29}.
+
+El cuarto requisito es la trazabilidad de la evidencia. Cada dato debe conservar su origen: CNI evaluado, tipo de benchmark, timestamp, caso de política de red, namespace y ruta de almacenamiento. Esta trazabilidad permite auditar si una recomendación proviene de un dato real, de una métrica procesada o de una ponderación del perfil. Sin esta separación, el prototipo recomendador sería una caja negra. Con ella, el usuario puede revisar por qué un CNI gana en seguridad, por qué otro gana en bajo consumo o por qué una solución aparentemente rápida puede no ser adecuada para un entorno Zero Trust.
+
+El quinto requisito es la compatibilidad con la operación real. El diseño evita depender de comandos manuales ejecutados en una terminal de laboratorio. En su lugar, usa objetos y patrones de Kubernetes: Deployments, Services, CronJobs, namespaces, labels, manifests, overlays y controladores GitOps. Esta decisión hace que la solución sea cercana a la forma en que los equipos DevOps y SRE operan clústeres reales, y permite que la tesis tenga valor práctico más allá de la comparación académica.
+
+\subsection{3.11 Diseño arquitectónico por capas}
+
+La solución se organizó en capas para separar responsabilidades y facilitar el diagnóstico. La primera capa es la infraestructura underlay. Está compuesta por la red privada del proveedor, los nodos de cómputo y las reglas básicas de conectividad. Su función es ofrecer una base estable sobre la cual se despliegan los clústeres y se ejecutan las pruebas. Desde la teoría de redes, esta capa representa el medio de transporte físico o virtual que condiciona la latencia mínima alcanzable, el ancho de banda disponible y la variabilidad propia del entorno cloud.
+
+La segunda capa es el clúster Kubernetes. En esta capa se ubican el plano de control, los nodos worker y los objetos que permiten ejecutar cargas. La elección de K3s se justifica porque conserva el modelo operativo de Kubernetes, pero reduce la complejidad de instalación y administración, lo cual resulta adecuado para un laboratorio reproducible. El diseño en alta disponibilidad permite que el entorno sea más cercano a una arquitectura empresarial que a un clúster mínimo de una sola máquina.
+
+La tercera capa es el plano CNI. Aquí se instala y evalúa cada tecnología: Flannel, Calico, Cilium y Antrea. Esta capa es el núcleo de la comparación porque implementa la conectividad entre Pods, el modelo de direccionamiento, el enrutamiento y, en algunos casos, el enforcement de políticas de red. Kubernetes define el modelo general de red, pero delega la implementación concreta en los plugins CNI \cite{ref4,ref18}. Por tanto, el diseño debe permitir retirar un CNI, instalar otro y repetir el mismo conjunto de pruebas sin modificar la lógica experimental.
+
+La cuarta capa es el plano de inyección de tráfico. Está compuesto por Pods cliente y servidor, servicios internos y CronJobs que ejecutan pruebas de throughput y latencia. Esta capa no existe para prestar un servicio de negocio, sino para generar tráfico controlado que active el dataplane del CNI. La anti-afinidad entre Pods se definió como una condición crítica porque fuerza tráfico inter-nodo. Si cliente y servidor quedaran en el mismo nodo, gran parte del tráfico podría resolverse localmente y no ejercitaría la ruta real que se quiere evaluar.
+
+La quinta capa es observabilidad y captura. Prometheus recolecta métricas del clúster y Grafana permite visualizarlas; adicionalmente, el exporter convierte consultas de recursos en archivos procesables. Esta capa responde al problema de visibilidad identificado en el anteproyecto: no basta con que el clúster funcione, se necesita ver cómo se comporta el plano de red y cuánto cuesta en recursos \cite{ref29}. La literatura sobre observabilidad en microservicios refuerza que métricas, eventos y flujos son necesarios para comprender dependencias y diagnosticar problemas en arquitecturas distribuidas \cite{ref6}.
+
+La sexta capa es procesamiento y decisión. En ella se ubica el procesamiento estadístico, la limpieza de outliers, la normalización y el cálculo del puntaje multicriterio. Esta capa transforma archivos JSON/CSV en criterios comparables. Su existencia es clave porque las métricas originales tienen unidades distintas: milisegundos, Mbps, retransmisiones, porcentaje de CPU y memoria. Sin una etapa de normalización y ponderación, no sería posible responder de forma objetiva cuál CNI es más adecuado para un perfil de uso.
+
+La séptima capa es presentación y recomendación. El prototipo web consume datos consolidados y muestra resultados según perfiles. El objetivo no es reemplazar al arquitecto de red, sino entregarle evidencia organizada para decidir. Por eso el diseño del prototipo debe explicar la recomendación, mostrar el ranking y mantener vínculo con los datos que lo soportan.
+
+\subsection{3.12 Diseño comparativo de los CNIs evaluados}
+
+La selección de Flannel, Calico, Cilium y Antrea no es accidental. Estos cuatro CNIs representan enfoques distintos del plano de datos en Kubernetes. Flannel representa simplicidad y enfoque de conectividad básica; Calico representa políticas de red y ruteo con fuerte adopción en producción; Cilium representa el uso de eBPF como mecanismo moderno de aceleración y observabilidad; Antrea representa una aproximación basada en Open vSwitch y conceptos de redes definidas por software. La comparación cubre, por tanto, un espectro razonable de tecnologías presentes en entornos cloud-native.
+
+Flannel se incluye como línea base de simplicidad. Su valor para el diseño está en que permite observar qué ocurre cuando se prioriza una red funcional y fácil de operar por encima de capacidades avanzadas de seguridad. En términos de arquitectura, esto lo convierte en una referencia útil para escenarios de desarrollo, laboratorios o entornos donde la micro-segmentación no es una exigencia primaria. Sin embargo, esa misma simplicidad se convierte en limitación cuando el modelo evalúa seguridad, porque Flannel no implementa por sí mismo NetworkPolicies estándar de Kubernetes.
+
+Calico se diseña como representante de una solución orientada a producción con fuerte soporte de políticas. Puede operar con enfoques de ruteo y ofrece mecanismos avanzados para control de tráfico. Desde el punto de vista de la tesis, Calico permite analizar el equilibrio entre rendimiento, madurez operativa y seguridad. Es especialmente relevante porque muchas organizaciones lo adoptan cuando necesitan pasar de una red Kubernetes abierta a un modelo segmentado con reglas explícitas.
+
+Cilium se incluye por su enfoque eBPF. eBPF permite ejecutar programas en el kernel para inspeccionar, redirigir y filtrar tráfico con menor dependencia de cadenas tradicionales de reglas. Esto lo hace atractivo para escenarios donde se busca observabilidad, seguridad avanzada y menor overhead en ciertas rutas críticas. Para el diseño, Cilium representa una hipótesis técnica clara: si el enforcement y el dataplane se acercan más al kernel, puede reducirse el costo de ciertas operaciones y mejorar la visibilidad del tráfico \cite{ref27}.
+
+Antrea se incluye por su relación con Open vSwitch. OVS tiene trayectoria en redes virtualizadas y SDN, y Antrea traslada ese enfoque al entorno Kubernetes. Su presencia permite comparar un dataplane basado en conmutación virtual programable frente a enfoques más simples o basados en eBPF. Además, sus capacidades de flow visibility son relevantes para el criterio de observabilidad y diagnóstico \cite{ref23}.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\caption{Criterios de diseño para la selección de CNIs evaluados.}
+\label{tab:cni-diseno-comparativo}
+\begin{tabularx}{\textwidth}{|Y|Y|Y|Y|}
+\hline
+\textbf{CNI} & \textbf{Enfoque técnico} & \textbf{Aporte al experimento} & \textbf{Riesgo o limitación a medir} \\
+\hline
+Flannel & Overlay simple, comúnmente asociado a VXLAN. & Línea base de conectividad sencilla y bajo esfuerzo operativo. & Ausencia de enforcement nativo de NetworkPolicies. \\
+\hline
+Calico & Ruteo y políticas de red; soporte de controles avanzados. & Comparación de seguridad práctica y madurez operativa. & Posible costo por evaluación de reglas y configuración más exigente. \\
+\hline
+Cilium & Dataplane y seguridad apoyados en eBPF. & Evaluar beneficios de filtrado moderno, visibilidad y políticas L7. & Mayor complejidad conceptual y posible consumo de recursos según configuración. \\
+\hline
+Antrea & Dataplane basado en Open vSwitch y enfoque SDN. & Evaluar conmutación virtual programable y visibilidad de flujos. & Dependencia de componentes adicionales y costo del agente. \\
+\hline
+\end{tabularx}
+\end{table*}
+
+Esta matriz no busca declarar anticipadamente un ganador. Su función es justificar por qué cada tecnología aporta una dimensión diferente al modelo. Si todas las opciones fueran técnicamente similares, la comparación tendría poco valor académico. Al contrario, el contraste entre simplicidad, políticas, eBPF y OVS permite que las pruebas revelen compromisos reales entre rendimiento, seguridad y operación.
+
+\subsection{3.13 Diseño de la metrología de QoS}
+
+El sistema de medición se diseñó bajo el principio de que una métrica aislada no describe la calidad de una red. Throughput, latencia, jitter, retransmisiones y consumo de recursos observan dimensiones distintas del mismo fenómeno. Una red puede mover muchos datos por segundo y aun así ser inadecuada para aplicaciones interactivas si su latencia o variabilidad son altas. También puede presentar baja latencia en reposo, pero degradarse cuando se activan políticas de red o cuando aumenta el número de flujos.
+
+El throughput TCP se seleccionó porque mide la capacidad efectiva de transferencia entre Pods. No se toma como el único indicador de rendimiento, sino como una señal de capacidad del dataplane. En redes con encapsulación, el throughput puede verse afectado por overhead de cabeceras, fragmentación, tamaño efectivo de MTU, copias de memoria y eficiencia del camino de reenvío. La literatura comparativa de CNIs muestra que estas diferencias pueden ser significativas en entornos edge y cloud, especialmente cuando se comparan overlays, ruteo directo y dataplanes acelerados \cite{ref7,ref8}.
+
+La latencia de establecimiento TCP se seleccionó porque representa el costo de iniciar una comunicación entre servicios. En arquitecturas de microservicios, donde las aplicaciones se comunican constantemente mediante APIs internas, la creación de conexiones y el tiempo de ida y vuelta afectan la experiencia del usuario y el desempeño de procesos transaccionales. Aunque una aplicación real puede reutilizar conexiones, medir TCP connect permite tener una señal controlada del retardo introducido por la ruta de red, el CNI y las reglas activas.
+
+El jitter o variabilidad de latencia se incorporó porque la estabilidad puede ser más importante que el promedio. Un promedio bajo con picos altos puede afectar sistemas sensibles al tiempo, colas de mensajes, streaming, llamadas entre servicios o procesamiento cercano al borde. Por esta razón, el diseño no se limita a latencia promedio; también conserva mínimos, máximos y desviación de muestras cuando están disponibles.
+
+Las retransmisiones TCP se incluyeron como indicador de eficiencia y estabilidad. Una retransmisión no siempre significa pérdida física; puede aparecer por congestión, timeouts, buffers, reordenamiento o condiciones del dataplane. Sin embargo, al comparar CNIs bajo condiciones controladas, un aumento sostenido en retransmisiones puede señalar que una alternativa introduce mayor inestabilidad o interactúa de forma menos eficiente con el entorno de red.
+
+El consumo de CPU y memoria se incluyó porque el objetivo general no es solo seleccionar el CNI más rápido, sino reducir sobredimensionamiento. Si dos CNIs ofrecen desempeño similar, pero uno consume menos recursos por nodo, ese CNI puede ser preferible para edge, IoT o clústeres con presupuesto limitado. En cambio, si un CNI consume más memoria pero ofrece políticas avanzadas y observabilidad profunda, puede ser preferible para un entorno financiero o de cumplimiento.
+
+La Tabla~\ref{tab:metricas-diseno-qos} muestra cómo cada métrica contribuye a la decisión de diseño.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\caption{Métricas de QoS y eficiencia incluidas en el diseño.}
+\label{tab:metricas-diseno-qos}
+\begin{tabularx}{\textwidth}{|Y|Y|Y|}
+\hline
+\textbf{Métrica} & \textbf{Qué observa} & \textbf{Uso dentro del modelo} \\
+\hline
+Throughput TCP & Capacidad efectiva de transferencia entre Pods. & Determinar eficiencia del dataplane para cargas de alto volumen. \\
+\hline
+Latencia TCP connect & Tiempo de establecimiento de conexión entre cliente y servidor. & Evaluar respuesta para microservicios y tráfico transaccional. \\
+\hline
+Latencia máxima y variabilidad & Estabilidad temporal de la comunicación. & Identificar picos que el promedio puede ocultar. \\
+\hline
+Retransmisiones TCP & Señal de reintentos, congestión o inestabilidad del camino. & Penalizar dataplanes que logren throughput a costa de más retransmisiones. \\
+\hline
+CPU del agente CNI & Costo computacional del plano de red. & Medir impacto en sobredimensionamiento y perfiles edge. \\
+\hline
+Memoria del agente CNI & Huella de memoria persistente por nodo. & Evaluar sostenibilidad operativa en nodos restringidos. \\
+\hline
+Overhead con NetworkPolicies & Degradación al activar seguridad. & Comparar seguridad aplicable sin comprometer rendimiento. \\
+\hline
+\end{tabularx}
+\end{table*}
+
+\subsection{3.14 Diseño estadístico y modelo de decisión multicriterio}
+
+El procesamiento estadístico se diseñó para evitar que la recomendación dependa de valores atípicos. En entornos cloud pueden aparecer picos temporales por congestión del proveedor, scheduling de Pods, variación de CPU compartida, calentamiento de rutas o condiciones externas no controlables por el investigador. Si el modelo usara directamente todos los valores crudos, una sola medición anómala podría alterar el ranking. Por ello, el pipeline incluye limpieza mediante rango intercuartílico (IQR), técnica que permite detectar valores fuera del comportamiento central de la muestra.
+
+Después de la limpieza, las métricas se normalizan para permitir comparación. Esta etapa es necesaria porque no todas las variables tienen el mismo sentido de optimización. En throughput, un valor mayor es mejor; en latencia, CPU, memoria y retransmisiones, un valor menor es preferible. El diseño debe invertir la escala cuando corresponde para que el puntaje final sea consistente: valores cercanos a 1 representan mejor desempeño relativo y valores cercanos a 0 representan peor desempeño relativo.
+
+La decisión final se formaliza con una suma ponderada, propia de un enfoque MCDA. La ecuación general se expresa como:
+
+\[
+P_{CNI}=\sum_{i=1}^{n}(V_i \times W_i)
+\]
+
+donde \(P_{CNI}\) es el puntaje total de un plugin para un perfil, \(V_i\) es la valoración normalizada o discretizada de la métrica \(i\), \(W_i\) es el peso asignado a esa métrica y \(n\) es el número de métricas evaluadas. Esta formulación cumple la intención del objetivo específico 3 del anteproyecto: definir criterios, métricas, umbrales y ponderaciones para facilitar decisiones basadas en evidencia cuantificable \cite{ref29}.
+
+El diseño contempla tres perfiles arquitectónicos. El perfil URLLC o automatización industrial prioriza latencia, jitter y determinismo. El perfil Edge/IoT prioriza consumo de recursos y footprint. El perfil microservicios transaccionales/Zero Trust prioriza seguridad y bajo overhead al aplicar políticas. Esta separación evita la afirmación simplista de que existe un CNI universalmente superior. En la práctica, una organización con nodos restringidos puede preferir bajo consumo; una entidad financiera puede preferir políticas fuertes; una aplicación de streaming puede ponderar throughput y estabilidad.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\caption{Perfiles de decisión definidos para el modelo de selección.}
+\label{tab:perfiles-decision}
+\begin{tabularx}{\textwidth}{|Y|Y|Y|}
+\hline
+\textbf{Perfil} & \textbf{Prioridad de diseño} & \textbf{Razonamiento telemático} \\
+\hline
+URLLC / automatización industrial & Baja latencia, bajo jitter y respuesta determinista. & El plano de red debe consumir una fracción mínima del presupuesto temporal extremo a extremo. \\
+\hline
+Edge Computing / IoT & Mínimo consumo de CPU y memoria. & El nodo puede tener recursos restringidos; el CNI no debe desplazar a la aplicación principal. \\
+\hline
+Microservicios transaccionales / Zero Trust & Seguridad, micro-segmentación y bajo overhead con políticas activas. & El aislamiento entre servicios es obligatorio, pero no debe degradar transacciones críticas. \\
+\hline
+\end{tabularx}
+\end{table*}
+
+Un punto importante del diseño es que los pesos no se presentan como verdades absolutas. Son parámetros explícitos del modelo. Esto permite que el prototipo sea ajustable: una organización puede modificar el peso de seguridad, rendimiento o recursos según su contexto. La contribución académica consiste en hacer visible esa decisión, no en ocultarla dentro de una recomendación opaca.
+
+\subsection{3.15 Diseño de seguridad: micro-segmentación y Zero Trust}
+
+La seguridad del diseño parte de una característica esencial de Kubernetes: la comunicación interna entre Pods suele estar abierta por defecto. Esto facilita el despliegue inicial, pero no es suficiente para ambientes donde se requiere control de movimiento lateral, separación de entornos o cumplimiento de políticas de acceso. Las NetworkPolicies permiten definir qué Pods pueden comunicarse, en qué dirección, por qué puerto y bajo qué selección de labels. Sin embargo, su aplicación depende del CNI: si el plugin no implementa enforcement, la política puede existir como objeto declarativo sin producir el efecto esperado en el plano de datos \cite{ref4,ref18}.
+
+El diseño adopta Zero Trust como principio operativo. Esto significa que no se asume confianza por pertenecer al mismo clúster o namespace. En lugar de permitir todo el tráfico interno, se define una postura de mínimo privilegio: cerrar por defecto y abrir únicamente los flujos necesarios. Esta visión se alinea con la arquitectura Zero Trust de NIST, donde el acceso se concede de forma explícita y evaluada, no por ubicación de red \cite{ref24,ref25}.
+
+El primer caso de diseño es default deny. Su propósito es validar que el CNI pueda bloquear tráfico no autorizado y permitir únicamente flujos explícitos. Este caso mide la capacidad de pasar de una red plana a una red controlada. También permite medir el overhead mínimo que introduce el CNI cuando debe evaluar reglas de autorización.
+
+El segundo caso es segmentación multi-capa. Representa una aplicación típica con frontend, backend y base de datos. El diseño esperado es que el frontend no pueda hablar directamente con la base de datos; que el backend solo reciba del frontend; y que la base de datos solo acepte conexiones desde el backend. Este escenario traduce al lenguaje Kubernetes una arquitectura tradicional de zonas y firewalls internos. La diferencia es que las reglas se aplican dinámicamente sobre Pods seleccionados por labels y no sobre direcciones IP estáticas.
+
+El tercer caso es restricción de egress. Su objetivo es contener amenazas y reducir exfiltración. Una aplicación comprometida no debería poder abrir conexiones arbitrarias hacia Internet si su función no lo requiere. Por eso se diseña un caso donde el DNS interno permanece permitido, el tráfico intra-clúster necesario se conserva y las salidas externas se bloquean. Esta prueba permite evaluar si el CNI controla adecuadamente el tráfico de salida y cuánto overhead introduce al hacerlo.
+
+La comparación de seguridad no se limita a verificar si una política funciona. También evalúa capacidades diferenciadoras. Flannel queda como referencia sin soporte nativo de NetworkPolicies. Calico permite políticas estándar y extensiones propias. Cilium agrega capacidades L7 mediante CiliumNetworkPolicy. Antrea aporta estructuras de prioridad y visibilidad asociadas a OVS. Estas diferencias justifican que el modelo no trate la seguridad como una variable binaria, sino como un criterio con niveles.
+
+\subsection{3.16 Diseño GitOps para consistencia operativa}
+
+La automatización GitOps cumple dos funciones dentro del diseño. La primera es operativa: garantizar que los manifiestos aplicados al clúster correspondan al estado versionado en el repositorio. La segunda es metodológica: permitir que las pruebas sean repetibles y auditables. Si una política o aplicación se modifica manualmente, ArgoCD puede detectar la desviación y restaurar el estado esperado, reduciendo la intervención humana como fuente de error.
+
+El diseño de repositorios separa infraestructura, aplicaciones y resultados. La infraestructura define cómo se crea el clúster; las aplicaciones definen qué se despliega; los resultados almacenan la evidencia generada por los experimentos. Esta separación evita mezclar configuración con datos y facilita que cada etapa tenga responsabilidades claras.
+
+En el flujo diseñado, un cambio de CNI o de escenario de prueba se expresa como un cambio declarativo. El clúster sincroniza ese estado, ejecuta las cargas programadas, produce resultados y los publica en la estructura de datos esperada. Esta cadena permite reconstruir la historia de una medición: qué manifiesto estaba activo, qué CNI se evaluó, qué CronJob produjo el archivo y qué versión del procesador consolidó el resultado.
+
+Desde el punto de vista telemático, GitOps aporta gobernabilidad sobre la red. Las políticas dejan de ser configuraciones manuales aplicadas con comandos sueltos y pasan a ser objetos versionados. Esto es importante porque la red Kubernetes cambia continuamente: los Pods nacen y mueren, los Services actualizan endpoints, las réplicas se mueven entre nodos y las etiquetas determinan pertenencia lógica. Sin un mecanismo declarativo, sostener coherencia de seguridad en ese entorno se vuelve difícil.
+
+\subsection{3.17 Diseño del prototipo recomendador}
+
+El prototipo recomendador se diseñó como la capa de interacción entre el modelo matemático y el usuario final. Su función no es solo mostrar el CNI ganador, sino explicar por qué gana. Para ello debe consumir los datos consolidados, aplicar el perfil seleccionado y presentar el ranking junto con los criterios que más influyeron en el resultado.
+
+El diseño considera que distintos usuarios pueden tener prioridades diferentes. Un arquitecto de una plataforma financiera puede seleccionar un perfil Zero Trust, donde el soporte de NetworkPolicies y el overhead de seguridad pesan más. Un equipo de edge puede seleccionar un perfil donde CPU y memoria sean dominantes. Un equipo que procesa grandes volúmenes puede preferir throughput sostenido. El prototipo traduce estas prioridades en pesos y calcula el puntaje resultante.
+
+La salida esperada debe incluir tres niveles de información. El primer nivel es la recomendación directa: qué CNI se sugiere. El segundo nivel es la justificación: qué métricas explican la recomendación. El tercer nivel es la orientación de configuración: qué consideraciones debe tener el usuario al desplegar ese CNI. Esta estructura responde al objetivo específico 4 del anteproyecto, que plantea implementar un prototipo funcional que recomiende y configure el CNI más adecuado según necesidades organizacionales \cite{ref29}.
+
+El prototipo también actúa como mecanismo de comunicación académica. Los resultados de pruebas de red pueden ser difíciles de interpretar para un lector no especializado. Un ranking, una explicación por perfil y una visualización de métricas facilitan que la evidencia sea comprensible sin perder rigor. En ese sentido, el prototipo no reemplaza el capítulo de análisis, pero sí demuestra que el modelo puede convertirse en herramienta útil para toma de decisiones.
+
+\subsection{3.18 Alcance, límites y decisiones explícitas del diseño}
+
+El diseño se limita a evaluar CNIs en un testbed controlado sobre Kubernetes y no pretende generalizar automáticamente todos los resultados a cualquier proveedor, versión o hardware. Esta delimitación es necesaria porque el rendimiento de red depende de múltiples factores: tipo de instancia, virtualización, kernel, MTU, región, carga del proveedor, versión del CNI, configuración del dataplane y patrón de tráfico. La contribución no es afirmar un ranking universal, sino proponer una metodología reproducible y aplicarla a un conjunto de condiciones documentadas.
+
+Otra decisión explícita es usar tráfico TCP controlado como señal principal. Esto permite medir throughput, latencia de conexión y retransmisiones de forma consistente. No obstante, aplicaciones reales pueden usar HTTP/2, gRPC, UDP, conexiones persistentes, service mesh o cifrado adicional. Estas variaciones pueden incorporarse como trabajos futuros, pero no invalidan el diseño actual: lo importante es que la metodología permite agregar nuevos perfiles de tráfico manteniendo el mismo marco de comparación.
+
+El diseño tampoco asume que mayor complejidad implica mejor resultado. Cilium y Antrea ofrecen capacidades avanzadas, pero también pueden requerir más conocimiento operativo. Flannel es más simple, pero carece de seguridad nativa avanzada. Calico ofrece equilibrio, pero su rendimiento depende del modo de operación. Por eso el modelo no premia características por existir; las evalúa según el perfil y los datos.
+
+Finalmente, la solución se diseñó para sostener una mejora continua. A medida que se agreguen nuevas corridas, nuevas versiones de CNIs o nuevos casos de NetworkPolicies, el pipeline puede recalcular puntajes. Esto convierte el proyecto en una base metodológica extensible. En lugar de entregar una decisión congelada, entrega una forma de decidir con evidencia actualizable, que es precisamente la brecha identificada en el anteproyecto \cite{ref29}.

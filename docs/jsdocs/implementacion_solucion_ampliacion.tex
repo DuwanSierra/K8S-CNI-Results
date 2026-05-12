@@ -1,0 +1,169 @@
+\subsection{4.11 Lectura guiada de la implementación}
+
+La implementación puede entenderse como una cadena de producción de evidencia. En el primer extremo se encuentra la infraestructura cloud, donde se crean los nodos y la red privada. En el centro se encuentra Kubernetes, que ejecuta los CNIs, las aplicaciones de prueba, los CronJobs y el stack de observabilidad. En el último extremo se encuentra el repositorio de resultados, donde cada medición queda guardada como archivo JSON o CSV para ser procesada. Esta forma de organizar el trabajo evita que la implementación sea una suma de herramientas sueltas; cada herramienta cumple una tarea dentro de un flujo mayor.
+
+Para facilitar la lectura, conviene separar la implementación en cinco preguntas sencillas. La primera es: ¿dónde corre el experimento? La respuesta es el clúster K3s desplegado en DigitalOcean. La segunda es: ¿cómo se instala y se mantiene lo que corre dentro del clúster? La respuesta es GitOps con ArgoCD. La tercera es: ¿cómo se genera tráfico medible? La respuesta son los Pods de iperf3 y los clientes de latencia ejecutados como CronJobs. La cuarta es: ¿cómo se mide el costo del CNI? La respuesta es Prometheus, Grafana y el exporter de recursos. La quinta es: ¿cómo se convierte todo eso en decisión? La respuesta es el procesamiento estadístico y el prototipo recomendador.
+
+Esta lectura guiada es importante porque Kubernetes puede ser difícil de digerir cuando se describe desde sus objetos individuales. Para un lector no especializado, un Deployment, un Service, un CronJob o un ConfigMap pueden parecer piezas desconectadas. En esta implementación, cada objeto cumple un papel claro: el Deployment mantiene vivo un servidor, el Service le da un nombre estable, el CronJob ejecuta una medición en horarios controlados, el ConfigMap entrega parámetros comunes, y el repositorio conserva la evidencia. Visto así, la implementación se parece a un laboratorio automatizado: se prepara el escenario, se dispara la prueba, se guarda el resultado y se procesa la información.
+
+\subsection{4.12 Implementación de la infraestructura base}
+
+La infraestructura se implementó en el repositorio \texttt{K8s-bootstrap}, organizado en módulos numerados. Esta numeración ayuda a leer el proceso en orden: primero se crea la base, luego el clúster, después ArgoCD, más tarde el patrón App of Apps y finalmente los secretos necesarios. La estructura observada es:
+
+\begin{itemize}
+\item \texttt{00.bootstrap}: base de infraestructura y artefactos iniciales.
+\item \texttt{10.k3s-ha-do}: despliegue del clúster K3s en alta disponibilidad.
+\item \texttt{20.argo-cd-install}: instalación del controlador ArgoCD.
+\item \texttt{30.apps-of-apps-install}: instalación del patrón App of Apps.
+\item \texttt{40.install-secrets}: gestión de secretos requeridos por la operación.
+\end{itemize}
+
+El uso de Terraform permite declarar la infraestructura como código. Esto significa que la infraestructura no se describe en una lista manual de pasos, sino en archivos versionables. Para la tesis, esta decisión tiene valor metodológico: si el entorno debe reconstruirse, no depende de recordar comandos ni de copiar una configuración desde una consola. La infraestructura queda documentada en el mismo lenguaje en que se ejecuta.
+
+En términos sencillos, Terraform cumple el papel de ``constructor'' del escenario. Crea o prepara los recursos necesarios para que Kubernetes exista; Kubernetes, a su vez, se encarga de ejecutar las cargas de trabajo. Esta separación evita mezclar dos responsabilidades distintas: crear servidores no es lo mismo que desplegar aplicaciones sobre el clúster. Mantener ambas tareas separadas hace que la implementación sea más ordenada, auditable y repetible.
+
+La elección de DigitalOcean también responde a una necesidad de control. Usar un proveedor cloud evita que las mediciones dependan de una laptop, una red Wi-Fi o un laboratorio físico con condiciones variables. Aunque una nube pública también introduce variabilidad, ofrece una base más homogénea para repetir pruebas bajo el mismo tipo de instancia, la misma región y la misma red privada. De esta manera, cuando cambia el resultado entre CNIs, la causa más probable está en el CNI o en su configuración, no en un cambio accidental del laboratorio \cite{ref29}.
+
+\subsection{4.13 Implementación de K3s como clúster de pruebas}
+
+K3s se implementó como distribución Kubernetes ligera para facilitar la operación del testbed. La ventaja práctica es que conserva los objetos y patrones de Kubernetes, pero reduce parte de la carga de instalación y administración. Para esta tesis, esto permite trabajar con un clúster suficientemente realista sin convertir la investigación en un problema de administración de una distribución pesada.
+
+La implementación en alta disponibilidad permite que el plano de control tenga mayor resiliencia que un clúster de nodo único. En una prueba académica, podría parecer suficiente levantar un clúster mínimo; sin embargo, el objetivo del proyecto es representar condiciones cercanas a producción. Una arquitectura con plano de control distribuido y nodos worker permite evaluar tráfico entre nodos y observar el comportamiento del CNI en una topología más realista.
+
+Una decisión técnica importante fue permitir una instalación con ``pizarra limpia'' para los CNIs. K3s puede traer Flannel como CNI por defecto, pero cuando se evalúan Calico, Cilium o Antrea, se necesita evitar que otro CNI ya instalado contamine el comportamiento del clúster. Por eso el flujo contempla deshabilitar o sustituir el CNI base según el escenario. En lenguaje simple: no se comparan dos motores si uno de ellos sigue parcialmente instalado debajo del otro.
+
+La implementación del clúster también prepara el archivo \texttt{kubeconfig}, que permite administrar remotamente Kubernetes. Este archivo es la llave operativa del clúster: sin él, las herramientas externas no pueden comunicarse con la API de Kubernetes. Su generación como salida del proceso de infraestructura facilita que las fases posteriores, como ArgoCD o validación manual, tengan un punto de acceso consistente.
+
+\subsection{4.14 Implementación GitOps con ArgoCD}
+
+Después de crear el clúster, la implementación instala ArgoCD para administrar los manifiestos de Kubernetes desde Git. Esta decisión evita que las pruebas dependan de comandos manuales ejecutados por el investigador. En vez de aplicar objetos uno por uno con \texttt{kubectl}, se declara el estado deseado en el repositorio \texttt{K8s-Tesis-Apps}. ArgoCD observa ese repositorio y sincroniza el clúster para que coincida con lo declarado.
+
+El patrón App of Apps se implementó para controlar varias aplicaciones desde una raíz común. En lugar de administrar cada componente por separado, una aplicación principal referencia las demás: CNIs, stack de métricas, pruebas de iperf3 y exporter. Para un lector no especializado, puede entenderse como un índice. La aplicación principal no contiene todo el contenido, pero sabe dónde está cada pieza y permite desplegar el conjunto completo en orden.
+
+La sincronización automática con \texttt{selfHeal} y \texttt{prune} refuerza la consistencia. \texttt{selfHeal} permite que ArgoCD corrija cambios manuales no autorizados; \texttt{prune} elimina objetos que ya no forman parte del estado deseado. En una tesis basada en mediciones, esto importa mucho: si alguien cambia una política, un Service o un CronJob manualmente, los resultados podrían dejar de ser comparables. GitOps reduce ese riesgo al hacer que el repositorio sea la fuente de verdad.
+
+La implementación con GitOps también facilita explicar y repetir el experimento. Una persona que quiera auditar el trabajo puede revisar el manifiesto aplicado, la versión del repositorio y el estado sincronizado del clúster. Esto convierte la operación del laboratorio en evidencia técnica. No solo se dice que la prueba se ejecutó; se puede revisar cómo estaba declarada la prueba al momento de ejecutarse.
+
+\subsection{4.15 Implementación de manifiestos y overlays}
+
+El repositorio \texttt{K8s-Tesis-Apps} concentra los manifiestos que se aplican al clúster. Su estructura separa responsabilidades: \texttt{apps} contiene definiciones de aplicaciones para ArgoCD, \texttt{cni\_test\_iperf} contiene el banco de pruebas de red, \texttt{grafana-exporter} contiene la extracción de recursos, y \texttt{overlays} contiene variaciones para cada CNI. Esta separación ayuda a que la implementación sea comprensible y mantenible.
+
+Kustomize se utiliza para adaptar manifiestos sin duplicar todo el contenido. La idea es sencilla: se define una base común y luego se aplican parches o variaciones por caso. En el proyecto, esto resulta útil porque las pruebas son casi iguales para todos los CNIs; lo que cambia es el CNI activo, algunas etiquetas, parámetros o rutas de resultados. Repetir todos los YAML completos para cada CNI haría más difícil mantener la implementación y aumentaría el riesgo de errores.
+
+Los overlays por CNI permiten que Calico, Cilium, Antrea y Flannel se desplieguen o evalúen bajo una estructura comparable. Esta decisión conserva el principio de justicia experimental: no se debe probar un CNI con una aplicación o configuración diferente a la de los demás. Las variaciones necesarias se aíslan en el overlay, mientras la lógica común de pruebas se mantiene en la base.
+
+Para el lector, conviene pensar en Kustomize como una plantilla con adaptadores. La plantilla define la prueba general; el adaptador define qué cambia para un CNI particular. Esta forma de implementación es más clara que tener cuatro carpetas completamente independientes, porque muestra qué parte del experimento es común y qué parte pertenece a cada CNI.
+
+\subsection{4.16 Implementación del banco de pruebas de throughput}
+
+El banco de pruebas de throughput se implementó en \texttt{K8s-Tesis-Apps/cni\_test\_iperf}. Allí se encuentran el namespace de pruebas, el servidor iperf3, el cliente programado, el cliente de latencia y la configuración necesaria para publicar resultados. El servidor iperf3 se mantiene disponible mediante un Deployment y se expone internamente con un Service. Esto significa que el cliente no necesita conocer la IP cambiante del Pod servidor; solo necesita resolver el nombre estable del servicio.
+
+El cliente iperf3 se implementó como CronJob. La decisión de usar CronJob es central para la repetibilidad: Kubernetes ejecuta la prueba automáticamente en horarios definidos. En la configuración revisada, el cliente de throughput se programa en los minutos 0 y 30 de cada hora, con \texttt{concurrencyPolicy: Forbid}. Esto evita que una prueba nueva empiece si la anterior aún no termina. Así se reducen solapamientos que podrían contaminar los resultados.
+
+Cada corrida de iperf3 dura 300 segundos y produce salida en JSON. El script dentro del contenedor instala dependencias mínimas, ejecuta iperf3 contra el servidor interno, extrae datos como \texttt{sender\_bits\_per\_second}, \texttt{receiver\_bits\_per\_second} y retransmisiones, y genera un archivo normalizado. Esta normalización es útil porque los resultados crudos de iperf3 pueden contener muchos campos, pero el modelo necesita un subconjunto estable y comparable.
+
+La anti-afinidad del cliente frente al servidor se implementó para forzar tráfico inter-nodo. Esta decisión merece resaltarse porque cambia por completo el valor de la prueba. Si cliente y servidor quedan en el mismo nodo, el tráfico no representa la comunicación entre máquinas y puede no atravesar el dataplane del CNI de la misma forma. Con anti-afinidad, Kubernetes prefiere ubicar el cliente en un nodo distinto al servidor, obligando a que los paquetes viajen por la red entre nodos y por el mecanismo de encapsulación o ruteo correspondiente.
+
+\subsection{4.17 Implementación del banco de pruebas de latencia}
+
+La prueba de latencia también se implementó como CronJob, pero con una ventana separada de la prueba de throughput. En la configuración revisada, se ejecuta en los minutos 10 y 40 de cada hora. Esta separación evita que la medición de latencia coincida exactamente con el inicio de la prueba de throughput, reduciendo interferencia directa entre ambas mediciones.
+
+El cliente de latencia usa conexiones TCP hacia el puerto del servidor iperf3. En cada ejecución toma 30 muestras. Para cada muestra, registra el tiempo antes de intentar la conexión, ejecuta la prueba de conectividad y calcula la diferencia en milisegundos. Si la conexión falla, la muestra queda marcada como fallida. Al final, el script calcula mínimo, promedio, máximo, desviación y porcentaje de pérdida o falla.
+
+Esta prueba es fácil de entender si se piensa como tocar una puerta repetidamente y medir cuánto tarda en abrir. No mide toda la complejidad de una aplicación real, pero sí entrega una señal comparable del tiempo necesario para establecer comunicación entre Pods. En microservicios, donde muchas llamadas internas dependen de conexiones de red, esta señal ayuda a entender el costo base de comunicación impuesto por el entorno.
+
+El JSON normalizado de latencia conserva campos como \texttt{tcp\_connect\_avg\_ms}, \texttt{tcp\_connect\_min\_ms}, \texttt{tcp\_connect\_max\_ms}, \texttt{tcp\_connect\_mdev\_ms}, muestras intentadas y muestras exitosas. Estos campos alimentan el procesamiento estadístico y permiten que el modelo no dependa solo del promedio.
+
+\subsection{4.18 Implementación de observabilidad y extracción de recursos}
+
+El stack de observabilidad se implementó con Prometheus y Grafana para medir el costo computacional de la red. Medir únicamente throughput y latencia respondería qué tan rápido se mueve el tráfico, pero no cuánto esfuerzo necesita el clúster para moverlo. Esta segunda pregunta es necesaria porque uno de los problemas del anteproyecto es el sobredimensionamiento de infraestructura \cite{ref29}.
+
+Prometheus actúa como recolector de métricas. Consulta periódicamente fuentes del clúster y almacena series temporales. Grafana permite visualizar esas series, pero la tesis necesita algo más que gráficas en pantalla: necesita archivos que puedan procesarse y citarse como evidencia. Por eso se implementó un exporter de recursos.
+
+El \texttt{cni-resource-usage-exporter} también se ejecuta como CronJob. Su programación ocurre después de las ventanas de pruebas de throughput y latencia, en los minutos 25 y 55. Esta decisión busca capturar una ventana temporal que incluya el comportamiento antes, durante y después de los benchmarks. El exporter consulta Prometheus, genera archivos raw, CSV, imágenes y resúmenes humanos en Markdown.
+
+Las consultas revisadas capturan CPU por nodo, porcentaje de memoria usada y memoria usada en bytes. Luego convierten las respuestas de Prometheus a TSV/CSV, calculan promedios y máximos por nodo, y escriben un resumen legible. Esta implementación tiene dos ventajas: produce datos para el procesador y también produce archivos que un lector humano puede revisar sin ejecutar consultas PromQL.
+
+\subsection{4.19 Implementación del repositorio de resultados}
+
+El repositorio \texttt{K8S-CNI-Results} funciona como bodega de evidencia. Allí se guardan los resultados por CNI y por tipo de prueba. La estructura típica separa \texttt{throughput\_tcp}, \texttt{latency\_tcp\_connect}, \texttt{resource\_usage\_nodes} y, cuando aplica, \texttt{with\_network\_policy}. Esta organización permite ubicar rápidamente qué se midió, con qué CNI y bajo qué escenario.
+
+Guardar resultados en archivos tiene una ventaja académica: cada corrida queda como evidencia individual. El procesamiento posterior puede calcular promedios y limpiar outliers, pero los archivos originales permanecen disponibles para auditoría. Esto evita que el capítulo de resultados dependa de números copiados manualmente en una tabla. La evidencia está en el repositorio y el cálculo puede repetirse.
+
+La retención máxima de corridas se configuró para mantener un conjunto manejable de resultados recientes. En las pruebas de throughput y latencia se observa una retención máxima de cinco corridas. Esto coincide con la metodología descrita en los documentos base: no tomar una sola medición, sino varias repeticiones que permitan obtener una medida más estable.
+
+El flujo de publicación hacia el repositorio de resultados convierte el clúster en un generador automático de datos. Cada CronJob produce su evidencia, la normaliza y la deposita en una estructura conocida. Después, el procesador puede recorrer carpetas sin intervención manual. Esta automatización reduce errores humanos y mantiene consistencia entre CNIs.
+
+\subsection{4.20 Implementación del procesamiento estadístico}
+
+El archivo \texttt{docs/procesador.js} implementa la transformación de datos crudos a datos consolidados. Su primera tarea es descubrir automáticamente qué CNIs tienen resultados disponibles. Para ello lee las carpetas bajo \texttt{results/cni-benchmarks}. Esta decisión evita codificar de forma rígida una lista cerrada; si aparece una carpeta nueva con otro CNI, el procesador puede detectarla siempre que respete la estructura esperada.
+
+La segunda tarea es extraer métricas de JSON y CSV. En JSON, busca rutas como \texttt{summary.receiver\_bits\_per\_second} para throughput o \texttt{tcp\_connect\_avg\_ms} para latencia. En CSV, lee archivos como \texttt{cpu\_pct.csv} o \texttt{mem\_used\_bytes.csv}. Esta combinación permite integrar datos de red y datos de recursos en un solo objeto consolidado.
+
+La tercera tarea es limpiar datos con IQR. El procesador ordena valores, calcula cuartiles, obtiene el rango intercuartílico y descarta valores fuera de los límites. Esta limpieza no busca maquillar resultados; busca reducir el efecto de anomalías puntuales que no representan el comportamiento típico de un CNI. En una red cloud, un pico aislado puede aparecer por razones externas al experimento. El filtro permite que el promedio final sea más representativo.
+
+La cuarta tarea es calcular overhead de seguridad. Cuando existen carpetas bajo \texttt{with\_network\_policy}, el procesador compara la métrica base contra la métrica con política activa. Para latencia, calcula aumento porcentual; para throughput, calcula pérdida porcentual. Esto permite responder una pregunta importante: cuánto cuesta aplicar seguridad en cada CNI.
+
+\subsection{4.21 Implementación del prototipo recomendador}
+
+El prototipo recomendador se implementó como una aplicación web en \texttt{K8S-CNI-Results/cni-recommender-spa}. La estructura revisada incluye componentes como \texttt{ProfileSelector}, \texttt{GuidedProfileBuilder}, \texttt{ResultsEngine}, \texttt{ScoreChart}, \texttt{ImplementationSteps} y \texttt{CodeBlock}. Esta separación facilita que la aplicación sea comprensible: un componente selecciona el perfil, otro guía al usuario, otro calcula o presenta resultados, otro grafica puntajes y otro muestra pasos de implementación.
+
+La lógica de recomendación se concentra en \texttt{recommendationModel.js}. Esto evita dispersar reglas de decisión en toda la interfaz. Desde el punto de vista de ingeniería, es una buena separación: la interfaz muestra y recoge preferencias, mientras el modelo calcula. Si más adelante cambian los pesos, los criterios o los umbrales, se puede modificar el modelo sin reescribir toda la aplicación.
+
+El prototipo se diseñó como SPA con React y Vite. Esta elección permite una experiencia interactiva sencilla: el usuario selecciona prioridades, observa puntajes y recibe una recomendación. Para la tesis, el prototipo demuestra que el modelo no quedó solo como una fórmula en papel; se convirtió en una herramienta funcional que traduce resultados técnicos en una recomendación usable.
+
+Un punto importante de lectura es que el prototipo no pretende ocultar la complejidad. Al contrario, la organiza. Kubernetes, CNI, NetworkPolicies, throughput, latencia y MCDA son conceptos densos; la interfaz los convierte en preguntas y resultados que una persona puede interpretar. Por eso el prototipo es parte de la implementación y no un accesorio visual.
+
+\subsection{4.22 Implementación de NetworkPolicies en escenarios de prueba}
+
+La implementación de NetworkPolicies se organiza alrededor de tres escenarios: default deny, segmentación multi-capa y restricción de egress. Estos escenarios fueron elegidos porque representan problemas comunes de seguridad en Kubernetes. Default deny cierra la red por defecto; multi-capa controla quién puede hablar con quién dentro de una aplicación; egress limita salidas no autorizadas hacia el exterior.
+
+Para Flannel, la implementación documenta una limitación estructural: no aplica NetworkPolicies por sí mismo. Esta decisión debe quedar clara para el lector. No significa que Flannel sea inútil; significa que su propuesta principal es conectividad simple, y que la seguridad de políticas requiere complementos adicionales o una solución distinta. En el modelo de recomendación, esa limitación debe penalizarlo en perfiles donde la micro-segmentación es obligatoria.
+
+Para Calico, Cilium y Antrea, los escenarios de política permiten medir tanto funcionalidad como costo. Primero se valida que la política haga lo que promete: bloquear lo no permitido y dejar pasar lo autorizado. Luego se mide el rendimiento con las políticas activas. Esta doble validación evita una conclusión incompleta. Una política que no bloquea no sirve, aunque sea rápida; una política que bloquea correctamente pero destruye el rendimiento puede ser inviable para producción.
+
+El caso multi-capa es especialmente didáctico. Un lector puede imaginar una aplicación con tres partes: interfaz, lógica y base de datos. La regla correcta es que la interfaz hable con la lógica, la lógica con la base de datos y nadie salte directamente a la base de datos. Kubernetes implementa esta idea con labels y reglas, no con cables físicos ni direcciones fijas. Esa diferencia muestra por qué la seguridad cloud-native requiere pensar en identidades lógicas.
+
+\subsection{4.23 Flujo completo de ejecución}
+
+El flujo completo de implementación puede resumirse en una secuencia única. Primero, Terraform prepara la infraestructura. Segundo, se instala K3s y se obtiene acceso al clúster. Tercero, se instala ArgoCD. Cuarto, ArgoCD sincroniza las aplicaciones declaradas. Quinto, se activa el CNI a evaluar. Sexto, los Pods de prueba quedan listos. Séptimo, los CronJobs ejecutan throughput, latencia y exportación de recursos. Octavo, los resultados se guardan en \texttt{K8S-CNI-Results}. Noveno, \texttt{procesador.js} consolida los datos. Décimo, el prototipo recomendador consume esos datos y presenta la recomendación.
+
+Esta secuencia permite que el capítulo de implementación sea leído como una historia de extremo a extremo. No se trata de aprender todos los comandos de Kubernetes, sino de entender cómo cada parte empuja la investigación hacia el siguiente paso. La infraestructura permite correr el clúster; el clúster permite instalar CNIs; los CNIs permiten mover tráfico; los CronJobs generan mediciones; Prometheus observa recursos; el procesador limpia datos; el prototipo convierte datos en decisión.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\caption{Flujo de implementación de extremo a extremo.}
+\label{tab:flujo-implementacion}
+\begin{tabularx}{\textwidth}{|Y|Y|Y|}
+\hline
+\textbf{Etapa} & \textbf{Elemento implementado} & \textbf{Resultado esperado} \\
+\hline
+Infraestructura & Terraform y DigitalOcean. & Nodos, red privada y acceso base al entorno. \\
+\hline
+Clúster & K3s en alta disponibilidad. & Plataforma Kubernetes para ejecutar pruebas. \\
+\hline
+Entrega continua & ArgoCD y App of Apps. & Sincronización declarativa de aplicaciones y manifiestos. \\
+\hline
+CNI & Flannel, Calico, Cilium o Antrea. & Plano de red activo para el escenario evaluado. \\
+\hline
+Benchmark & iperf3 y cliente de latencia como CronJobs. & Resultados JSON normalizados por corrida. \\
+\hline
+Observabilidad & Prometheus, Grafana y exporter. & Métricas de CPU y memoria en CSV, raw, imágenes y resumen. \\
+\hline
+Procesamiento & \texttt{procesador.js}. & Datos consolidados, limpios y listos para análisis. \\
+\hline
+Recomendación & SPA React. & Ranking y recomendación según perfil de uso. \\
+\hline
+\end{tabularx}
+\end{table*}
+
+\subsection{4.24 Decisiones para mantener legibilidad y mantenibilidad}
+
+La implementación se mantuvo legible separando responsabilidades por repositorio y por carpeta. \texttt{K8s-bootstrap} responde a la pregunta de cómo se crea el entorno. \texttt{K8s-Tesis-Apps} responde a qué se despliega en Kubernetes. \texttt{K8S-CNI-Results} responde a dónde queda la evidencia y cómo se presenta. Esta separación ayuda a cualquier lector o evaluador a ubicarse rápidamente.
+
+También se evitó depender de una única prueba. La implementación ejecuta varias corridas, guarda resultados individuales y procesa promedios limpios. Esto mejora la confianza en los números y permite revisar casos fallidos. Además, los CronJobs tienen políticas de concurrencia y retención, lo cual reduce el desorden operativo dentro del namespace de pruebas.
+
+Otra decisión de mantenibilidad fue generar JSON normalizados. Cada herramienta puede producir salidas distintas, pero el procesador necesita entradas estables. Al normalizar desde el CronJob, se reduce la complejidad del procesamiento posterior. El resultado es un contrato de datos: cada corrida debe entregar campos conocidos para que el pipeline funcione.
+
+Finalmente, la implementación se documentó de manera que pueda ser explicada sin asumir que el lector domina Kubernetes. Los nombres de carpetas, objetos y componentes se conservan, pero se acompañan con su función. Esto es importante para una tesis de ingeniería: el capítulo debe demostrar rigor técnico, pero también debe permitir que un jurado o lector entienda por qué cada decisión existe y qué problema resuelve.
