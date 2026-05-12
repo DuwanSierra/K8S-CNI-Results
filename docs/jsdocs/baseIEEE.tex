@@ -1,0 +1,922 @@
+%% bare_jrnl.tex
+%% V1.4b
+%% 2015/08/26
+%% by Michael Shell
+%% see http://www.michaelshell.org/
+%% for current contact information.
+%%
+%% This is a skeleton file demonstrating the use of IEEEtran.cls
+%% (requires IEEEtran.cls version 1.8b or later) with an IEEE
+%% journal paper.
+%%
+%% Support sites:
+%% http://www.michaelshell.org/tex/ieeetran/
+%% http://www.ctan.org/pkg/ieeetran
+%% and
+%% http://www.ieee.org/
+
+%%*************************************************************************
+%% Legal Notice:
+%% This code is offered as-is without any warranty either expressed or
+%% implied; without even the implied warranty of MERCHANTABILITY or
+%% FITNESS FOR A PARTICULAR PURPOSE! 
+%% User assumes all risk.
+%% In no event shall the IEEE or any contributor to this code be liable for
+%% any damages or losses, including, but not limited to, incidental,
+%% consequential, or any other damages, resulting from the use or misuse
+%% of any information contained here.
+%%
+%% All comments are the opinions of their respective authors and are not
+%% necessarily endorsed by the IEEE.
+%%
+%% This work is distributed under the LaTeX Project Public License (LPPL)
+%% ( http://www.latex-project.org/ ) version 1.3, and may be freely used,
+%% distributed and modified. A copy of the LPPL, version 1.3, is included
+%% in the base LaTeX documentation of all distributions of LaTeX released
+%% 2003/12/01 or later.
+%% Retain all contribution notices and credits.
+%% ** Modified files should be clearly indicated as such, including  **
+%% ** renaming them and changing author support contact information. **
+%%*************************************************************************
+
+
+% *** Authors should verify (and, if needed, correct) their LaTeX system  ***
+% *** with the testflow diagnostic prior to trusting their LaTeX platform ***
+% *** with production work. The IEEE's font choices and paper sizes can   ***
+% *** trigger bugs that do not appear when using other class files.       ***                          ***
+% The testflow support page is at:
+% http://www.michaelshell.org/tex/testflow/
+
+
+
+\documentclass[journal]{IEEEtran}
+%
+% If IEEEtran.cls has not been installed into the LaTeX system files,
+% manually specify the path to it like:
+% \documentclass[journal]{../sty/IEEEtran}
+
+
+
+
+
+% Some very useful LaTeX packages include:
+% (uncomment the ones you want to load)
+
+
+% *** MISC UTILITY PACKAGES ***
+%
+%\usepackage{ifpdf}
+\usepackage{url}
+% Heiko Oberdiek's ifpdf.sty is very useful if you need conditional
+% compilation based on whether the output is pdf or dvi.
+% usage:
+% \ifpdf
+%   % pdf code
+% \else
+%   % dvi code
+% \fi
+% The latest version of ifpdf.sty can be obtained from:
+% http://www.ctan.org/pkg/ifpdf
+% Also, note that IEEEtran.cls V1.7 and later provides a builtin
+% \ifCLASSINFOpdf conditional that works the same way.
+% When switching from latex to pdflatex and vice-versa, the compiler may
+% have to be run twice to clear warning/error messages.
+
+
+
+
+
+
+% *** CITATION PACKAGES ***
+%
+%\usepackage{cite}
+% cite.sty was written by Donald Arseneau
+% V1.6 and later of IEEEtran pre-defines the format of the cite.sty package
+% \cite{} output to follow that of the IEEE. Loading the cite package will
+% result in citation numbers being automatically sorted and properly
+% "compressed/ranged". e.g., [1], [9], [2], [7], [5], [6] without using
+% cite.sty will become [1], [2], [5]--[7], [9] using cite.sty. cite.sty's
+% \cite will automatically add leading space, if needed. Use cite.sty's
+% noadjust option (cite.sty V3.8 and later) if you want to turn this off
+% such as if a citation ever needs to be enclosed in parenthesis.
+% cite.sty is already installed on most LaTeX systems. Be sure and use
+% version 5.0 (2009-03-20) and later if using hyperref.sty.
+% The latest version can be obtained at:
+% http://www.ctan.org/pkg/cite
+% The documentation is contained in the cite.sty file itself.
+
+
+
+
+
+
+% *** GRAPHICS RELATED PACKAGES ***
+%
+\usepackage{svg}      % para \includesvg
+\ifCLASSINFOpdf
+  % \usepackage[pdftex]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../pdf/}{../jpeg/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+\else
+  % or other class option (dvipsone, dvipdf, if not using dvips). graphicx
+  % will default to the driver specified in the system graphics.cfg if no
+  % driver is specified.
+  % \usepackage[dvips]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../eps/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.eps}
+\fi
+% graphicx was written by David Carlisle and Sebastian Rahtz. It is
+% required if you want graphics, photos, etc. graphicx.sty is already
+% installed on most LaTeX systems. The latest version and documentation
+% can be obtained at: 
+% http://www.ctan.org/pkg/graphicx
+% Another good source of documentation is "Using Imported Graphics in
+% LaTeX2e" by Keith Reckdahl which can be found at:
+% http://www.ctan.org/pkg/epslatex
+%
+% latex, and pdflatex in dvi mode, support graphics in encapsulated
+% postscript (.eps) format. pdflatex in pdf mode supports graphics
+% in .pdf, .jpeg, .png and .mps (metapost) formats. Users should ensure
+% that all non-photo figures use a vector format (.eps, .pdf, .mps) and
+% not a bitmapped formats (.jpeg, .png). The IEEE frowns on bitmapped formats
+% which can result in "jaggedy"/blurry rendering of lines and letters as
+% well as large increases in file sizes.
+%
+% You can find documentation about the pdfTeX application at:
+% http://www.tug.org/applications/pdftex
+
+
+
+
+
+% *** MATH PACKAGES ***
+%
+%\usepackage{amsmath}
+% A popular package from the American Mathematical Society that provides
+% many useful and powerful commands for dealing with mathematics.
+%
+% Note that the amsmath package sets \interdisplaylinepenalty to 10000
+% thus preventing page breaks from occurring within multiline equations. Use:
+%\interdisplaylinepenalty=2500
+% after loading amsmath to restore such page breaks as IEEEtran.cls normally
+% does. amsmath.sty is already installed on most LaTeX systems. The latest
+% version and documentation can be obtained at:
+% http://www.ctan.org/pkg/amsmath
+
+
+
+
+
+% *** SPECIALIZED LIST PACKAGES ***
+%
+%\usepackage{algorithmic}
+% algorithmic.sty was written by Peter Williams and Rogerio Brito.
+% This package provides an algorithmic environment fo describing algorithms.
+% You can use the algorithmic environment in-text or within a figure
+% environment to provide for a floating algorithm. Do NOT use the algorithm
+% floating environment provided by algorithm.sty (by the same authors) or
+% algorithm2e.sty (by Christophe Fiorio) as the IEEE does not use dedicated
+% algorithm float types and packages that provide these will not provide
+% correct IEEE style captions. The latest version and documentation of
+% algorithmic.sty can be obtained at:
+% http://www.ctan.org/pkg/algorithms
+% Also of interest may be the (relatively newer and more customizable)
+% algorithmicx.sty package by Szasz Janos:
+% http://www.ctan.org/pkg/algorithmicx
+
+
+
+
+% *** ALIGNMENT PACKAGES ***
+%
+%\usepackage{array}
+% Frank Mittelbach's and David Carlisle's array.sty patches and improves
+% the standard LaTeX2e array and tabular environments to provide better
+% appearance and additional user controls. As the default LaTeX2e table
+% generation code is lacking to the point of almost being broken with
+% respect to the quality of the end results, all users are strongly
+% advised to use an enhanced (at the very least that provided by array.sty)
+% set of table tools. array.sty is already installed on most systems. The
+% latest version and documentation can be obtained at:
+% http://www.ctan.org/pkg/array
+
+
+% IEEEtran contains the IEEEeqnarray family of commands that can be used to
+% generate multiline equations as well as matrices, tables, etc., of high
+% quality.
+
+
+
+
+% *** SUBFIGURE PACKAGES ***
+%\ifCLASSOPTIONcompsoc
+%  \usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
+%\else
+%  \usepackage[caption=false,font=footnotesize]{subfig}
+%\fi
+% subfig.sty, written by Steven Douglas Cochran, is the modern replacement
+% for subfigure.sty, the latter of which is no longer maintained and is
+% incompatible with some LaTeX packages including fixltx2e. However,
+% subfig.sty requires and automatically loads Axel Sommerfeldt's caption.sty
+% which will override IEEEtran.cls' handling of captions and this will result
+% in non-IEEE style figure/table captions. To prevent this problem, be sure
+% and invoke subfig.sty's "caption=false" package option (available since
+% subfig.sty version 1.3, 2005/06/28) as this is will preserve IEEEtran.cls
+% handling of captions.
+% Note that the Computer Society format requires a larger sans serif font
+% than the serif footnote size font used in traditional IEEE formatting
+% and thus the need to invoke different subfig.sty package options depending
+% on whether compsoc mode has been enabled.
+%
+% The latest version and documentation of subfig.sty can be obtained at:
+% http://www.ctan.org/pkg/subfig
+
+
+
+
+% *** FLOAT PACKAGES ***
+%
+%\usepackage{fixltx2e}
+% fixltx2e, the successor to the earlier fix2col.sty, was written by
+% Frank Mittelbach and David Carlisle. This package corrects a few problems
+% in the LaTeX2e kernel, the most notable of which is that in current
+% LaTeX2e releases, the ordering of single and double column floats is not
+% guaranteed to be preserved. Thus, an unpatched LaTeX2e can allow a
+% single column figure to be placed prior to an earlier double column
+% figure.
+% Be aware that LaTeX2e kernels dated 2015 and later have fixltx2e.sty's
+% corrections already built into the system in which case a warning will
+% be issued if an attempt is made to load fixltx2e.sty as it is no longer
+% needed.
+% The latest version and documentation can be found at:
+% http://www.ctan.org/pkg/fixltx2e
+
+
+%\usepackage{stfloats}
+% stfloats.sty was written by Sigitas Tolusis. This package gives LaTeX2e
+% the ability to do double column floats at the bottom of the page as well
+% as the top. (e.g., "\begin{figure*}[!b]" is not normally possible in
+% LaTeX2e). It also provides a command:
+%\fnbelowfloat
+% to enable the placement of footnotes below bottom floats (the standard
+% LaTeX2e kernel puts them above bottom floats). This is an invasive package
+% which rewrites many portions of the LaTeX2e float routines. It may not work
+% with other packages that modify the LaTeX2e float routines. The latest
+% version and documentation can be obtained at:
+% http://www.ctan.org/pkg/stfloats
+% Do not use the stfloats baselinefloat ability as the IEEE does not allow
+% \baselineskip to stretch. Authors submitting work to the IEEE should note
+% that the IEEE rarely uses double column equations and that authors should try
+% to avoid such use. Do not be tempted to use the cuted.sty or midfloat.sty
+% packages (also by Sigitas Tolusis) as the IEEE does not format its papers in
+% such ways.
+% Do not attempt to use stfloats with fixltx2e as they are incompatible.
+% Instead, use Morten Hogholm'a dblfloatfix which combines the features
+% of both fixltx2e and stfloats:
+%
+% \usepackage{dblfloatfix}
+% The latest version can be found at:
+% http://www.ctan.org/pkg/dblfloatfix
+
+
+
+
+%\ifCLASSOPTIONcaptionsoff
+%  \usepackage[nomarkers]{endfloat}
+% \let\MYoriglatexcaption\caption
+% \renewcommand{\caption}[2][\relax]{\MYoriglatexcaption[#2]{#2}}
+%\fi
+% endfloat.sty was written by James Darrell McCauley, Jeff Goldberg and 
+% Axel Sommerfeldt. This package may be useful when used in conjunction with 
+% IEEEtran.cls'  captionsoff option. Some IEEE journals/societies require that
+% submissions have lists of figures/tables at the end of the paper and that
+% figures/tables without any captions are placed on a page by themselves at
+% the end of the document. If needed, the draftcls IEEEtran class option or
+% \CLASSINPUTbaselinestretch interface can be used to increase the line
+% spacing as well. Be sure and use the nomarkers option of endfloat to
+% prevent endfloat from "marking" where the figures would have been placed
+% in the text. The two hack lines of code above are a slight modification of
+% that suggested by in the endfloat docs (section 8.4.1) to ensure that
+% the full captions always appear in the list of figures/tables - even if
+% the user used the short optional argument of \caption[]{}.
+% IEEE papers do not typically make use of \caption[]'s optional argument,
+% so this should not be an issue. A similar trick can be used to disable
+% captions of packages such as subfig.sty that lack options to turn off
+% the subcaptions:
+% For subfig.sty:
+% \let\MYorigsubfloat\subfloat
+% \renewcommand{\subfloat}[2][\relax]{\MYorigsubfloat[]{#2}}
+% However, the above trick will not work if both optional arguments of
+% the \subfloat command are used. Furthermore, there needs to be a
+% description of each subfigure *somewhere* and endfloat does not add
+% subfigure captions to its list of figures. Thus, the best approach is to
+% avoid the use of subfigure captions (many IEEE journals avoid them anyway)
+% and instead reference/explain all the subfigures within the main caption.
+% The latest version of endfloat.sty and its documentation can obtained at:
+% http://www.ctan.org/pkg/endfloat
+%
+% The IEEEtran \ifCLASSOPTIONcaptionsoff conditional can also be used
+% later in the document, say, to conditionally put the References on a 
+% page by themselves.
+
+
+
+
+% *** PDF, URL AND HYPERLINK PACKAGES ***
+%
+%\usepackage{url}
+% url.sty was written by Donald Arseneau. It provides better support for
+% handling and breaking URLs. url.sty is already installed on most LaTeX
+% systems. The latest version and documentation can be obtained at:
+% http://www.ctan.org/pkg/url
+% Basically, \url{my_url_here}.
+
+
+
+
+% *** Do not adjust lengths that control margins, column widths, etc. ***
+% *** Do not use packages that alter fonts (such as pslatex).         ***
+% There should be no need to do such things with IEEEtran.cls V1.6 and later.
+% (Unless specifically asked to do so by the journal or conference you plan
+% to submit to, of course. )
+
+
+% correct bad hyphenation here
+\hyphenation{op-tical net-works semi-conduc-tor}
+
+
+\begin{document}
+%
+% paper title
+% Titles are generally capitalized except for words such as a, an, and, as,
+% at, but, by, for, in, nor, of, on, or, the, to and up, which are usually
+% not capitalized unless they are the first or last word of the title.
+% Linebreaks \\ can be used within to get better formatting as desired.
+% Do not put math or special symbols in the title.
+\title{Bare Demo of IEEEtran.cls\\ for IEEE Journals}
+%
+%
+% author names and IEEE memberships
+% note positions of commas and nonbreaking spaces ( ~ ) LaTeX will not break
+% a structure at a ~ so this keeps an author's name from being broken across
+% two lines.
+% use \thanks{} to gain access to the first footnote area
+% a separate \thanks must be used for each paragraph as LaTeX2e's \thanks
+% was not built to handle multiple paragraphs
+%
+
+\author{Michael~Shell,~\IEEEmembership{Member,~IEEE,}
+        John~Doe,~\IEEEmembership{Fellow,~OSA,}
+        and~Jane~Doe,~\IEEEmembership{Life~Fellow,~IEEE}% <-this % stops a space
+\thanks{M. Shell was with the Department
+of Electrical and Computer Engineering, Georgia Institute of Technology, Atlanta,
+GA, 30332 USA e-mail: (see http://www.michaelshell.org/contact.html).}% <-this % stops a space
+\thanks{J. Doe and J. Doe are with Anonymous University.}% <-this % stops a space
+\thanks{Manuscript received April 19, 2005; revised August 26, 2015.}}
+
+% note the % following the last \IEEEmembership and also \thanks - 
+% these prevent an unwanted space from occurring between the last author name
+% and the end of the author line. i.e., if you had this:
+% 
+% \author{....lastname \thanks{...} \thanks{...} }
+%                     ^------------^------------^----Do not want these spaces!
+%
+% a space would be appended to the last name and could cause every name on that
+% line to be shifted left slightly. This is one of those "LaTeX things". For
+% instance, "\textbf{A} \textbf{B}" will typeset as "A B" not "AB". To get
+% "AB" then you have to do: "\textbf{A}\textbf{B}"
+% \thanks is no different in this regard, so shield the last } of each \thanks
+% that ends a line with a % and do not let a space in before the next \thanks.
+% Spaces after \IEEEmembership other than the last one are OK (and needed) as
+% you are supposed to have spaces between the names. For what it is worth,
+% this is a minor point as most people would not even notice if the said evil
+% space somehow managed to creep in.
+
+
+
+% The paper headers
+\markboth{Journal of \LaTeX\ Class Files,~Vol.~14, No.~8, August~2015}%
+{Shell \MakeLowercase{\textit{et al.}}: Bare Demo of IEEEtran.cls for IEEE Journals}
+% The only time the second header will appear is for the odd numbered pages
+% after the title page when using the twoside option.
+% 
+% *** Note that you probably will NOT want to include the author's ***
+% *** name in the headers of peer review papers.                   ***
+% You can use \ifCLASSOPTIONpeerreview for conditional compilation here if
+% you desire.
+
+
+
+
+% If you want to put a publisher's ID mark on the page you can do it like
+% this:
+%\IEEEpubid{0000--0000/00\$00.00~\copyright~2015 IEEE}
+% Remember, if you use this you must call \IEEEpubidadjcol in the second
+% column for its text to clear the IEEEpubid mark.
+
+
+
+% use for special paper notices
+%\IEEEspecialpapernotice{(Invited Paper)}
+
+
+
+
+% make the title area
+\maketitle
+
+% As a general rule, do not put math, special symbols or citations
+% in the abstract or keywords.
+\begin{abstract}
+The abstract goes here.
+\end{abstract}
+
+% Note that keywords are not normally used for peerreview papers.
+\begin{IEEEkeywords}
+IEEE, IEEEtran, journal, \LaTeX, paper, template.
+\end{IEEEkeywords}
+
+
+
+
+
+
+% For peer review papers, you can put extra information on the cover
+% page as needed:
+% \ifCLASSOPTIONpeerreview
+% \begin{center} \bfseries EDICS Category: 3-BBND \end{center}
+% \fi
+%
+% For peerreview papers, this IEEEtran command inserts a page break and
+% creates the second title. It will be ignored for other modes.
+\IEEEpeerreviewmaketitle
+
+
+
+\section{Marco teórico}
+% The very first letter is a 2 line initial drop letter followed
+% by the rest of the first word in caps.
+% 
+% form to use if the first word consists of a single letter:
+% \IEEEPARstart{A}{demo} file is ....
+% 
+% form to use if you need the single drop letter followed by
+% normal text (unknown if ever used by the IEEE):
+% \IEEEPARstart{A}{}demo file is ....
+% 
+% Some journals put the first two words in caps:
+% \IEEEPARstart{T}{his demo} file is ....
+\subsection{K8s Networking ¿cómo se comunican las cosas dentro y fuera del clúster?}
+
+\begin{figure}[htbp]
+  \centering
+  \includesvg[width=\linewidth]{./fig/kubernetes-cluster-network}
+  \caption{Topología de red de un clúster de Kubernetes (adaptado de \cite{ref2}).}
+  \label{fig:k8s-cluster-network}
+\end{figure}
+
+\medskip
+\subsubsection{Mapa mental de redes en Kubernetes (analogía de ciudad)}
+
+Un clúster puede conceptualizarse como una ciudad organizada: los \emph{Pods} son las “viviendas” donde se ejecuta la aplicación; los \emph{Nodes} agrupan múltiples viviendas y proveen recursos comunes; los \emph{Services} operan como una central con un número estable para localizar réplicas; y \emph{Ingress/Gateway} implementan el acceso controlado desde el exterior (Internet), actuando como portería y punto de gobierno del tráfico.
+
+\medskip
+\subsubsection{Pods = casas (identidad y direcciones)}
+
+Kubernetes adopta el modelo \emph{IP-por-Pod}: cada Pod obtiene su propia dirección IP, habilitando comunicación directa entre cargas sin traductores intermedios. Dado que la identidad del Pod es efímera —las réplicas se crean, destruyen y sustituyen de manera dinámica— la plataforma requiere abstracciones estables para descubrimiento y direccionamiento consistentes hacia los destinos correctos [2].
+
+\medskip
+\subsubsection{Nodes = barrios (agrupación y recursos comunes)}
+
+Un Node hospeda múltiples Pods y suministra CPU, memoria y conectividad. En este nivel se sostienen las rutas y los mecanismos de reenvío que aseguran la entrega de paquetes al Pod adecuado, conforme al modelo de red del clúster (alcance entre Pods, no superposición de rangos, conectividad \emph{east--west}) descrito por Kubernetes [2].
+
+\medskip
+\subsubsection{Services = central telefónica (número estable y reparto)}
+
+Un Service expone un identificador estable (p.,ej., \emph{ClusterIP} o IP virtual) que funciona como “número de central” para un conjunto de Pods equivalentes. El cliente se conecta a ese número y la plataforma balancea hacia una de las réplicas disponibles, desacoplando a los consumidores de los cambios en el ciclo de vida de los Pods [3], [13].
+Para mantener actualizada la relación de destinos, Kubernetes emplea \emph{EndpointSlices}, que enumeran direcciones y puertos de los Pods que respaldan un Service, mejorando la escalabilidad y reduciendo la sobrecarga de control frente a los \emph{Endpoints} tradicionales [1].
+
+\medskip
+\subsubsection{Ingress / Gateway = portería del conjunto (entrada ordenada desde la calle)}
+
+El tráfico externo no accede directamente a los Pods: ingresa mediante una capa de entrada. Con \emph{Gateway API} se formalizan roles (infraestructura, operador, equipo de aplicación) y reglas L7 (host, rutas, TLS) para decidir por qué puerta se entra y a qué Service debe encaminarse cada solicitud [17]. Esta capa organiza el ingreso HTTP/HTTPS y refuerza la separación de responsabilidades sin exponer puertos arbitrarios.
+
+\medskip
+\subsubsection{Calles y cableado: CNI (cómo se conectan barrios y casas)}
+
+La malla vial la provee \emph{Container Network Interface} (CNI): un conjunto de plugins intercambiables que conectan Pods y Nodes, asignan IPs y programan rutas. Kubernetes requiere un plugin compatible para la conectividad básica; la especificación CNI define cómo el \emph{runtime} solicita “conectar una vivienda” (interfaces, IP y rutas) y cómo liberar recursos al eliminarla [4], [18].
+A modo ilustrativo, \emph{host-local} (asignación local de direcciones) y \emph{port-map} (traducción de puertos con el host) muestran que CNI cubre identidad y conectividad de red, no funciones avanzadas de capa 7 [20], [21].
+
+\medskip
+\subsubsection{La autopista previa a la portería: balanceo de carga externo}
+
+En numerosos despliegues, el tráfico desde Internet hacia Ingress/Gateway atraviesa primero un balanceador de carga externo L3/L4. Diseños de alto rendimiento como \emph{Maglev} evidencian cómo el \emph{hash} consistente y el seguimiento de flujos contribuyen a una distribución estable y resiliente antes de alcanzar el clúster [5]. No implica que Kubernetes “use Maglev por defecto”, sino que ilustra el papel de un distribuidor previo a la portería.
+
+\subsubsection{Namespaces = mini-barrios (señalización y orden, no muros)}
+
+Un \emph{Namespace} es una partición lógica del clúster: aporta \emph{señalización} y \emph{orden} para nombrar y agrupar recursos, pero no constituye una barrera física. Facilita organizar por equipos o entornos (\texttt{dev}/\texttt{test}/\texttt{prod}) y evitar colisiones de nombres sin multiplicar clústeres \cite{ref2}.
+
+\medskip
+La señalización implica unicidad de nombres \emph{dentro} del namespace. Así, pueden coexistir dos servicios llamados \texttt{api} si residen en mini-barrios distintos (p.,ej., \texttt{api} en \texttt{dev} y \texttt{api} en \texttt{prod}) \cite{ref2}.
+
+\medskip
+El nombre DNS de un servicio incluye el namespace: \texttt{<servicio>.<namespace>.svc.cluster.local}. Dentro del mismo mini-barrio se admite el nombre corto (\texttt{api}); para acceder a otro, es preferible el FQDN (\texttt{api.prod.svc.cluster.local}) para evitar ambigüedades y asegurar enrutamiento predecible \cite{ref13,ref2}.
+
+\medskip
+Por defecto, los namespaces no aíslan el tráfico: la conectividad \emph{east--west} permanece abierta. Para definir \emph{quién puede hablar con quién}, se emplean \emph{NetworkPolicies} (si el CNI las soporta), especificadas con \emph{labels} y puertos. Este enfoque se alinea con \emph{Zero Trust}: permitir sólo lo necesario y aplicar verificación explícita \cite{ref4,ref24,ref25,ref26}.
+
+\medskip
+\subsubsection{Recorrido completo (resumen operativo)}
+
+\begin{enumerate}
+\item \textbf{Cliente externo} $\rightarrow$ (opcional) \textbf{balanceador} $\rightarrow$ \textbf{portería (Ingress/Gateway)} \cite{ref17}.
+\item La portería aplica reglas L7 y dirige la solicitud a un \textbf{Service} (central) \cite{ref3,ref13}.
+\item El Service consulta sus \textbf{EndpointSlices} (inventario de réplicas activas) y selecciona un Pod \cite{ref1}.
+\item El tráfico circula por las \textbf{calles CNI} hasta la \textbf{casa (Pod)} en el \textbf{barrio (Node)} \cite{ref2,ref4,ref18}.
+\end{enumerate}
+
+En síntesis, la analogía de ciudad permite articular el \emph{K8s Networking}: Pods como viviendas (identidad IP efímera), Nodes como barrios (recursos compartidos), Services como central estable (balanceo con \emph{EndpointSlices}), Namespaces como mini-barrios para organización, e Ingress/Gateway como portería (gobierno de entrada). Todo opera sobre la malla vial provista por CNI, que entrega la conectividad fundamental del clúster [1]–[4], [13], [17], [18], [20], [21].
+
+\subsection{CNI}
+
+\subsubsection{¿Qué es CNI y qué resuelve?}
+
+El \emph{Container Network Interface} (CNI) es la especificación y el conjunto de \emph{plugins} que habilitan la conectividad de red de los Pods en Kubernetes. En términos prácticos, CNI define cómo el \emph{runtime} de contenedores solicita a un plugin que “conecte” un Pod a la red: creación y unión de interfaces, asignación de direcciones IP mediante IPAM, configuración de rutas y, cuando corresponde, reglas de traducción/puertos en el \emph{host} \cite{ref18,ref4,ref21,ref20}. El ciclo de vida se basa en operaciones simples (\texttt{ADD}/\texttt{DEL}) encadenables, lo que permite combinar responsabilidades (p.\,ej., un plugin para IPAM y otro para mapeo de puertos) \cite{ref18,ref21,ref20}.
+
+\paragraph{Funciones núcleo.}
+\begin{itemize}
+  \item \textbf{Identidad de red del Pod.} Otorga al Pod su propia IP (modelo \emph{IP-por-Pod}) y asegura la reachabilidad \emph{east--west} en el clúster \cite{ref2}.
+  \item \textbf{Conexión y enrutamiento.} Añade interfaces virtuales, instala rutas y coordina con el \emph{host} el paso del tráfico hacia/desde cada Pod \cite{ref18,ref4}.
+  \item \textbf{Gestión de direcciones (IPAM).} Reserva/entrega direcciones desde rangos predefinidos (ejemplo: \emph{host-local}) y evita colisiones \cite{ref20,ref18}.
+\end{itemize}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\linewidth]{./fig/cni_workflow.png}
+    \caption{Workflow del Container Network Interface (CNI) mostrando las interacciones entre Kubelet, Pod y plugins CNI.}
+    \label{fig:cni_workflow}
+\end{figure}
+
+
+\paragraph{¿Por qué importa?}
+La elección de CNI (y su \emph{dataplane}) condiciona latencia, \emph{throughput} y consumo de CPU, con efectos directos sobre el sobredimensionamiento: estudios comparativos en \emph{edge}/nube muestran variaciones relevantes entre modos (túnel vs.\ ruteo nativo) y aceleraciones (\emph{fast paths}) \cite{ref7,ref8,ref11,ref22}. Además, la sintonía de parámetros como la MTU—clave en entornos con encapsulación—evita fragmentación y pérdidas de rendimiento \cite{ref12}. En conjunto, un CNI bien seleccionado y calibrado facilita automatizar políticas, sostener objetivos de nivel de servicio (\emph{SLOs}) y reducir recursos ociosos \cite{ref4,ref7,ref8,ref12}.
+
+\subsubsection{Dataplane: overlay vs. ruteo directo}
+En Kubernetes, el \emph{dataplane} de red que implementa un CNI puede seguir dos enfoques predominantes. El primero es el \emph{overlay}, que encapsula el tráfico entre nodos (p.\,ej., mediante VXLAN sobre UDP) para transportar paquetes de Pods sin requerir cambios en la red física. Su principal ventaja es la simplicidad operativa y el desacoplamiento del direccionamiento del clúster respecto al \emph{underlay}; a cambio, introduce cabeceras adicionales, posibles ajustes de MTU y cierta carga de CPU por encapsulación/descapsulación. El segundo enfoque es el ruteo nativo (\emph{ruteo directo}), en el que los Pods son alcanzables a través de rutas L3 entre nodos sin túneles; suele ofrecer menor latencia y mejor aprovechamiento de CPU, pero exige una integración clara con la red subyacente y un plan de direccionamiento coherente. Estudios comparativos en entornos \emph{edge} y nube muestran diferencias medibles de latencia, \emph{throughput} y uso de CPU entre CNIs y modos de operación, lo que refuerza la importancia de seleccionar el dataplane según el contexto de despliegue \cite{ref7,ref8}. Adicionalmente, la implementación concreta del fastpath (p.\,ej., conmutación basada en OVS o programas eBPF) condiciona el rendimiento y la observabilidad del plano de datos \cite{ref11,ref22}.
+
+\subsubsection{Asignación de direcciones (IPAM)}
+La identidad de red del Pod se materializa con una dirección IP propia, asignada por el mecanismo de \emph{IP Address Management} (IPAM) del CNI. En líneas generales, existen estrategias por nodo (cada nodo administra un rango local) o globales (un pool común), con implicaciones distintas en simplicidad operativa y uso de direcciones. El plugin \emph{host-local} ilustra un enfoque minimalista: asigna direcciones desde ficheros locales por nodo, garantizando unicidad sin dependencias externas. Un plan de direccionamiento bien definido (rangos, \emph{leases}, reutilización y limpieza) minimiza colisiones, facilita \emph{dual-stack} y reduce incidencias durante escalado o rotación de Pods \cite{ref18,ref20}.
+
+\subsubsection{MTU y fragmentación en redes con túneles}
+La encapsulación propia de los \emph{overlays} reduce la MTU efectiva: parte de los bytes del paquete se consumen en cabeceras adicionales. Si la MTU no se ajusta, pueden aparecer fragmentación, caídas de \emph{throughput} y aumentos de latencia. Las guías prácticas recomiendan calcular la MTU efectiva restando el \emph{overhead} del túnel y validar el ajuste mediante pruebas controladas; este procedimiento es especialmente relevante en despliegues con VXLAN o cifrado a nivel de red \cite{ref12}. Simplificando lo expuesto, un ajuste conservador de MTU, verificado empíricamente, suele prevenir pérdidas de rendimiento en clústeres con encapsulación.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{./fig/calico-mtu-overview.png}
+  \caption{Ajuste de MTU en presencia de encapsulación (p.\,ej., VXLAN) para evitar fragmentación y pérdida de rendimiento \cite{ref12}.}
+  \label{fig:calico_mtu}
+\end{figure}
+
+
+\subsubsection{Cómo circula el tráfico hacia los Services}
+Aunque CNI proporciona conectividad entre Pods y nodos, el direccionamiento estable para el consumo de aplicaciones lo otorgan los \emph{Services} de Kubernetes. Un Service expone una Dirección IP Virtual - \emph{VIP} (p.\,ej., \emph{ClusterIP}) y se apoya en estructuras como \emph{EndpointSlices} para conocer qué Pods saludables pueden recibir tráfico. El CNI asegura que, una vez resuelta la VIP, el paquete alcance el Pod correspondiente a través de las rutas del clúster; el modo de exposición (ClusterIP/NodePort/LoadBalancer) define cómo entra y se distribuye el tráfico desde dentro o fuera del clúster. Comprender esta separación de responsabilidades (CNI = conectividad/IP; Service = \emph{VIP} y selección de destinos) es clave para razonar sobre fallos y cuellos de botella \cite{ref3,ref13,ref1,ref2}.
+
+\subsubsection{Observabilidad sencilla a nivel CNI}
+Para operar y optimizar una red de clúster es útil contar con visibilidad de “quién habla con quién”, volúmenes de tráfico y patrones temporales. Soluciones de \emph{flow visibility} a nivel CNI permiten recolectar y agregar registros de flujo (origen, destino, puertos, bytes/paquetes) y correlacionarlos con identidades lógicas (namespaces, \emph{labels}). Esta información facilita detectar rutas calientes, validar políticas y priorizar mejoras. En el ámbito de microservicios, la observabilidad de red complementa métricas de aplicación para diagnosticar lazos críticos o dependencias inesperadas \cite{ref23,ref6}.
+
+\subsubsection{Rendimiento: qué medir y qué esperar}
+La evaluación del CNI debería incluir latencia (promedio y colas P95/P99), \emph{throughput} sostenido y coste de CPU por paquete/conexión. También conviene fijar el modo del dataplane y el perfil de tráfico (tamaño de paquete, concurrencia, mezcla entrada/salida) para obtener comparaciones reproducibles. La bibliografía reporta patrones consistentes entre modos (overlay vs.\ ruteo directo) y entre \emph{fast-paths} (p.\,ej., OVS o eBPF), con variaciones significativas en entornos con recursos limitados o altas tasas de conexión \cite{ref7,ref8,ref9,ref11,ref22,ref27}. Estas métricas orientan decisiones de diseño y \emph{tuning} para cumplir SLOs de latencia y capacidad.
+
+\subsubsection{Evitar sobredimensionamiento vía CNI}
+Un CNI bien seleccionado y sintonizado ayuda a reducir recursos “por si acaso”. Tres prácticas son especialmente efectivas: (1) elegir el dataplane según el entorno (overlay para simplicidad o ruteo directo cuando se prioriza latencia/CPU), (2) ajustar MTU y validar que no haya fragmentación, y (3) automatizar \emph{NetworkPolicies} en clave de \emph{Zero Trust} para limitar tráfico innecesario y reducir trabajo de red en el plano de datos. Complementar estas decisiones con visibilidad de flujos permite cerrar el ciclo de mejora continua y sostener SLOs con menos CPU/memoria \cite{ref7,ref8,ref12,ref23,ref24,ref25}.
+
+
+% 
+% Here we have the typical use of a "T" for an initial drop letter
+% and "HIS" in caps to complete the first word.
+%\IEEEPARstart{T}{his} demo file is intended to serve as a ``starter file''
+%for IEEE journal papers produced under \LaTeX\ using
+%IEEEtran.cls version 1.8b and later.
+% You must have at least 2 lines in the paragraph with the drop letter
+% (should never be an issue)
+%I wish you the best of success.
+
+\hfill mds
+ 
+\hfill August 26, 2015
+
+\subsection{Subsection Heading Here}
+Subsection text here.
+
+% needed in second column of first page if using \IEEEpubid
+%\IEEEpubidadjcol
+
+\subsubsection{Subsubsection Heading Here}
+Subsubsection text here.
+
+
+% An example of a floating figure using the graphicx package.
+% Note that \label must occur AFTER (or within) \caption.
+% For figures, \caption should occur after the \includegraphics.
+% Note that IEEEtran v1.7 and later has special internal code that
+% is designed to preserve the operation of \label within \caption
+% even when the captionsoff option is in effect. However, because
+% of issues like this, it may be the safest practice to put all your
+% \label just after \caption rather than within \caption{}.
+%
+% Reminder: the "draftcls" or "draftclsnofoot", not "draft", class
+% option should be used if it is desired that the figures are to be
+% displayed while in draft mode.
+%
+%\begin{figure}[!t]
+%\centering
+%\includegraphics[width=2.5in]{myfigure}
+% where an .eps filename suffix will be assumed under latex, 
+% and a .pdf suffix will be assumed for pdflatex; or what has been declared
+% via \DeclareGraphicsExtensions.
+%\caption{Simulation results for the network.}
+%\label{fig_sim}
+%\end{figure}
+
+% Note that the IEEE typically puts floats only at the top, even when this
+% results in a large percentage of a column being occupied by floats.
+
+
+% An example of a double column floating figure using two subfigures.
+% (The subfig.sty package must be loaded for this to work.)
+% The subfigure \label commands are set within each subfloat command,
+% and the \label for the overall figure must come after \caption.
+% \hfil is used as a separator to get equal spacing.
+% Watch out that the combined width of all the subfigures on a 
+% line do not exceed the text width or a line break will occur.
+%
+%\begin{figure*}[!t]
+%\centering
+%\subfloat[Case I]{\includegraphics[width=2.5in]{box}%
+%\label{fig_first_case}}
+%\hfil
+%\subfloat[Case II]{\includegraphics[width=2.5in]{box}%
+%\label{fig_second_case}}
+%\caption{Simulation results for the network.}
+%\label{fig_sim}
+%\end{figure*}
+%
+% Note that often IEEE papers with subfigures do not employ subfigure
+% captions (using the optional argument to \subfloat[]), but instead will
+% reference/describe all of them (a), (b), etc., within the main caption.
+% Be aware that for subfig.sty to generate the (a), (b), etc., subfigure
+% labels, the optional argument to \subfloat must be present. If a
+% subcaption is not desired, just leave its contents blank,
+% e.g., \subfloat[].
+
+
+% An example of a floating table. Note that, for IEEE style tables, the
+% \caption command should come BEFORE the table and, given that table
+% captions serve much like titles, are usually capitalized except for words
+% such as a, an, and, as, at, but, by, for, in, nor, of, on, or, the, to
+% and up, which are usually not capitalized unless they are the first or
+% last word of the caption. Table text will default to \footnotesize as
+% the IEEE normally uses this smaller font for tables.
+% The \label must come after \caption as always.
+%
+%\begin{table}[!t]
+%% increase table row spacing, adjust to taste
+%\renewcommand{\arraystretch}{1.3}
+% if using array.sty, it might be a good idea to tweak the value of
+% \extrarowheight as needed to properly center the text within the cells
+%\caption{An Example of a Table}
+%\label{table_example}
+%\centering
+%% Some packages, such as MDW tools, offer better commands for making tables
+%% than the plain LaTeX2e tabular which is used here.
+%\begin{tabular}{|c||c|}
+%\hline
+%One & Two\\
+%\hline
+%Three & Four\\
+%\hline
+%\end{tabular}
+%\end{table}
+
+
+% Note that the IEEE does not put floats in the very first column
+% - or typically anywhere on the first page for that matter. Also,
+% in-text middle ("here") positioning is typically not used, but it
+% is allowed and encouraged for Computer Society conferences (but
+% not Computer Society journals). Most IEEE journals/conferences use
+% top floats exclusively. 
+% Note that, LaTeX2e, unlike IEEE journals/conferences, places
+% footnotes above bottom floats. This can be corrected via the
+% \fnbelowfloat command of the stfloats package.
+
+
+
+
+\section{Conclusion}
+The conclusion goes here.
+
+
+
+
+
+% if have a single appendix:
+%\appendix[Proof of the Zonklar Equations]
+% or
+%\appendix  % for no appendix heading
+% do not use \section anymore after \appendix, only \section*
+% is possibly needed
+
+% use appendices with more than one appendix
+% then use \section to start each appendix
+% you must declare a \section before using any
+% \subsection or using \label (\appendices by itself
+% starts a section numbered zero.)
+%
+
+
+\appendices
+\section{Proof of the First Zonklar Equation}
+Appendix one text goes here.
+
+% you can choose not to have a title for an appendix
+% if you want by leaving the argument blank
+\section{}
+Appendix two text goes here.
+
+
+% use section* for acknowledgment
+\section*{Acknowledgment}
+
+
+The authors would like to thank...
+
+
+% Can use something like this to put references on a page
+% by themselves when using endfloat and the captionsoff option.
+\ifCLASSOPTIONcaptionsoff
+  \newpage
+\fi
+
+
+
+% trigger a \newpage just before the given reference
+% number - used to balance the columns on the last page
+% adjust value as needed - may need to be readjusted if
+% the document is modified later
+%\IEEEtriggeratref{8}
+% The "triggered" command can be changed if desired:
+%\IEEEtriggercmd{\enlargethispage{-5in}}
+
+% references section
+
+% can use a bibliography generated by BibTeX as a .bbl file
+% BibTeX documentation can be easily obtained at:
+% http://mirror.ctan.org/biblio/bibtex/contrib/doc/
+% The IEEEtran BibTeX style support page is at:
+% http://www.michaelshell.org/tex/ieeetran/bibtex/
+%\bibliographystyle{IEEEtran}
+% argument is your BibTeX string definitions and bibliography database(s)
+%\bibliography{IEEEabrv,../bib/paper}
+%
+% <OR> manually copy in the resultant .bbl file
+% set second argument of \begin to the number of references
+% (used to reserve space for the reference number labels box)
+\begin{thebibliography}{1}
+
+\bibitem[1]{ref1}
+``EndpointSlices,'' Kubernetes. [En línea]. Disponible en: \url{https://kubernetes.io/docs/concepts/services-networking/endpoint-slices/}. [Consultado: 21-ago-2025].
+
+\bibitem[2]{ref2}
+``Cluster networking,'' Kubernetes. [En línea]. Disponible en: \url{https://kubernetes.io/docs/concepts/cluster-administration/networking/}. [Consultado: 21-ago-2025].
+
+\bibitem[3]{ref3}
+``Virtual IPs and Service proxies,'' Kubernetes. [En línea]. Disponible en: \url{https://kubernetes.io/docs/reference/networking/virtual-ips/}. [Consultado: 21-ago-2025].
+
+\bibitem[4]{ref4}
+``Network plugins,'' Kubernetes. [En línea]. Disponible en: \url{https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/}. [Consultado: 21-ago-2025].
+
+\bibitem[5]{ref5}
+D. E. Eisenbud \emph{et al.}, ``Maglev: A fast and reliable software network load balancer,'' \emph{USENIX NSDI}, 2016. [En línea]. Disponible en: \url{https://www.usenix.org/sites/default/files/nsdi16-paper-eisenbud.pdf}. [Consultado: 21-ago-2025].
+
+\bibitem[6]{ref6}
+F. Gomes, P. Rego, y F. Trinta, ``A systematic mapping study on observability of microservices-based applications: fundamentals, classifications, and challenges,'' \emph{Computing}, vol. 107, núm. 9, 2025.
+
+\bibitem[7]{ref7}
+Z. Kang, K. An, A. Gokhale, y P. Pazandak, ``A comprehensive performance evaluation of different Kubernetes CNI plugins for edge-based and containerized publish/subscribe applications,'' Vanderbilt University. [En línea]. Disponible en: \url{https://www.dre.vanderbilt.edu/~gokhale/WWW/papers/IC2E21_CNI_Eval.pdf}. [Consultado: 21-ago-2025].
+
+\bibitem[8]{ref8}
+G. Koukis, S. Skaperas, I. A. Kapetanidou, L. Mamatas, y V. Tsaoussidis, ``Performance evaluation of Kubernetes networking approaches across constraint edge environments,'' \emph{arXiv} [cs.NI], 2024.
+
+\bibitem[9]{ref9}
+MDPI. [En línea]. Disponible en: \url{https://www.mdpi.com/2079-9292/13/19/3972}. [Consultado: 21-ago-2025].
+
+\bibitem[10]{ref10}
+best practices, ``Elevating Kubernetes network security through Cilium deployment,'' FH Joanneum. [En línea]. Disponible en: \url{https://epub.fh-joanneum.at/obvfhjhs/download/pdf/11499653}. [Consultado: 21-ago-2025].
+
+\bibitem[11]{ref11}
+W. Tu, Y.-H. Wei, G. Antichi, y B. Pfaff, ``Revisiting the Open vSwitch dataplane ten years later,'' en \emph{Proceedings of the ACM SIGCOMM 2021 Conference}, 2021.
+
+\bibitem[12]{ref12}
+``Configure MTU to maximize network performance,'' Tigera (Calico). [En línea]. Disponible en: \url{https://docs.tigera.io/calico/latest/networking/configuring/mtu}. [Consultado: 21-ago-2025].
+
+\bibitem[13]{ref13}
+``Service,'' Kubernetes. [En línea]. Disponible en: \url{https://kubernetes.io/docs/concepts/services-networking/service/}. [Consultado: 21-ago-2025].
+
+\bibitem[14]{ref14}
+Polito.it. [En línea]. Disponible en: \url{https://webthesis.biblio.polito.it/28635/1/tesi.pdf}. [Consultado: 21-ago-2025].
+
+\bibitem[15]{ref15}
+Master’s thesis, ``Kubernetes networking: Comparative insights into API gateways and service mesh implementations,'' Aalto University. [En línea]. Disponible en: \url{https://aaltodoc.aalto.fi/bitstreams/000efe1b-5f19-494c-a8c7-3fdb1ac62e74/download}. [Consultado: 21-ago-2025].
+
+\bibitem[16]{ref16}
+M. Kotenko, D. Moskalyk, V. Kovach, y V. Osadchyi, ``Navigating the challenges and best practices in securing microservices architecture,'' \emph{CEUR-WS}. [En línea]. Disponible en: \url{https://ceur-ws.org/Vol-3826/paper1.pdf}. [Consultado: 21-ago-2025].
+
+\bibitem[17]{ref17}
+``Roles and personas — Kubernetes Gateway API,'' Kubernetes SIGs. [En línea]. Disponible en: \url{https://gateway-api.sigs.k8s.io/concepts/roles-and-personas/}. [Consultado: 21-ago-2025].
+
+\bibitem[18]{ref18}
+``CNI,'' \emph{cni.dev}. [En línea]. Disponible en: \url{https://www.cni.dev/docs/spec/}. [Consultado: 21-ago-2025].
+
+\bibitem[19]{ref19}
+IEEE, ``IEEE 802.1Q.'' [En línea]. Disponible en: \url{https://standards.ieee.org/ieee/802.1Q/6844/}. [Consultado: 21-ago-2025].
+
+\bibitem[20]{ref20}
+``host-local IP address management plugin,'' \emph{cni.dev}. [En línea]. Disponible en: \url{https://www.cni.dev/plugins/current/ipam/host-local/}. [Consultado: 21-ago-2025].
+
+\bibitem[21]{ref21}
+``Port-mapping plugin,'' \emph{cni.dev}. [En línea]. Disponible en: \url{https://www.cni.dev/plugins/current/meta/portmap/}. [Consultado: 21-ago-2025].
+
+\bibitem[22]{ref22}
+B. Pfaff \emph{et al.}, ``The design and implementation of Open vSwitch,'' \emph{USENIX NSDI}, 2015. [En línea]. Disponible en: \url{https://www.usenix.org/system/files/conference/nsdi15/nsdi15-paper-pfaff.pdf}. [Consultado: 21-ago-2025].
+
+\bibitem[23]{ref23}
+``Antrea — Network Flow Visibility,'' Antrea.io. [En línea]. Disponible en: \url{https://antrea.io/docs/v1.0.0/docs/network-flow-visibility/}. [Consultado: 21-ago-2025].
+
+\bibitem[24]{ref24}
+S. Rose, O. Borchert, S. Mitchell, y S. Connelly, ``Zero Trust Architecture,'' NIST Special Publication, 2020.
+
+\bibitem[25]{ref25}
+O. Borchert, G. Howell, A. Kerman, S. Rose, y M. Souppaya, ``Implementing a Zero Trust Architecture: High-level document,'' NIST, Gaithersburg, MD, 2025.
+
+\bibitem[26]{ref26}
+R. Chandramouli y Z. Butcher, ``Building secure microservices-based applications using service-mesh architecture,'' NIST, Gaithersburg, MD, 2020.
+
+\bibitem[27]{ref27}
+J. Zhang, P. Chen, Z. He, H. Chen, y X. Li, ``Real-time intrusion detection and prevention with neural network in kernel using eBPF,'' en \emph{Proc. 54th Annual IEEE/IFIP Int. Conf. on Dependable Systems and Networks (DSN)}, 2024, pp. 416--428.
+
+\bibitem[28]{ref28} 
+``CNI Essentials: Kubernetes Networking under the Hood,'' Tetrate. [En línea]. Disponible en: \url{https://tetrate.io/blog/kubernetes-networking}. [Consultado: 02-sep-2025].
+\end{thebibliography}
+
+% biography section
+% 
+% If you have an EPS/PDF photo (graphicx package needed) extra braces are
+% needed around the contents of the optional argument to biography to prevent
+% the LaTeX parser from getting confused when it sees the complicated
+% \includegraphics command within an optional argument. (You could create
+% your own custom macro containing the \includegraphics command to make things
+% simpler here.)
+%\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{mshell}}]{Michael Shell}
+% or if you just want to reserve a space for a photo:
+
+\begin{IEEEbiography}{Michael Shell}
+Biography text here.
+\end{IEEEbiography}
+
+% if you will not have a photo at all:
+\begin{IEEEbiographynophoto}{John Doe}
+Biography text here.
+\end{IEEEbiographynophoto}
+
+% insert where needed to balance the two columns on the last page with
+% biographies
+%\newpage
+
+\begin{IEEEbiographynophoto}{Jane Doe}
+Biography text here.
+\end{IEEEbiographynophoto}
+
+% You can push biographies down or up by placing
+% a \vfill before or after them. The appropriate
+% use of \vfill depends on what kind of text is
+% on the last page and whether or not the columns
+% are being equalized.
+
+%\vfill
+
+% Can be used to pull up biographies so that the bottom of the last one
+% is flush with the other column.
+%\enlargethispage{-5in}
+
+
+
+% that's all folks
+\end{document}
+
+

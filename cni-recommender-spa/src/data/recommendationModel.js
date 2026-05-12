@@ -1,57 +1,19 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Etiquetas de criterios — terminología visible en la UI
+// ─────────────────────────────────────────────────────────────────────────────
 export const criteriaLabels = {
-  latency: 'Latencia pod-to-pod',
-  jitter: 'Jitter y perdida',
-  throughput: 'Throughput sostenido',
-  resourceEfficiency: 'Eficiencia CPU/RAM',
-  networkPolicy: 'Network Policy',
-  ramEfficiency: 'RAM por nodo',
-  cpuEfficiency: 'CPU del CNI',
+  latency: 'Velocidad de respuesta',
+  jitter: 'Estabilidad de la conexion',
+  throughput: 'Cantidad de datos',
+  resourceEfficiency: 'Uso de CPU y RAM',
+  networkPolicy: 'Seguridad de red',
+  ramEfficiency: 'Uso de memoria (RAM)',
+  cpuEfficiency: 'Uso del procesador (CPU)',
 };
 
-export const architectureProfiles = [
-  {
-    id: 'urllc',
-    name: 'Perfil URLLC / Automatizacion Industrial',
-    tag: 'Tiempo real',
-    description:
-      'Prioriza determinismo, baja latencia y estabilidad para automatizacion industrial y enlaces criticos.',
-    weights: {
-      latency: 0.3,
-      jitter: 0.2,
-      throughput: 0.2,
-      resourceEfficiency: 0.2,
-      networkPolicy: 0.1,
-    },
-  },
-  {
-    id: 'edge',
-    name: 'Perfil Edge Computing / IoT',
-    tag: 'Footprint bajo',
-    description:
-      'Optimiza consumo de recursos en nodos restringidos sin perder viabilidad operacional.',
-    weights: {
-      ramEfficiency: 0.35,
-      cpuEfficiency: 0.25,
-      latency: 0.2,
-      throughput: 0.1,
-      networkPolicy: 0.1,
-    },
-  },
-  {
-    id: 'zero-trust',
-    name: 'Perfil Microservicios Transaccionales (Zero-Trust)',
-    tag: 'Seguridad',
-    description:
-      'Favorece microsegmentacion, enforcement de politicas y rendimiento estable para APIs transaccionales.',
-    weights: {
-      networkPolicy: 0.4,
-      latency: 0.3,
-      throughput: 0.15,
-      resourceEfficiency: 0.15,
-    },
-  },
-];
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Preguntas guiadas — lenguaje cotidiano sin tecnicismos
+// ─────────────────────────────────────────────────────────────────────────────
 export const guidedQuestionDefaults = {
   domain: '',
   latencyNeed: 3,
@@ -64,48 +26,53 @@ export const guidedQuestionDefaults = {
 export const guidedQuestions = [
   {
     id: 'latencyNeed',
-    label: 'Latencia',
-    low: 'Flexible',
-    high: 'Critica',
-    help: 'Sube el peso de latencia pod-to-pod para respuestas sensibles al tiempo.',
+    label: '¿Que tan rapido tiene que responder?',
+    low: 'No importa mucho',
+    high: 'Debe ser instantaneo',
+    help: 'Por ejemplo: un chat en vivo o un juego online necesitan respuesta inmediata. Una pagina de noticias no.',
   },
   {
     id: 'stabilityNeed',
-    label: 'Estabilidad',
-    low: 'Tolerante',
-    high: 'Determinista',
-    help: 'Sube jitter/perdida cuando la variacion de red afecta el servicio.',
+    label: '¿Que tan estable debe ser la conexion?',
+    low: 'Algun corte es aceptable',
+    high: 'No puede fallar ni un momento',
+    help: 'Por ejemplo: un sistema de pagos o de salud necesita estabilidad total. Un blog puede tolerar interrupciones cortas.',
   },
   {
     id: 'throughputNeed',
-    label: 'Throughput',
-    low: 'Bajo',
-    high: 'Alto',
-    help: 'Sube la capacidad sostenida para cargas intensivas en datos.',
+    label: '¿Cuantos datos se van a mover al mismo tiempo?',
+    low: 'Pocos, trafico normal',
+    high: 'Muchisimos, como video o analitica',
+    help: 'Por ejemplo: un sitio de streaming o de ciencia de datos mueve grandes volumenes. Un sistema de turnos no.',
   },
   {
     id: 'resourceLimit',
-    label: 'Recursos del nodo',
-    low: 'Holgados',
-    high: 'Limitados',
-    help: 'Sube CPU/RAM cuando el cluster corre en nodos edge o restringidos.',
+    label: '¿Los servidores donde va a funcionar son pequenos o limitados?',
+    low: 'Servidores normales con recursos amplios',
+    high: 'Dispositivos pequenos o con recursos muy limitados',
+    help: 'Por ejemplo: una Raspberry Pi, un dispositivo IoT o un servidor de bajo costo tiene recursos limitados.',
   },
   {
     id: 'securityNeed',
-    label: 'Microsegmentacion',
-    low: 'Basica',
-    high: 'Obligatoria',
-    help: 'Sube Network Policy cuando Zero-Trust o cumplimiento son requisitos fuertes.',
+    label: '¿Que tan importante es la seguridad y el control de acceso?',
+    low: 'No es critico',
+    high: 'Obligatorio: necesito aislar servicios',
+    help: 'Por ejemplo: un banco, una clinica o un gobierno necesitan controlar exactamente quien puede hablar con quien. Subir esto a maximo descarta CNIs sin capacidades de seguridad.',
   },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Puntuaciones estructurales de respaldo (cuando no hay benchmark)
+// networkPolicy: Flannel = 1 porque NO soporta Network Policies nativas.
+// ─────────────────────────────────────────────────────────────────────────────
 export const cniMetrics = [
   {
     id: 'flannel',
     name: 'Flannel',
     accent: 'bg-sky-500',
     ring: 'ring-sky-100',
-    summary: 'Ligero y simple, con muy bajo consumo base.',
+    summary: 'Muy ligero y simple. Ideal para entornos basicos sin requisitos de seguridad avanzada.',
+    supportsNetworkPolicy: false,
     scores: {
       latency: 4.7,
       jitter: 4.5,
@@ -121,7 +88,8 @@ export const cniMetrics = [
     name: 'Calico',
     accent: 'bg-amber-500',
     ring: 'ring-amber-100',
-    summary: 'Maduro en politicas de red y control declarativo.',
+    summary: 'Buena combinacion de rendimiento y control de seguridad de red.',
+    supportsNetworkPolicy: true,
     scores: {
       latency: 3.7,
       jitter: 3.6,
@@ -137,7 +105,8 @@ export const cniMetrics = [
     name: 'Cilium',
     accent: 'bg-emerald-500',
     ring: 'ring-emerald-100',
-    summary: 'Fuerte en eBPF, observabilidad y seguridad avanzada.',
+    summary: 'El mas avanzado en seguridad y observabilidad. Usa tecnologia eBPF de ultima generacion.',
+    supportsNetworkPolicy: true,
     scores: {
       latency: 4.2,
       jitter: 4.1,
@@ -153,7 +122,8 @@ export const cniMetrics = [
     name: 'Antrea',
     accent: 'bg-indigo-500',
     ring: 'ring-indigo-100',
-    summary: 'Balance solido entre rendimiento, politicas y eficiencia.',
+    summary: 'Equilibrio solido entre velocidad, seguridad y uso de recursos.',
+    supportsNetworkPolicy: true,
     scores: {
       latency: 4.4,
       jitter: 4.2,
@@ -167,12 +137,15 @@ export const cniMetrics = [
 ];
 
 const cniMetadata = Object.fromEntries(
-  cniMetrics.map(({ id, name, accent, ring, summary, scores }) => [
+  cniMetrics.map(({ id, name, accent, ring, summary, supportsNetworkPolicy, scores }) => [
     id,
-    { id, name, accent, ring, summary, structuralScores: scores },
+    { id, name, accent, ring, summary, supportsNetworkPolicy, structuralScores: scores },
   ]),
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Mapeo de métricas del benchmark a criterios MCDA
+// ─────────────────────────────────────────────────────────────────────────────
 const metricDefinitions = {
   latency: { key: 'latencia_ms', higherIsBetter: false },
   jitter: { key: 'jitter_ms', higherIsBetter: false },
@@ -182,6 +155,9 @@ const metricDefinitions = {
   ramEfficiency: { key: 'ram_usada_mb', higherIsBetter: false },
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Comandos de instalacion
+// ─────────────────────────────────────────────────────────────────────────────
 export const implementationGuides = {
   flannel: {
     installCommand:
@@ -212,9 +188,11 @@ spec:
     - Ingress
     - Egress`;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Utilidades matemáticas
+// ─────────────────────────────────────────────────────────────────────────────
 function normalizeWeights(rawWeights) {
   const total = Object.values(rawWeights).reduce((sum, value) => sum + value, 0);
-
   return Object.fromEntries(
     Object.entries(rawWeights).map(([metric, value]) => [
       metric,
@@ -227,15 +205,8 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function toFiniteNumber(value) {
-  const numericValue = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
-  return Number.isFinite(numericValue) ? numericValue : null;
-}
-
 function average(values) {
-  const validValues = values
-    .map((value) => toFiniteNumber(value))
-    .filter((value) => Number.isFinite(value));
+  const validValues = values.filter((value) => Number.isFinite(value));
   if (!validValues.length) return 0;
   return validValues.reduce((sum, value) => sum + value, 0) / validValues.length;
 }
@@ -243,48 +214,38 @@ function average(values) {
 function scoreFromRange(value, min, max, higherIsBetter) {
   if (!Number.isFinite(value)) return 0;
   if (min === max) return 3;
-
   const ratio = higherIsBetter
     ? (value - min) / (max - min)
     : (max - value) / (max - min);
-
   return Number((1 + clamp(ratio, 0, 1) * 4).toFixed(2));
 }
 
 function getMetricRange(entries, metric) {
   const definition = metricDefinitions[metric];
   const values = entries
-    .map(([, data]) => toFiniteNumber(data?.[definition.key]))
+    .map(([, data]) => Number(data?.[definition.key]))
     .filter((value) => Number.isFinite(value));
-
-  if (!values.length) {
-    return { min: 0, max: 0 };
-  }
-
-  return {
-    min: Math.min(...values),
-    max: Math.max(...values),
-  };
+  if (!values.length) return { min: 0, max: 0 };
+  return { min: Math.min(...values), max: Math.max(...values) };
 }
 
 function getNetworkPolicyOverhead(data) {
   if (!data?.network_policy) return null;
-
   const caseValues = Object.values(data.network_policy).flatMap((policyCase) => [
-    toFiniteNumber(policyCase?.overhead_latencia_pct),
-    toFiniteNumber(policyCase?.overhead_throughput_pct),
+    Number(policyCase?.overhead_latencia_pct),
+    Number(policyCase?.overhead_throughput_pct),
   ]);
-
   const validValues = caseValues.filter((value) => Number.isFinite(value));
   if (!validValues.length) return null;
-
   return average(validValues);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Construcción de scores desde benchmark real
+// ─────────────────────────────────────────────────────────────────────────────
 export function buildCniMetricsFromBenchmark(benchmarkPayload) {
   const rawCnis = benchmarkPayload?.cnis ?? benchmarkPayload;
   const entries = Object.entries(rawCnis ?? {}).filter(([id]) => cniMetadata[id]);
-
   if (!entries.length) return cniMetrics;
 
   const ranges = Object.fromEntries(
@@ -297,46 +258,20 @@ export function buildCniMetricsFromBenchmark(benchmarkPayload) {
 
   return entries.map(([id, data]) => {
     const meta = cniMetadata[id];
-    const latencyScore = scoreFromRange(
-      data.latencia_ms,
-      ranges.latency.min,
-      ranges.latency.max,
-      false,
-    );
-    const jitterScore = scoreFromRange(
-      data.jitter_ms,
-      ranges.jitter.min,
-      ranges.jitter.max,
-      false,
-    );
-    const retransmitScore = scoreFromRange(
-      data.retransmits,
-      ranges.retransmits.min,
-      ranges.retransmits.max,
-      false,
-    );
-    const throughputScore = scoreFromRange(
-      data.throughput_mbps,
-      ranges.throughput.min,
-      ranges.throughput.max,
-      true,
-    );
-    const cpuScore = scoreFromRange(
-      data.cpu_usada_pct,
-      ranges.cpuEfficiency.min,
-      ranges.cpuEfficiency.max,
-      false,
-    );
-    const ramScore = scoreFromRange(
-      data.ram_usada_mb,
-      ranges.ramEfficiency.min,
-      ranges.ramEfficiency.max,
-      false,
-    );
+    const latencyScore = scoreFromRange(data.latencia_ms, ranges.latency.min, ranges.latency.max, false);
+    const jitterScore = scoreFromRange(data.jitter_ms, ranges.jitter.min, ranges.jitter.max, false);
+    const retransmitScore = scoreFromRange(data.retransmits, ranges.retransmits.min, ranges.retransmits.max, false);
+    const throughputScore = scoreFromRange(data.throughput_mbps, ranges.throughput.min, ranges.throughput.max, true);
+    const cpuScore = scoreFromRange(data.cpu_usada_pct, ranges.cpuEfficiency.min, ranges.cpuEfficiency.max, false);
+    const ramScore = scoreFromRange(data.ram_usada_mb, ranges.ramEfficiency.min, ranges.ramEfficiency.max, false);
+
     const policyOverhead = getNetworkPolicyOverhead(data);
-    const policyScore = Number.isFinite(policyOverhead)
-      ? scoreFromRange(policyOverhead, minPolicyOverhead, maxPolicyOverhead, false)
-      : meta.structuralScores.networkPolicy;
+    // Si el CNI no soporta Network Policies, su score de seguridad es 1 (mínimo), sin importar el benchmark.
+    const policyScore = meta.supportsNetworkPolicy === false
+      ? 1
+      : Number.isFinite(policyOverhead)
+        ? scoreFromRange(policyOverhead, minPolicyOverhead, maxPolicyOverhead, false)
+        : meta.structuralScores.networkPolicy;
 
     return {
       ...meta,
@@ -354,35 +289,17 @@ export function buildCniMetricsFromBenchmark(benchmarkPayload) {
   });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Construcción del perfil guiado
+// ─────────────────────────────────────────────────────────────────────────────
 function getGuidedProfileName(answers) {
-  const {
-    latencyNeed,
-    resourceLimit,
-    securityNeed,
-    throughputNeed,
-  } = answers;
-
-  if (securityNeed >= 4 && latencyNeed >= 4) {
-    return 'Perfil guiado: servicios criticos seguros';
-  }
-
-  if (resourceLimit >= 4) {
-    return 'Perfil guiado: operacion eficiente en recursos';
-  }
-
-  if (securityNeed >= 4) {
-    return 'Perfil guiado: seguridad y microsegmentacion';
-  }
-
-  if (latencyNeed >= 4) {
-    return 'Perfil guiado: baja latencia';
-  }
-
-  if (throughputNeed >= 4) {
-    return 'Perfil guiado: alto rendimiento de red';
-  }
-
-  return 'Perfil guiado: balance general';
+  const { latencyNeed, resourceLimit, securityNeed, throughputNeed } = answers;
+  if (securityNeed >= 4 && latencyNeed >= 4) return 'Perfil: servicios criticos y seguros';
+  if (resourceLimit >= 4) return 'Perfil: operacion eficiente en recursos';
+  if (securityNeed >= 4) return 'Perfil: seguridad y control de acceso';
+  if (latencyNeed >= 4) return 'Perfil: respuesta rapida';
+  if (throughputNeed >= 4) return 'Perfil: alto volumen de datos';
+  return 'Perfil: uso general';
 }
 
 export function buildGuidedProfile(answers = guidedQuestionDefaults) {
@@ -403,6 +320,8 @@ export function buildGuidedProfile(answers = guidedQuestionDefaults) {
     name: getGuidedProfileName(current),
     tag: 'Personalizado',
     source: 'guided',
+    // Nivel de seguridad requerido — se usa para aplicar la restricción dura
+    securityNeed: current.securityNeed,
     confidence:
       Math.max(
         current.latencyNeed,
@@ -414,25 +333,45 @@ export function buildGuidedProfile(answers = guidedQuestionDefaults) {
         ? 'Alta'
         : 'Media',
     description: domain
-      ? `Perfil generado para ${domain}. La ponderacion prioriza ${criteriaLabels[strongestMetric[0]]}.`
-      : `Perfil generado desde restricciones generales. La ponderacion prioriza ${criteriaLabels[strongestMetric[0]]}.`,
+      ? `Perfil generado para ${domain}. La prioridad principal es ${criteriaLabels[strongestMetric[0]]}.`
+      : `Perfil generado desde tus respuestas. La prioridad principal es ${criteriaLabels[strongestMetric[0]]}.`,
     weights,
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Motor de cálculo MCDA con restricción de seguridad no compensatoria
+//
+// REGLA: Si el usuario marcó seguridad >= 4 (importante o superior) y el CNI
+// NO soporta Network Policies (supportsNetworkPolicy = false), ese CNI recibe
+// una penalización del 60% en su puntaje final. Esto garantiza que no pueda
+// ganar aunque sea muy eficiente en otros criterios.
+// ─────────────────────────────────────────────────────────────────────────────
 export function calculateScores(profile, benchmarkPayload) {
   const cnis = benchmarkPayload ? buildCniMetricsFromBenchmark(benchmarkPayload) : cniMetrics;
 
+  // El nivel de seguridad requerido por el perfil guiado (1-5). Si el perfil
+  // es uno de los 3 predefinidos, no aplica restricción (undefined).
+  const securityNeed = profile?.securityNeed ?? 0;
+  // Umbral: si securityNeed >= 4, la seguridad es un requisito importante.
+  const securityIsRequired = securityNeed >= 4;
+
   return cnis
     .map((cni) => {
-      const total = Object.entries(profile.weights).reduce((sum, [metric, weight]) => {
+      const rawTotal = Object.entries(profile.weights).reduce((sum, [metric, weight]) => {
         const metricValue = cni.scores[metric] ?? 0;
         return sum + metricValue * weight;
       }, 0);
 
+      // Aplicar penalización dura si el CNI no soporta seguridad y el usuario la requiere
+      const securityPenalized = securityIsRequired && cni.supportsNetworkPolicy === false;
+      const finalScore = securityPenalized ? rawTotal * 0.4 : rawTotal;
+
       return {
         ...cni,
-        score: Number(total.toFixed(3)),
+        score: Number(finalScore.toFixed(3)),
+        rawScore: Number(rawTotal.toFixed(3)),
+        securityPenalized,
       };
     })
     .sort((a, b) => b.score - a.score);

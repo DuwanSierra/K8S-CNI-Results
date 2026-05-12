@@ -1,21 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import ProfileSelector from './components/ProfileSelector';
 import ResultsEngine from './components/ResultsEngine';
 import ImplementationSteps from './components/ImplementationSteps';
 import GuidedProfileBuilder from './components/GuidedProfileBuilder';
 import {
-  architectureProfiles,
   buildGuidedProfile,
   calculateScores,
   guidedQuestionDefaults,
 } from './data/recommendationModel';
 
 export default function App() {
-  const [inputMode, setInputMode] = useState('validated');
-  const [selectedProfileId, setSelectedProfileId] = useState(architectureProfiles[0].id);
   const [guidedAnswers, setGuidedAnswers] = useState(guidedQuestionDefaults);
   const [benchmarkData, setBenchmarkData] = useState(null);
-  const [dataStatus, setDataStatus] = useState('Cargando datos');
+  const [dataStatus, setDataStatus] = useState('Cargando...');
   const [results, setResults] = useState([]);
 
   const guidedProfile = useMemo(
@@ -23,56 +19,33 @@ export default function App() {
     [guidedAnswers],
   );
 
-  const selectedProfile = useMemo(
-    () => {
-      if (inputMode === 'guided') return guidedProfile;
-      return architectureProfiles.find((profile) => profile.id === selectedProfileId);
-    },
-    [guidedProfile, inputMode, selectedProfileId],
-  );
-
   useEffect(() => {
-    if (!selectedProfile) return;
-    setResults(calculateScores(selectedProfile, benchmarkData));
-  }, [benchmarkData, selectedProfile]);
+    if (!guidedProfile) return;
+    setResults(calculateScores(guidedProfile, benchmarkData));
+  }, [benchmarkData, guidedProfile]);
 
   useEffect(() => {
     let isMounted = true;
-
     fetch(`${import.meta.env.BASE_URL}cni-data.json`, { cache: 'no-store' })
       .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
       })
       .then((payload) => {
         if (!isMounted) return;
         setBenchmarkData(payload);
-        setDataStatus('Datos reales del procesador');
+        setDataStatus('Datos reales de laboratorio');
       })
       .catch(() => {
         if (!isMounted) return;
         setBenchmarkData(null);
-        setDataStatus('Datos mock de respaldo');
+        setDataStatus('Datos de referencia');
       });
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
 
-  const handleSelectProfile = (profileId) => {
-    setInputMode('validated');
-    setSelectedProfileId(profileId);
-  };
-
   const handleChangeGuidedAnswer = (key, value) => {
-    setInputMode('guided');
-    setGuidedAnswers((current) => ({
-      ...current,
-      [key]: value,
-    }));
+    setGuidedAnswers((current) => ({ ...current, [key]: value }));
   };
 
   const winner = results[0];
@@ -80,89 +53,54 @@ export default function App() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+
+        {/* Encabezado */}
         <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-3xl">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Kubernetes CNI Decision Engine
+                Herramienta de seleccion de red para Kubernetes
               </p>
-              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-                Motor de Recomendacion de CNI para Kubernetes
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                ¿Que plugin de red necesita tu cluster?
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-slate-500">
-                Prototipo funcional SPA en React que aplica MCDA para recomendar
-                Flannel, Calico, Cilium o Antrea segun perfiles validados o
-                restricciones tecnicas del usuario.
+                Responde unas preguntas sobre tu proyecto y el sistema te dira
+                cual de los 4 plugins de red mas usados en Kubernetes se adapta
+                mejor a tus necesidades.
               </p>
             </div>
-            <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 sm:min-w-72">
+            <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 sm:min-w-64">
               <div className="flex items-center justify-between">
-                <span>Modelo</span>
-                <span className="font-semibold text-slate-950">MCDA ponderado</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>CNIs evaluados</span>
+                <span>Plugins evaluados</span>
                 <span className="font-semibold text-slate-950">4</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Graficos</span>
-                <span className="font-semibold text-slate-950">Tailwind CSS</span>
+                <span>Metodo de seleccion</span>
+                <span className="font-semibold text-slate-950">MCDA</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Fuente</span>
+                <span>Fuente de datos</span>
                 <span className="font-semibold text-slate-950">{dataStatus}</span>
               </div>
             </div>
           </div>
         </header>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-2 shadow-soft">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setInputMode('validated')}
-              className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                inputMode === 'validated'
-                  ? 'bg-slate-950 text-white'
-                  : 'bg-white text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              Perfiles arquitectonicos validados
-            </button>
-            <button
-              type="button"
-              onClick={() => setInputMode('guided')}
-              className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                inputMode === 'guided'
-                  ? 'bg-slate-950 text-white'
-                  : 'bg-white text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              No estoy seguro: crear perfil guiado
-            </button>
-          </div>
-        </section>
+        {/* Cuestionario guiado */}
+        <GuidedProfileBuilder
+          answers={guidedAnswers}
+          generatedProfile={guidedProfile}
+          onChangeAnswer={handleChangeGuidedAnswer}
+        />
 
-        {inputMode === 'validated' ? (
-          <ProfileSelector
-            profiles={architectureProfiles}
-            selectedProfileId={selectedProfileId}
-            onSelectProfile={handleSelectProfile}
-          />
-        ) : (
-          <GuidedProfileBuilder
-            answers={guidedAnswers}
-            generatedProfile={guidedProfile}
-            onChangeAnswer={handleChangeGuidedAnswer}
-          />
-        )}
-
-        {winner ? (
+        {/* Resultados */}
+        {winner && (
           <>
-            <ResultsEngine profile={selectedProfile} results={results} />
+            <ResultsEngine profile={guidedProfile} results={results} />
             <ImplementationSteps winner={winner} />
           </>
-        ) : null}
+        )}
       </div>
     </main>
   );
