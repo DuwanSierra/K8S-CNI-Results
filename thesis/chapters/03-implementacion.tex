@@ -1,12 +1,10 @@
 \section{Implementación de la Solución}
 
-Si el capítulo anterior describió el plano y los cimientos del edificio ---el diseño de la solución---, este capítulo narra cómo se construyó ladrillo por ladrillo. La implementación es la fase donde las decisiones de diseño dejan de ser teoría y se convierten en código, configuraciones y sistemas que realmente funcionan y generan datos medibles. Cada decisión de implementación documentada en este capítulo es verificable en el repositorio Git del proyecto, lo que convierte cada afirmación técnica en evidencia auditable y reproducible.
-
-Un principio guía de toda la implementación fue la reproducibilidad científica: cualquier decisión técnica que no pueda ser replicada de manera idéntica por otra persona no tiene valor académico. Por eso, toda la infraestructura y configuración está codificada en archivos de texto versionados en Git, y toda prueba está automatizada para eliminar la variabilidad humana de los resultados \cite{ref7}.
+Este capítulo documenta cómo se ejecutó el diseño del capítulo anterior. Toda la infraestructura está codificada en Terraform, toda la configuración en manifiestos YAML versionados en Git, y toda prueba está automatizada en CronJobs de Kubernetes ---condición necesaria para que los resultados sean reproducibles y atribuibles al CNI \cite{ref7}.
 
 \subsection{Aprovisionamiento de Infraestructura con Terraform}
 
-El primer paso de cualquier proyecto de infraestructura es levantar los servidores y las redes. En este proyecto, ese paso se realizó de manera completamente automatizada mediante Terraform (IaC). Con Terraform, se escribe una vez la descripción exacta de lo que se quiere, y el sistema se encarga de crearlo siempre de la misma manera, eliminando la posibilidad de que variaciones manuales en el aprovisionamiento introduzcan diferencias entre los entornos de cada CNI \cite{ref7}.
+El aprovisionamiento de servidores y redes se realizó de forma completamente automatizada mediante Terraform (IaC). Al describir la infraestructura en archivos versionados, Terraform la recrea de manera idéntica en cada ejecución y elimina la posibilidad de que variaciones manuales en el aprovisionamiento introduzcan diferencias entre los entornos de cada CNI \cite{ref7}.
 
 \subsubsection{Estructura del Código Terraform (K8s-bootstrap/00.bootstrap)}
 
@@ -37,9 +35,9 @@ Una vez aprovisionados los servidores, se instaló y configuró K3s, una distrib
 
 El plano de control se configuró con una base de datos PostgreSQL gestionada de DigitalOcean (también provisionada via Terraform) como datastore externo. Esto elimina la complejidad de mantener un clúster etcd y garantiza un plano de control sin punto único de fallo (SPOF).
 
-\subsubsection{Instalación: Pizarra Limpia para CNIs Externos; Modo Nativo para Flannel}
+\subsubsection{Instalación: clúster sin CNI para plugins externos y modo nativo para Flannel}
 
-Esta implementación establece una distinción metodológica deliberada: Flannel se evalúa en su modo de despliegue más habitual ---integrado nativamente en K3s con \texttt{flannel-iface: eth1}--- mientras que Calico, Cilium y Antrea se instalan como plugins externos sobre un clúster sin CNI. La asimetría refleja las condiciones reales de uso: Flannel es el CNI predeterminado de K3s y la mayoría de equipos lo adopta sin configuración adicional, mientras que los otros tres requieren instalación explícita y declarativa. Evaluar cada CNI en su escenario de despliegue típico aumenta la validez ecológica del experimento, aunque el lector debe tener en cuenta que Flannel se beneficia de la integración nativa de K3s (gestión automática de CIDR, hooks de kubelet) que los plugins externos deben replicar por su cuenta.
+La implementación establece una distinción metodológica deliberada: Flannel se evalúa en su modo de despliegue más habitual ---integrado nativamente en K3s con \texttt{flannel-iface: eth1}---, mientras que Calico, Cilium y Antrea se instalan como plugins externos sobre un clúster sin CNI. La asimetría refleja las condiciones reales de uso: Flannel es el CNI predeterminado de K3s y la mayoría de equipos lo adopta sin configuración adicional, en tanto que los otros tres requieren instalación explícita y declarativa. Evaluar cada CNI en su escenario de despliegue típico aumenta la validez ecológica del experimento; debe considerarse, no obstante, que Flannel se beneficia de la integración nativa de K3s ---gestión automática de CIDR y \emph{hooks} de kubelet--- que los plugins externos deben replicar por su cuenta.
 
 Para los CNIs externos, la configuración crítica es el parámetro \texttt{--flannel-backend=none}, que desactiva completamente el CNI integrado de K3s y evita interferencias con el plugin bajo evaluación. Adicionalmente, se configura \texttt{--disable-network-policy} para que K3s no intente implementar NetworkPolicies por sí mismo.
 
@@ -77,9 +75,9 @@ La implementación de ArgoCD utiliza el patrón App of Apps: existe UNA sola apl
 
 \subsubsection{Configuración de selfHeal y prune}
 
-\textbf{\emph{selfHeal: true}} --- Si alguien modifica manualmente un recurso del clúster (por ejemplo, borra una NetworkPolicy), ArgoCD detecta la diferencia con el repositorio Git y automáticamente restaura el estado original. Esto fue crítico para la integridad del experimento.
+\textbf{\emph{selfHeal: true}} --- Ante la modificación manual de un recurso del clúster ---por ejemplo, la eliminación de una NetworkPolicy---, ArgoCD detecta la diferencia con el repositorio Git y restaura el estado original, lo que resultó crítico para la integridad del experimento.
 
-\textbf{\emph{prune: true}} --- Si se elimina un archivo YAML del repositorio Git, ArgoCD elimina también el recurso correspondiente del clúster, evitando acumulación de recursos huérfanos.
+\textbf{\emph{prune: true}} --- Al eliminar un archivo YAML del repositorio Git, ArgoCD elimina también el recurso correspondiente del clúster, lo que evita la acumulación de recursos huérfanos.
 
 \begin{lstlisting}
 # Definicion de la Application raiz en ArgoCD (App of Apps)
@@ -146,7 +144,7 @@ El banco de pruebas de throughput se implementó en \texttt{K8s-Tesis-Apps/cni\_
 
 \textbf{El iperf3-client (CronJob):} Programación \texttt{0,30 * * * *} (minutos 0 y 30 de cada hora), \texttt{concurrencyPolicy: Forbid}. Cuando se activa, crea un Pod cliente que ejecuta una ráfaga de tráfico TCP de 300 segundos con formato JSON de salida (\texttt{iperf3 -t 300 -i 10 -J}). Retención máxima: 5 corridas (\texttt{RETENTION\_MAX\_RUNS="5"}).
 
-La anti-afinidad del cliente frente al servidor se implementó como \texttt{preferredDuringSchedulingIgnoredDuringExecution} (suave, weight 100), forzando tráfico inter-nodo en la práctica. Esta decisión cambia por completo el valor de la prueba: con la anti-afinidad, Kubernetes prefiere ubicar el cliente en un nodo distinto al servidor, obligando a que los paquetes viajen por la red entre nodos y por el mecanismo de encapsulación o ruteo correspondiente.
+La anti-afinidad del cliente frente al servidor se implementó como \texttt{preferredDuringSchedulingIgnoredDuringExecution} (suave, weight 100), forzando tráfico inter-nodo en la práctica. Esta ubicación garantiza que todo el tráfico de benchmark atraviese el mecanismo de encapsulación del CNI entre nodos, que es exactamente lo que se quiere medir.
 
 \begin{lstlisting}
 # iperf-client-cronjob.yaml -- fragmento relevante
@@ -242,22 +240,7 @@ También calcula overhead de seguridad: cuando existen carpetas bajo \texttt{wit
 
 \subsubsection{Tecnologías de Implementación}
 
-La SPA fue implementada con React~19 como framework de interfaz de usuario, Vite~7 como herramienta de empaquetado y Tailwind CSS~3 para el sistema de estilos. Esta combinación permite una interfaz responsiva sin escribir CSS personalizado.
-
-\begin{table*}[htbp]
-\centering
-\scriptsize
-\begin{tabularx}{\textwidth}{|Y|Y|}
-\hline
-\textbf{Tecnología} & \textbf{Versión y Función en el Prototipo} \\
-\hline
-React & v19 --- Framework de UI basado en componentes reutilizables. Gestiona el estado de la aplicación (perfil seleccionado, datos cargados). \\
-Vite & v7 --- Bundler con Hot Module Replacement. Build de producción vía \texttt{build:pages} (\texttt{--outDir ../docs/recommender}). \\
-Tailwind CSS & v3 --- Framework CSS utilitario. Estilado directo en JSX. \\
-\hline
-\end{tabularx}
-\caption{Stack tecnológico del prototipo SPA recomendador.}
-\end{table*}
+La SPA fue implementada con React~19 (gestión de estado por componentes), Vite~7 (bundler; build de producción vía \texttt{build:pages} con \texttt{--outDir ../docs/recommender}) y Tailwind CSS~3 (estilos utilitarios directamente en JSX, sin CSS personalizado).
 
 Para actualizar datos: \texttt{npm run sync:data} ejecuta \texttt{procesador.js} (genera \texttt{cni-data.json}) y luego \texttt{export-spa-data.cjs} (inyecta los datos en el bundle). La lógica de recomendación se concentra en \texttt{recommendationModel.js}.
 
@@ -295,7 +278,7 @@ Sobre la base de Default Deny, se implementaron políticas específicas que perm
 
 \subsubsection{Validación Automatizada de Políticas}
 
-Se implementó un pipeline de validación usando \texttt{nc} (netcat) dentro de Pods de prueba para verificar la conectividad. Para cada par de Pods, el pipeline tiene una expectativa: ``esta conexión DEBE funcionar'' o ``esta conexión DEBE estar bloqueada''. Si la realidad no coincide, el pipeline reporta un error.
+Se implementó un pipeline de validación que emplea \texttt{nc} (netcat) dentro de Pods de prueba para verificar la conectividad. Para cada par de Pods, el pipeline define una expectativa ---la conexión debe permitirse o debe bloquearse--- y reporta un error cuando el comportamiento observado no coincide con ella.
 
 \begin{table*}[htbp]
 \centering
@@ -357,23 +340,3 @@ Outliers frecuentes en pruebas de madrugada: DigitalOcean mostraba throttling de
 
 El flujo completo puede resumirse en diez pasos secuenciales: (1) Terraform prepara la infraestructura; (2) se instala K3s y se obtiene acceso al clúster; (3) se instala ArgoCD; (4) ArgoCD sincroniza las aplicaciones declaradas; (5) se activa el CNI a evaluar; (6) los Pods de prueba quedan listos; (7) los CronJobs ejecutan throughput (0,30 min), latencia (10,40 min) y exportación de recursos (25,55 min); (8) los resultados se guardan en \texttt{K8S-CNI-Results}; (9) \texttt{procesador.js} consolida los datos; (10) el prototipo recomendador consume esos datos y presenta la recomendación.
 
-\begin{table*}[htbp]
-\centering
-\scriptsize
-\caption{Flujo de implementación de extremo a extremo.}
-\label{tab:flujo-implementacion}
-\begin{tabularx}{\textwidth}{|Y|Y|Y|}
-\hline
-\textbf{Etapa} & \textbf{Elemento implementado} & \textbf{Resultado esperado} \\
-\hline
-Infraestructura & Terraform y DigitalOcean. & Nodos, red privada y acceso base al entorno. \\
-Clúster & K3s en alta disponibilidad. & Plataforma Kubernetes para ejecutar pruebas. \\
-Entrega continua & ArgoCD y App of Apps. & Sincronización declarativa de aplicaciones. \\
-CNI & Flannel, Calico, Cilium o Antrea. & Plano de red activo para el escenario evaluado. \\
-Benchmark & iperf3 y cliente de latencia como CronJobs. & Resultados JSON normalizados por corrida. \\
-Observabilidad & Prometheus, Grafana y exporter. & Métricas de CPU y memoria en CSV, raw y resumen. \\
-Procesamiento & \texttt{procesador.js}. & Datos consolidados, limpios y listos para análisis. \\
-Recomendación & SPA React 19. & Ranking y recomendación según perfil de uso. \\
-\hline
-\end{tabularx}
-\end{table*}

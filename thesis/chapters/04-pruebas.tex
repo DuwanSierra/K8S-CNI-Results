@@ -1,8 +1,6 @@
 \section{Pruebas y Validación}
 
-Si el diseño describe el plan y la implementación lo ejecuta, las pruebas son el momento de la verdad: el instante en que el sistema se somete a condiciones reales y se mide si el comportamiento observado coincide con el esperado. Este capítulo documenta la metodología, los protocolos, los escenarios y los resultados de las pruebas realizadas sobre los cuatro objetivos específicos del proyecto. La documentación exhaustiva de cada protocolo garantiza que los resultados sean reproducibles por cualquier investigador que disponga del mismo testbed, y que las conclusiones sean atribuibles a los CNIs y no al procedimiento de medición.
-
-Un principio fundamental que guió todas las pruebas fue el control de variables: en cada experimento, se modificó únicamente el CNI bajo evaluación, manteniendo constantes el hardware, el sistema operativo, la versión de Kubernetes, el tamaño de los paquetes, la duración de las pruebas y las condiciones de red. Este control es lo que permite atribuir las diferencias en los resultados al CNI y no a factores externos.
+Este capítulo documenta los protocolos, escenarios y resultados de las pruebas sobre los cuatro objetivos específicos del proyecto. En cada ciclo se modificó únicamente el CNI bajo evaluación; hardware, sistema operativo, versión de Kubernetes, tamaño de paquetes, duración y condiciones de red permanecieron constantes, lo que hace posible atribuir las diferencias observadas al plugin y no al entorno.
 
 \subsection{Metodología General de Pruebas}
 
@@ -44,10 +42,7 @@ Todas las pruebas se orquestaron mediante CronJobs de Kubernetes. La secuencia d
 
 La orquestación automática elimina la variabilidad humana de la ejecución: cada corrida sigue exactamente la misma secuencia con los mismos intervalos, de modo que las diferencias observadas entre CNIs se deben al plugin y no al operador.
 
-\begin{quote}
-\textbf{¿Por qué 5 corridas y no 1 o 100?}
-Con 1 corrida, un único evento anómalo puede dominar completamente el resultado. Con 100 corridas, el tiempo de prueba se vuelve imprácticamente largo. Con 5 corridas bien distribuidas en el tiempo, el algoritmo IQR puede identificar y descartar la corrida anómala si ocurre, y el promedio de las restantes es estadísticamente representativo. Este balance entre rigor estadístico y viabilidad operativa es estándar en la investigación de redes en entornos cloud \cite{ref7,ref8}.
-\end{quote}
+La elección de cinco corridas por CNI responde a un equilibrio entre rigor estadístico y viabilidad operativa. Una sola corrida permitiría que un evento anómalo dominara el resultado, mientras que un número muy elevado extendería el tiempo de prueba sin un beneficio proporcional. Con cinco corridas distribuidas en el tiempo, el algoritmo IQR puede identificar y descartar una corrida anómala, y el promedio de las restantes resulta estadísticamente representativo; este criterio es habitual en la investigación de redes sobre entornos cloud \cite{ref7,ref8}.
 
 \subsection{Pruebas de Rendimiento de Red --- Objetivo Específico 1}
 
@@ -90,7 +85,7 @@ Outliers descartados por IQR & 1 de 5 (20\%) & 0 de 5 (0\%) & 0 de 5 (0\%) & 1 d
 \caption{Resultados de throughput TCP por CNI (promedio de 5 corridas de 300 segundos).}
 \end{table*}
 
-Todos los CNIs se acercan al límite teórico de la red VPC de DigitalOcean ($\sim$9.7--9.8 Gbps). Sin embargo, las diferencias en retransmisiones son significativas: Cilium con eBPF genera apenas 2.1 retransmisiones por sesión, mientras que Flannel genera 12.4, casi 6 veces más. Esta diferencia se explica porque eBPF opera directamente en el kernel y puede tomar decisiones de enrutamiento mucho más rápido que el mecanismo VXLAN de Flannel.
+Todos los CNIs se aproximan al límite teórico de la red VPC de DigitalOcean ($\sim$9.7--9.8 Gbps). Las diferencias en retransmisiones, en cambio, son significativas: Cilium con eBPF genera 2.1 retransmisiones por sesión, frente a las 12.4 de Flannel ---casi seis veces más---. Esta diferencia se explica porque eBPF opera directamente en el kernel y resuelve las decisiones de enrutamiento con mayor rapidez que el mecanismo VXLAN de Flannel.
 
 \subsubsection{Protocolo de Prueba de Latencia TCP}
 
@@ -168,9 +163,9 @@ Network Policies L7 (HTTP paths) & NO SOPORTA & NO SOPORTA & SOPORTA & NO SOPORT
 \caption{Resultados de pruebas de seguridad por CNI.}
 \end{table*}
 
-El hallazgo más crítico es que Flannel no implementa Network Policies en su plano de datos. Las políticas se crean sin error en Kubernetes, pero Flannel simplemente las ignora: el tráfico que debería estar bloqueado continúa fluyendo. Esto convierte a Flannel en una opción inviable para cualquier organización con requisitos de seguridad.
+El hallazgo más crítico es que Flannel no implementa Network Policies en su plano de datos: las políticas se crean sin error en Kubernetes, pero el tráfico que debería bloquearse continúa fluyendo. Esto descarta a Flannel para cualquier organización con requisitos de seguridad.
 
-Cilium sobresale como el único CNI que soporta Network Policies de capa 7 (L7). Con Cilium es posible crear reglas como ``solo permite solicitudes HTTP GET al path /api/v1/productos'', fundamental para arquitecturas de microservicios.
+Cilium es el único CNI que soporta Network Policies de capa 7 (L7), lo que permite definir reglas a nivel de método y ruta HTTP ---por ejemplo, admitir solo solicitudes \texttt{GET} a una ruta determinada---, capacidad fundamental para arquitecturas de microservicios.
 
 \subsubsection{Prueba de Overhead de Seguridad}
 
@@ -197,7 +192,7 @@ Antrea --- Overhead introducido & +0.026 ms (+5.1\%) / $-$0.04 Gbps ($-$0.4\%) \
 \caption{Impacto de las Network Policies en el rendimiento de red de cada CNI.}
 \end{table*}
 
-El overhead de seguridad es mínimo en todos los CNIs: la latencia adicional oscila entre el 1.9\% (Cilium) y el 5.1\% (Antrea). Esto valida la premisa del diseño Zero Trust: es perfectamente viable implementar seguridad completa sin sacrificar el rendimiento de manera significativa.
+El overhead de seguridad es mínimo en todos los CNIs: la latencia adicional oscila entre el 1.9\% de Cilium y el 5.1\% de Antrea. Este resultado confirma la premisa del diseño Zero Trust: es viable implementar seguridad completa sin sacrificar el rendimiento de forma significativa.
 
 \subsection{Pruebas de Eficiencia Computacional --- Consumo del Agente CNI}
 
@@ -347,13 +342,13 @@ Se trazó el flujo completo de un dato específico desde su origen hasta su visu
 
 \subsubsection{Lecciones Aprendidas de las Pruebas}
 
-\textbf{El horario de pruebas importa.} Las pruebas ejecutadas en horario de madrugada mostraban outliers con una frecuencia 3 veces mayor que las ejecutadas en horario laboral, evidenciando mantenimientos del proveedor cloud. Sin el filtro IQR, estos outliers habrían sesgado los resultados significativamente.
+\textbf{El horario de ejecución influye en la variabilidad.} Las pruebas ejecutadas en horario de madrugada presentaron outliers con una frecuencia tres veces mayor que las de horario laboral, lo que evidencia mantenimientos del proveedor cloud. Sin el filtro IQR, estos outliers habrían sesgado los resultados de forma significativa.
 
-\textbf{La diferencia entre promedio y percentil P99 es crucial.} El promedio de latencia de Flannel (0.687 ms) parece aceptable, pero su P99 (2.156 ms) revela que el 1\% de las conexiones experimentan latencias 10 veces mayores. Para aplicaciones donde la experiencia del usuario depende de cada conexión, este dato cambia completamente la evaluación.
+\textbf{El promedio y el percentil P99 ofrecen lecturas divergentes.} El promedio de latencia de Flannel (0.687 ms) resulta aceptable, pero su P99 (2.156 ms) revela que el 1\% de las conexiones experimenta latencias hasta diez veces mayores. Para aplicaciones cuya experiencia de usuario depende de cada conexión, esta diferencia modifica sustancialmente la evaluación.
 
-\textbf{Flannel es más peligroso de lo que parece.} Es el CNI más popular en tutoriales de Kubernetes, pero las pruebas revelan que no implementa Network Policies. Muchas organizaciones están usando Flannel creyendo que tienen seguridad de red implementada, cuando en realidad sus políticas están siendo ignoradas.
+\textbf{El riesgo de seguridad de Flannel es silencioso.} Por ser el CNI predeterminado en la mayoría de guías de inicio de Kubernetes, Flannel induce una falsa sensación de seguridad: las NetworkPolicies se aplican al clúster sin error aparente, pero su plano de datos las ignora, lo que deja las aplicaciones expuestas sin que el operador lo advierta.
 
-\textbf{El costo de seguridad es bajo.} Las pruebas demostraron que activar Network Policies introduce apenas entre 1.9\% y 5.1\% de overhead en latencia. La diferencia es de milésimas de milisegundo. Este hallazgo refuta la creencia de que implementar seguridad de red completa requiere sacrificar rendimiento, respaldando la adopción de Zero Trust como práctica operativa estándar sin penalizar la experiencia de las aplicaciones.
+\textbf{El overhead de las Network Policies es bajo.} La activación de las políticas introdujo un overhead de latencia de entre 1.9\% y 5.1\% ---del orden de milésimas de milisegundo---. Este hallazgo contradice la premisa de que una seguridad de red completa exige sacrificar rendimiento, y respalda la adopción de Zero Trust como práctica operativa estándar sin penalizar la experiencia de las aplicaciones.
 
 \subsection{Tabla Resumen de Cumplimiento de Objetivos}
 
