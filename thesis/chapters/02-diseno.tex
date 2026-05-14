@@ -1,0 +1,349 @@
+\section{Diseño de la Solución}
+
+Este capítulo describe, de manera detallada y comprensible, cómo se diseñó e implementó la solución propuesta para comparar las tecnologías de red que se utilizan dentro de un clúster Kubernetes. Para quienes no están familiarizados con el tema, un clúster Kubernetes es como una ciudad de servidores donde muchas aplicaciones conviven y se comunican entre sí; la ``red'' de esa ciudad es lo que garantiza que cada aplicación pueda hablar con las demás de forma rápida, segura y eficiente.
+
+El diseño presentado en este capítulo responde directamente a las causas del problema identificadas en el árbol de problemas: la falta de criterios objetivos para seleccionar el componente de red (CNI), la ausencia de visibilidad sobre el tráfico que circula dentro del clúster, y el sobredimensionamiento de recursos que resulta de operar sin datos reales. La solución se construyó sobre cuatro pilares fundamentales: (1) una arquitectura de red bien definida, (2) un sistema de medición de Calidad de Servicio (QoS), (3) un modelo matemático para la toma de decisiones y (4) una estrategia de seguridad automatizada.
+
+\subsection{Arquitectura de Red y Topología}
+
+Antes de poder medir o comparar tecnologías, es necesario construir un entorno de pruebas que sea justo para todas ellas. Imagine que quiere saber cuál de varios automóviles consume menos gasolina: para hacer una comparación honesta, todos deben correr en la misma pista, con el mismo tipo de carretera y las mismas condiciones climáticas. En redes, ocurre algo muy similar: el entorno donde se realizan las pruebas debe eliminar cualquier factor externo que pueda alterar los resultados.
+
+\subsubsection{Diseño de la Red Underlay (La Infraestructura Física)}
+
+La red underlay es la base sobre la que todo lo demás se construye; es, en términos simples, la ``carretera'' real por donde viajan los datos. Para este proyecto se tomó una decisión de diseño fundamental: utilizar la nube pública de DigitalOcean en lugar de servidores físicos propios. Esta decisión tiene una razón técnica muy clara: eliminar el ``ruido'' que generaría el hardware local. En un laboratorio físico, factores como la temperatura, el estado del cable de red o interferencias electromagnéticas pueden afectar las mediciones. Al usar servidores en la nube, todos estos factores quedan controlados por el proveedor y son equivalentes para todas las pruebas \cite{ref2}.
+
+El aprovisionamiento de esta infraestructura se realizó mediante Terraform, una herramienta de Infraestructura como Código (IaC). Esto significa que toda la configuración de los servidores está escrita en archivos de texto, como una receta de cocina, lo que garantiza que el entorno se pueda reproducir exactamente de la misma manera en cualquier momento. Si alguien quisiera replicar este experimento, bastaría con ejecutar esos archivos para obtener un entorno idéntico \cite{ref7}.
+
+\begin{quote}
+\textbf{¿Qué es K3s en Alta Disponibilidad?}
+
+K3s es una versión liviana de Kubernetes, ideal para entornos donde los recursos computacionales son limitados o para laboratorios de prueba. ``Alta Disponibilidad'' (HA) significa que el sistema está diseñado para seguir funcionando incluso si uno de sus servidores principales falla. En este proyecto, se configuró 1 nodo Master con base de datos PostgreSQL externa gestionada y 2 nodos Worker dedicados. Esta configuración garantiza que las pruebas de red se realicen en un ambiente estable y representativo de lo que usaría una empresa real.
+\end{quote}
+
+La topología de red diseñada incluye una red privada VPC (Virtual Private Cloud) para el tráfico interno entre nodos. Esta decisión es crítica desde el punto de vista telemático: al usar una red privada, se garantiza que la latencia medida durante las pruebas dependa exclusivamente de la eficiencia del CNI bajo evaluación y no de la variabilidad de internet público \cite{ref8}.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|}
+\hline
+\textbf{Componente} & \textbf{Descripción y Justificación} \\
+\hline
+Proveedor Cloud & DigitalOcean --- entorno reproducible y controlado, elimina ruido de hardware local \\
+Aprovisionamiento & Terraform (IaC) --- configuración declarativa, reproducible y versionada en Git \\
+Distribución K8s & K3s --- versión liviana de Kubernetes, ideal para laboratorio de comparativas \\
+Plano de control & 1 Nodo Master con datastore PostgreSQL externo --- elimina SPOF del plano de control \\
+Nodos de trabajo & 2 Workers dedicados --- separación clara de roles, mediciones sin interferencia \\
+Red interna & VPC privada --- aísla el tráfico inter-nodo, garantiza mediciones limpias de QoS \\
+\hline
+\end{tabularx}
+\caption{Componentes del diseño de la red underlay y su justificación técnica.}
+\end{table*}
+
+\subsubsection{Diseño de la Red Overlay (Los CNI bajo Evaluación)}
+
+Si la red underlay es la carretera física, la red overlay es el sistema de señalización, semáforos y rutas que organiza el tráfico dentro del clúster. Esta capa es implementada por los plugins CNI. Un CNI es el componente que hace posible que dos aplicaciones dentro del clúster se puedan ``hablar'' entre sí, aunque estén en servidores diferentes. Kubernetes no incluye esta funcionalidad por defecto; en cambio, permite que las organizaciones elijan el CNI que mejor se adapte a sus necesidades \cite{ref4,ref18}.
+
+El núcleo del diseño de este proyecto es la comparativa de cuatro tecnologías de encapsulamiento y ruteo, cada una con una filosofía diferente:
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|Y|Y|}
+\hline
+\textbf{CNI} & \textbf{Tecnología Base} & \textbf{Versión} & \textbf{Explicación} \\
+\hline
+Flannel & VXLAN (L2) & nativo K3s & CNI más sencillo. Funciona como un túnel: envuelve los datos en un ``sobre'' adicional. Fácil de instalar pero sin soporte nativo de NetworkPolicies. \\
+Calico & VXLAN (DO VPC) & 3.29.1 Tigera Operator & Tigera Operator con \texttt{encapsulation: VXLAN} para DigitalOcean VPC. Políticas avanzadas L3/L4. BGP disponible en bare-metal. \\
+Cilium & eBPF + VXLAN tunnel & 1.16.5 & Modo \texttt{routingMode=tunnel}, \texttt{tunnelProtocol=vxlan}. Opera directamente en el kernel con programas eBPF. Filtrado L7 HTTP nativo. \\
+Antrea & OVS (SDN) & 2.2.0 & Open vSwitch con sistema jerárquico de Tiers (Emergency $>$ SecurityOps $>$ NetworkOps $>$ Platform $>$ Application). \\
+\hline
+\end{tabularx}
+\caption{Los cuatro CNI evaluados, su tecnología base, versión desplegada y enfoque.}
+\end{table*}
+
+\textbf{VXLAN (Virtual Extensible LAN):} Es un protocolo que permite crear redes virtuales sobre redes físicas existentes. Funciona encapsulando los paquetes de datos originales dentro de paquetes UDP, lo que permite que tráfico de red de nivel 2 viaje sobre redes de nivel 3. El costo es un overhead de 50 bytes por paquete, lo que puede reducir el throughput efectivo cuando se transmiten muchos datos pequeños \cite{ref12}.
+
+\textbf{eBPF (Extended Berkeley Packet Filter):} Es una tecnología que permite ejecutar programas directamente dentro del kernel de Linux de manera segura y eficiente. En el contexto de redes, esto significa que Cilium puede interceptar, analizar y redirigir paquetes de red sin necesidad de copiarlos al espacio de usuario, eliminando una de las principales fuentes de latencia de los sistemas tradicionales \cite{ref11}.
+
+\textbf{OVS (Open vSwitch):} Es un switch virtual sofisticado orientado a SDN. Antrea lo utiliza para implementar conectividad y políticas con un sistema de Tiers jerárquico que permite reglas corporativas de mayor prioridad que las NetworkPolicies estándar de Kubernetes.
+
+\subsection{Diseño del Sistema de Medición de Calidad de Servicio (QoS)}
+
+En telemática, la Calidad de Servicio (QoS) es el conjunto de métricas que determinan qué tan bien funciona una red para las aplicaciones que la utilizan. El sistema de medición diseñado en este proyecto es el corazón experimental de la investigación. Sin mediciones precisas y reproducibles, cualquier comparación entre CNIs sería subjetiva e inútil para la toma de decisiones técnicas. El diseño sigue los principios de la metrología de redes: control de variables, reproducibilidad y representatividad estadística \cite{ref6}.
+
+\subsubsection{Metodología de Inyección de Tráfico}
+
+Para generar tráfico de red de manera controlada, se utilizó iperf3, la herramienta de referencia en el ámbito académico y profesional para pruebas de rendimiento de redes. iperf3 funciona con un modelo cliente-servidor: un Pod emisor (cliente) envía tráfico a un Pod receptor (servidor), y ambos registran estadísticas detalladas de la transferencia.
+
+\begin{quote}
+\textbf{Solución al problema de co-localización: podAntiAffinity}
+
+Para garantizar que el emisor y el receptor siempre estén en servidores diferentes, se utilizó una funcionalidad de Kubernetes llamada \texttt{podAntiAffinity} (anti-afinidad de pods). Se configuró como \texttt{preferredDuringSchedulingIgnoredDuringExecution} (anti-afinidad suave, weight 100), lo que significa que el scheduler \emph{prefiere} ubicar cliente y servidor en nodos distintos. Con 2 workers dedicados disponibles, el scheduler los separa en la práctica en todos los casos. Se usa \texttt{preferred} en lugar de \texttt{required} para mantener resiliencia ante reinicios de nodo.
+\end{quote}
+
+Además del aislamiento, se diseñó un esquema de automatización mediante CronJobs de Kubernetes con ráfagas de tráfico TCP de 300 segundos cada 30 minutos. Esta frecuencia permite capturar el comportamiento de la red en diferentes momentos del día, obteniendo así un perfil estadístico completo \cite{ref7}.
+
+\subsubsection{Variables Telemáticas Capturadas}
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|Y|}
+\hline
+\textbf{Variable QoS} & \textbf{Unidad de medida} & \textbf{Por qué es importante} \\
+\hline
+Throughput (Ancho de Banda Efectivo) & Gbps / Mbps & Determina cuánta información puede transmitirse por segundo. Herramienta: iperf3 -J, 300 s TCP. \\
+Latencia de Establecimiento TCP & ms (min/avg/max/mdev) & Tiempo que tarda una conexión en establecerse. Herramienta: script Bash con \texttt{nc -z -w 2}, 30 muestras por corrida. \\
+Retransmisiones TCP & Número de paquetes & Indicador de problemas en el canal de encapsulamiento del CNI. \\
+Costo Computacional del CNI & \% CPU / MB RAM & Cuántos recursos del servidor consume el propio CNI para procesar el tráfico. \\
+\hline
+\end{tabularx}
+\caption{Variables telemáticas capturadas por el sistema de medición y su impacto en las aplicaciones.}
+\end{table*}
+
+\subsubsection{La Pila de Observabilidad: Prometheus y Grafana}
+
+\textbf{Prometheus:} Sistema de recolección de métricas. Funciona como un inspector que visita periódicamente cada nodo del clúster y registra estadísticas de CPU, memoria, red y el estado de cada CNI. Los datos se almacenan en series temporales \cite{ref6}.
+
+\textbf{Grafana:} Es la capa de visualización. Conecta con Prometheus y presenta los datos en dashboards interactivos que muestran en tiempo real: el throughput de cada CNI, la latencia promedio, el consumo de CPU del agente CNI y las retransmisiones TCP.
+
+\subsection{Diseño del Modelo Matemático de Recomendación (MCDA)}
+
+Para resolver el problema de selección objetiva, se diseñó un modelo de Análisis de Decisión Multicriterio (MCDA). Este tipo de modelos se usan en ingeniería y economía cuando se deben tomar decisiones que involucran múltiples factores con diferentes niveles de importancia \cite{ref9}.
+
+\subsubsection{Algoritmo de Procesamiento y Limpieza Estadística}
+
+Antes de aplicar el modelo MCDA, los datos recolectados pasan por un proceso de limpieza estadística mediante el Rango Intercuartílico (IQR) para eliminar outliers causados por eventos externos (mantenimientos del proveedor, picos de uso compartido). Posteriormente, las métricas se normalizan con min-max a una escala común de 0 a 1, donde 1 representa el mejor desempeño posible. Este pipeline se implementa en el archivo \texttt{docs/procesador.js}.
+
+\subsubsection{La Matriz de Decisión por Perfil de Usuario}
+
+Se diseñaron tres perfiles de usuario basados en los patrones más comunes de uso de Kubernetes en la industria:
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|Y|Y|}
+\hline
+\textbf{Criterio de Evaluación} & \textbf{Fintech (Seguridad)} & \textbf{Streaming (Rendimiento)} & \textbf{IoT (Recursos)} \\
+\hline
+Throughput (velocidad) & 15\% & 35\% & 25\% \\
+Latencia (tiempo de respuesta) & 20\% & 35\% & 20\% \\
+Retransmisiones TCP (estabilidad) & 15\% & 20\% & 15\% \\
+Consumo de CPU del CNI & 10\% & 10\% & 30\% \\
+Consumo de RAM del CNI & 10\% & 0\% & 10\% \\
+Soporte de Network Policies L7 & 30\% & 0\% & 0\% \\
+Total & 100\% & 100\% & 100\% \\
+\hline
+\end{tabularx}
+\caption{Matriz de pesos del modelo MCDA por perfil de usuario.}
+\end{table*}
+
+La ecuación general del modelo se expresa como:
+\[
+P_{CNI}=\sum_{i=1}^{n}(V_i \times W_i)
+\]
+donde $P_{CNI}$ es el puntaje total del plugin, $V_i$ es la valoración normalizada de la métrica $i$, $W_i$ es el peso asignado y $n$ es el número de métricas evaluadas.
+
+\subsection{Diseño de Seguridad y Micro-segmentación (Modelo Zero Trust)}
+
+En su configuración inicial, cualquier aplicación dentro del clúster puede comunicarse libremente con cualquier otra. Las Network Policies permiten implementar Zero Trust: permitir sólo lo necesario y verificar explícitamente cada solicitud de acceso \cite{ref24,ref25}.
+
+\subsubsection{Estrategia de Default Deny}
+
+El diseño implementa Zero Trust en dos niveles. El primer nivel es la política de Default Deny: se crean reglas que bloquean todo el tráfico entrante y saliente de cada namespace. El segundo nivel es la habilitación selectiva: una vez bloqueado todo, se abren únicamente las comunicaciones necesarias.
+
+Se implementaron tres casos de uso ejecutados sobre cada CNI que soporta Network Policies (Calico, Cilium, Antrea; Flannel queda excluido):
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|}
+\hline
+\textbf{Caso} & \textbf{Descripción} \\
+\hline
+\texttt{zero\_trust} & Default Deny: bloquea todo ingress y egress por defecto; permite solo el tráfico benchmark explícito. \\
+\texttt{multi\_tier} & Reglas explícitas \texttt{frontend $\rightarrow$ backend $\rightarrow$ database} mediante label selectors. Cilium agrega CiliumNetworkPolicy L7 HTTP (solo GET/HEAD desde frontend). \\
+\texttt{egress\_block} & Bloqueo de egress externo con DNS permitido; tráfico inter-pod interno habilitado. \\
+\hline
+\end{tabularx}
+\caption{Casos de uso de seguridad implementados por CNI.}
+\end{table*}
+
+\textbf{Diferenciadores únicos por CNI:}
+\begin{itemize}
+  \item \textbf{Cilium} (\texttt{CiliumNetworkPolicy} L7): filtrado HTTP nativo por método (\texttt{GET}/\texttt{HEAD} permitido desde frontend a backend; \texttt{POST}/\texttt{PUT}/\texttt{DELETE} bloqueados) directamente en eBPF, sin service mesh.
+  \item \textbf{Antrea} (\texttt{ClusterNetworkPolicy} en Tier \texttt{securityops}): las reglas en el tier SecurityOps tienen prioridad sobre cualquier \texttt{NetworkPolicy} de namespace, modelando políticas corporativas obligatorias (ISO 27001 / SOC2) que los desarrolladores no pueden sobrescribir.
+\end{itemize}
+
+\subsubsection{Automatización GitOps con ArgoCD}
+
+Para garantizar que las políticas de red sigan siendo efectivas después de cambios en el sistema, se diseñó un flujo de trabajo GitOps usando ArgoCD. Si alguien elimina una política de red del clúster, ArgoCD detecta la diferencia entre el estado actual y el estado definido en Git, y automáticamente restaura la política eliminada (\texttt{selfHeal: true}). Los recursos eliminados del repositorio también se eliminan del clúster (\texttt{prune: true}).
+
+\subsection{Flujo Integral del Sistema}
+
+El flujo completo de los datos tiene cinco etapas:
+\begin{enumerate}
+\item \textbf{Generación del tráfico:} CronJob activa iperf3-client cada 30 minutos (minutos 0 y 30). La anti-afinidad ubica cliente y servidor en nodos distintos.
+\item \textbf{Captura de métricas:} iperf3 registra throughput, latencia TCP y retransmisiones (formato JSON, 300 s). CronJob de latencia ejecuta 30 muestras con \texttt{nc -z -w 2} (minutos 10 y 40). Prometheus recolecta CPU y RAM del agente CNI.
+\item \textbf{Extracción de recursos:} CronJob del Resource Usage Exporter (minutos 25 y 55) consulta directamente la API HTTP de Prometheus (\texttt{/api/v1/query\_range}) y genera archivos raw JSON, CSV, PNG (gnuplot) y \texttt{cni\_resource\_summary.json}.
+\item \textbf{Limpieza, normalización y scoring MCDA:} \texttt{procesador.js} aplica IQR, normalización min-max y calcula puntajes. Genera \texttt{cni-data.json}.
+\item \textbf{Visualización y recomendación:} SPA React consume \texttt{cni-data.json} y muestra el ranking MCDA por perfil.
+\end{enumerate}
+
+\subsection{Beneficio Tecnológico y Telemático de la Solución}
+
+\subsubsection{Beneficios Telemáticos}
+El sistema proporciona visibilidad completa de la red en tiempo real y control de seguridad mediante micro-segmentación Zero Trust, transformando la red de un sistema ``todo abierto'' a una red controlada. Esto reduce la superficie de ataque: si un atacante compromete una aplicación, su capacidad de movimiento lateral está limitada por las políticas de red \cite{ref16}.
+
+\subsubsection{Beneficios Tecnológicos}
+Reemplaza las decisiones basadas en opiniones por decisiones basadas en datos medidos en condiciones controladas y reproducibles. El modelo MCDA proporciona un método objetivo y transparente, y la metodología es replicable para evaluar nuevas versiones de CNIs.
+
+\subsubsection{Beneficio Económico: Reducción del Sobredimensionamiento}
+Con las mediciones del proyecto, es posible saber exactamente cuánta CPU consume cada CNI para mover 1 Gbps de tráfico. Esta información permite un dimensionamiento inteligente: si Cilium necesita un 30\% menos de CPU que Flannel para la misma cantidad de tráfico, una organización podría reducir su inversión en cómputo de manera proporcional.
+
+\subsection{Justificación de las Principales Decisiones de Diseño}
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|}
+\hline
+\textbf{Decisión de diseño} & \textbf{Justificación técnica y telemática} \\
+\hline
+¿Por qué nube pública (DigitalOcean) en lugar de un laboratorio físico propio? & Los entornos físicos propios introducen variables no controlables. La nube garantiza que la única variable entre pruebas sea el CNI, no el hardware. \\
+¿Por qué K3s y no Kubernetes estándar? & K3s tiene un footprint menor, lo que hace que una mayor proporción del CPU y la RAM esté disponible para las aplicaciones y el CNI, aumentando la sensibilidad de las mediciones. \\
+¿Por qué iperf3? & Es la herramienta de referencia académica y profesional para pruebas de rendimiento de redes TCP/UDP. Sus resultados son reproducibles y comparables con otros estudios. \\
+¿Por qué IQR para limpiar outliers? & El promedio es muy sensible a valores extremos. El IQR es robusto a outliers porque se basa en la distribución estadística central. \\
+¿Por qué tres perfiles de usuario en el MCDA? & Existe una tensión fundamental entre throughput, latencia, seguridad y uso de recursos. Ningún CNI es el mejor en todas las dimensiones simultáneamente. \\
+¿Por qué ArgoCD para la gestión de políticas? & Las políticas de red manuales son frágiles. GitOps con ArgoCD garantiza que el estado de seguridad sea siempre el que el equipo definió, sin importar qué cambios ocurran en el clúster \cite{ref25}. \\
+\hline
+\end{tabularx}
+\caption{Justificación de las principales decisiones de diseño del proyecto.}
+\end{table*}
+
+\subsection{Resumen Arquitectónico Integrado}
+
+El diseño de la solución puede resumirse como un sistema de tres capas:
+
+La \textbf{primera capa} es la infraestructura controlada (red underlay sobre DigitalOcean con Terraform), que garantiza un entorno reproducible y libre de ruido externo.
+
+La \textbf{segunda capa} es el plano de observabilidad y prueba (red overlay con los cuatro CNIs, iperf3 con podAntiAffinity, CronJobs automáticos, Prometheus y Grafana), que captura datos de calidad de servicio de manera sistemática.
+
+La \textbf{tercera capa} es la inteligencia de decisión (algoritmo IQR, normalización, modelo MCDA con perfiles, dashboard de recomendación), que transforma los datos brutos en recomendaciones específicas.
+
+Transversalmente opera la estrategia de seguridad Zero Trust (Network Policies con Default Deny, micro-segmentación y automatización GitOps con ArgoCD), que garantiza que el entorno de prueba y las recomendaciones incluyan siempre consideraciones de seguridad.
+
+\subsection{Trazabilidad del diseño frente al problema de investigación}
+
+El diseño de la solución no se planteó como una arquitectura aislada, sino como una respuesta directa al problema formulado en el anteproyecto: las organizaciones adoptan Kubernetes como plataforma de orquestación, pero la calidad final del despliegue depende en gran medida del plano de red, de la selección del CNI y de la forma en que se controlan las comunicaciones internas del clúster \cite{ref29}.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\caption{Trazabilidad entre problema de investigación, objetivo y decisión de diseño.}
+\label{tab:trazabilidad-diseno}
+\begin{tabularx}{\textwidth}{|Y|Y|Y|}
+\hline
+\textbf{Necesidad identificada} & \textbf{Objetivo asociado} & \textbf{Respuesta de diseño} \\
+\hline
+Comparar CNIs sin depender de recomendaciones informales. & Evaluar cuantitativamente Calico, Cilium, Flannel y Antrea en escenarios controlados. & Testbed reproducible sobre Kubernetes, ejecución automatizada y consolidación de métricas por CNI. \\
+\hline
+Controlar el riesgo de comunicaciones internas abiertas. & Evaluar políticas de red seguras y automatizadas. & Diseño de NetworkPolicies bajo enfoque Zero Trust, casos de denegación por defecto y segmentación por capas. \\
+\hline
+Convertir resultados técnicos heterogéneos en una decisión comprensible. & Definir criterios, umbrales y ponderaciones para comparación objetiva. & Modelo MCDA con criterios de rendimiento, eficiencia de recursos e impacto de seguridad. \\
+\hline
+Apoyar a una organización que necesita seleccionar y configurar un CNI. & Implementar un prototipo funcional de recomendación. & Prototipo web que consume datos procesados, aplica perfiles de decisión y explica la recomendación. \\
+\hline
+Evitar sobredimensionamiento de infraestructura. & Relacionar desempeño de red con consumo de CPU y memoria. & Captura de recursos del CNI mediante Prometheus y cálculo de eficiencia relativa por perfil. \\
+\hline
+\end{tabularx}
+\end{table*}
+
+\subsection{Requisitos de diseño derivados del contexto telemático}
+
+El primer requisito es la \textbf{reproducibilidad}. El entorno se concibió bajo infraestructura como código, despliegue declarativo y automatización de experimentos. El segundo requisito es el \textbf{aislamiento de variables}: el CNI es la única variable; todos los demás elementos (proveedor cloud, tipo de instancia, versión de Kubernetes, topología, duración) se mantienen constantes. El tercer requisito es la \textbf{medición integral}: un CNI no debe evaluarse solo por throughput, sino por rendimiento de red, eficiencia de recursos e impacto de seguridad. El cuarto requisito es la \textbf{trazabilidad de la evidencia}: cada dato debe conservar su origen. El quinto requisito es la \textbf{compatibilidad con la operación real}: el diseño usa objetos y patrones nativos de Kubernetes (Deployments, CronJobs, ArgoCD) cercanos a la forma en que los equipos DevOps y SRE operan clústeres reales.
+
+\subsection{Diseño arquitectónico por capas}
+
+La solución se organizó en siete capas para separar responsabilidades. La \textbf{capa 1} es la infraestructura underlay (DigitalOcean). La \textbf{capa 2} es el clúster Kubernetes K3s en alta disponibilidad. La \textbf{capa 3} es el plano CNI (Flannel, Calico, Cilium o Antrea). La \textbf{capa 4} es el plano de inyección de tráfico (Pods iperf3 + CronJobs). La \textbf{capa 5} es observabilidad y captura (Prometheus, Grafana, exporter de recursos). La \textbf{capa 6} es procesamiento y decisión (\texttt{procesador.js}: IQR, normalización, MCDA). La \textbf{capa 7} es presentación y recomendación (SPA React).
+
+\subsection{Diseño comparativo de los CNIs evaluados}
+
+La selección de Flannel, Calico, Cilium y Antrea no es accidental. Estos cuatro CNIs representan enfoques distintos del plano de datos. Flannel representa simplicidad y conectividad básica (línea base). Calico representa políticas de red y ruteo con fuerte adopción en producción. Cilium representa el uso de eBPF como mecanismo moderno de aceleración y observabilidad. Antrea representa una aproximación basada en Open vSwitch y conceptos de redes definidas por software.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\caption{Criterios de diseño para la selección de CNIs evaluados.}
+\label{tab:cni-diseno-comparativo}
+\begin{tabularx}{\textwidth}{|Y|Y|Y|Y|}
+\hline
+\textbf{CNI} & \textbf{Enfoque técnico} & \textbf{Aporte al experimento} & \textbf{Riesgo o limitación a medir} \\
+\hline
+Flannel & Overlay simple (VXLAN). & Línea base de conectividad sencilla. & Ausencia de enforcement nativo de NetworkPolicies. \\
+\hline
+Calico & Ruteo y políticas de red; soporte de controles avanzados. & Comparación de seguridad práctica y madurez operativa. & Posible costo por evaluación de reglas. \\
+\hline
+Cilium & Dataplane y seguridad apoyados en eBPF. & Evaluar beneficios de filtrado moderno, visibilidad y políticas L7. & Mayor complejidad conceptual y alto consumo de RAM. \\
+\hline
+Antrea & Dataplane basado en Open vSwitch y enfoque SDN. & Evaluar conmutación virtual programable y visibilidad de flujos. & Dependencia de componentes adicionales. \\
+\hline
+\end{tabularx}
+\end{table*}
+
+\subsection{Diseño de la metrología de QoS}
+
+El sistema de medición se diseñó bajo el principio de que una métrica aislada no describe la calidad de una red. El throughput TCP mide la capacidad efectiva de transferencia. La latencia de establecimiento TCP representa el costo de iniciar una comunicación entre servicios. El jitter mide la estabilidad temporal. Las retransmisiones TCP son un indicador de eficiencia del dataplane. El consumo de CPU y memoria determina el impacto en el sobredimensionamiento.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\caption{Métricas de QoS y eficiencia incluidas en el diseño.}
+\label{tab:metricas-diseno-qos}
+\begin{tabularx}{\textwidth}{|Y|Y|Y|}
+\hline
+\textbf{Métrica} & \textbf{Qué observa} & \textbf{Uso dentro del modelo} \\
+\hline
+Throughput TCP & Capacidad efectiva de transferencia entre Pods. & Determinar eficiencia del dataplane para cargas de alto volumen. \\
+\hline
+Latencia TCP connect & Tiempo de establecimiento de conexión. & Evaluar respuesta para microservicios y tráfico transaccional. \\
+\hline
+Latencia máxima y variabilidad & Estabilidad temporal de la comunicación. & Identificar picos que el promedio puede ocultar. \\
+\hline
+Retransmisiones TCP & Señal de reintentos, congestión o inestabilidad del camino. & Penalizar dataplanes que logren throughput a costa de más retransmisiones. \\
+\hline
+CPU del agente CNI & Costo computacional del plano de red. & Medir impacto en sobredimensionamiento y perfiles edge. \\
+\hline
+Memoria del agente CNI & Huella de memoria persistente por nodo. & Evaluar sostenibilidad operativa en nodos restringidos. \\
+\hline
+Overhead con NetworkPolicies & Degradación al activar seguridad. & Comparar seguridad aplicable sin comprometer rendimiento. \\
+\hline
+\end{tabularx}
+\end{table*}
+
+\subsection{Diseño estadístico y modelo de decisión multicriterio}
+
+El procesamiento estadístico se diseñó para evitar que la recomendación dependa de valores atípicos. Después de la limpieza IQR, las métricas se normalizan considerando el sentido de optimización de cada variable: en throughput, un valor mayor es mejor; en latencia, CPU, memoria y retransmisiones, un valor menor es preferible (la escala se invierte). La decisión final se formaliza con la suma ponderada del MCDA.
+
+El diseño contempla tres perfiles arquitectónicos: URLLC/automatización industrial (prioriza latencia y jitter), Edge/IoT (prioriza consumo de recursos y footprint) y microservicios transaccionales/Zero Trust (prioriza seguridad y bajo overhead con políticas activas). Los pesos son parámetros explícitos del modelo, lo que permite que el prototipo sea ajustable por organización.
+
+\subsection{Diseño de seguridad: micro-segmentación y Zero Trust}
+
+La seguridad del diseño parte de una característica esencial de Kubernetes: la comunicación interna entre Pods suele estar abierta por defecto. El diseño adopta Zero Trust como principio operativo \cite{ref24,ref25}: no se asume confianza por pertenecer al mismo clúster o namespace. Las NetworkPolicies dependen del CNI para su enforcement real; si el plugin no implementa el plano de datos correctamente, la política puede existir como objeto declarativo sin producir el efecto esperado \cite{ref4,ref18}.
+
+La comparación de seguridad no se limita a verificar si una política funciona. También evalúa capacidades diferenciadoras: Flannel como referencia sin soporte nativo, Calico con políticas estándar y extensiones, Cilium con capacidades L7 mediante CiliumNetworkPolicy, y Antrea con estructuras de prioridad y visibilidad asociadas a OVS.
+
+\subsection{Diseño GitOps para consistencia operativa}
+
+La automatización GitOps cumple dos funciones. La primera es operativa: garantizar que los manifiestos aplicados al clúster correspondan al estado versionado en el repositorio. La segunda es metodológica: permitir que las pruebas sean repetibles y auditables. Un cambio de CNI o de escenario de prueba se expresa como un cambio declarativo; el clúster sincroniza ese estado, ejecuta las cargas programadas y produce resultados en la estructura de datos esperada.
+
+\subsection{Diseño del prototipo recomendador}
+
+El prototipo recomendador se diseñó como la capa de interacción entre el modelo matemático y el usuario final. La salida esperada incluye tres niveles: (1) la recomendación directa (qué CNI se sugiere), (2) la justificación (qué métricas explican la recomendación) y (3) la orientación de configuración (qué consideraciones debe tener el usuario al desplegar ese CNI). Esta estructura responde al objetivo específico 4 del anteproyecto \cite{ref29}.
+
+El prototipo se implementó como SPA con React~19, Vite~7 y Tailwind CSS~3. El build de producción se despliega en GitHub Pages vía \texttt{build:pages} (\texttt{--outDir ../docs/recommender}). Para actualizar datos: \texttt{npm run sync:data} ejecuta \texttt{procesador.js} (genera \texttt{cni-data.json}) y luego \texttt{export-spa-data.cjs} (inyecta los datos en el bundle).
+
+\subsection{Alcance, límites y decisiones explícitas del diseño}
+
+El diseño se limita a evaluar CNIs en un testbed controlado sobre Kubernetes y no pretende generalizar automáticamente los resultados a cualquier proveedor, versión o hardware. Se usa tráfico TCP controlado como señal principal. El diseño tampoco asume que mayor complejidad implica mejor resultado. La solución se diseñó para sostener una mejora continua: a medida que se agreguen nuevas corridas o nuevas versiones de CNIs, el pipeline puede recalcular puntajes. En lugar de entregar una decisión congelada, entrega una forma de decidir con evidencia actualizable \cite{ref29}.

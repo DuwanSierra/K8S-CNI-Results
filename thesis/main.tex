@@ -1,0 +1,120 @@
+% ============================================================
+% Evaluación y comparación de plugins CNI para Kubernetes
+% Holman Alba · Duwan Sierra
+% Ingeniería Telemática — formato IEEE journal (two-column)
+% ============================================================
+\documentclass[journal]{IEEEtran}
+
+% --- Encoding & idioma ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noindentfirst]{babel}
+
+% --- URLs ---
+\usepackage{url}
+
+% --- Gráficos ---
+\usepackage{graphicx}
+\graphicspath{{./fig/}}
+
+% --- Matemáticas ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% --- Tablas ---
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+% --- Código fuente ---
+\usepackage{listings}
+\usepackage{xcolor}
+\lstset{
+  basicstyle=\ttfamily\scriptsize,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  backgroundcolor=\color{gray!8}
+}
+
+% --- Citas IEEE ---
+\usepackage{cite}
+
+% --- Hiperenlaces (cargar al final del preámbulo) ---
+\usepackage[hidelinks,
+            pdftitle={Evaluacion y comparacion de plugins CNI para Kubernetes},
+            pdfauthor={Holman Alba, Duwan Sierra}]{hyperref}
+
+% Separación silábica en español
+\hyphenation{Ku-ber-ne-tes mi-cro-ser-vi-cios te-le-má-ti-ca}
+
+% ============================================================
+\begin{document}
+
+\title{Evaluación y comparación de plugins CNI para Kubernetes:
+       un enfoque orientado a QoS, seguridad y eficiencia de
+       recursos en entornos de microservicios}
+
+\author{Holman~Alba~y~Duwan~Sierra%
+\thanks{Programa de Ingeniería Telemática.
+Trabajo de grado de pregrado.}%
+\thanks{Manuscript: \today.}}
+
+\markboth{Ingeniería Telemática}%
+{Alba \& Sierra: Evaluación y comparación de plugins CNI para Kubernetes}
+
+\maketitle
+
+% --- Abstract ---
+\begin{abstract}
+Kubernetes no impone un plugin de red específico, lo que obliga a los
+equipos a seleccionar un \emph{Container Network Interface} (CNI) sin
+métricas comparativas objetivas. Esta situación conduce a
+sobredimensionamiento de infraestructura (CPU/RAM) y a posturas de
+seguridad incompletas. El presente trabajo construye evidencia empírica
+reproducible —infraestructura como código, benchmarks automatizados y
+modelo de decisión multicriterio (MCDA)— para guiar esa selección.
+Se evalúan Flannel, Calico, Cilium y Antrea en un clúster K3s en alta
+disponibilidad sobre DigitalOcean, midiendo \emph{throughput} TCP,
+latencia de establecimiento, retransmisiones y overhead de CPU/RAM del
+agente CNI, así como el impacto de políticas de red Zero Trust.
+Los resultados alimentan un modelo MCDA parametrizable por perfil de
+uso (URLLC, Edge/IoT, microservicios transaccionales) y un prototipo
+web que expone las recomendaciones.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Kubernetes, CNI, QoS, iperf3, Calico, Cilium, Flannel, Antrea,
+NetworkPolicy, Zero Trust, MCDA, K3s, DigitalOcean, GitOps, eBPF.
+\end{IEEEkeywords}
+
+\IEEEpeerreviewmaketitle
+
+% ============================================================
+% CAPÍTULOS
+% ============================================================
+\input{chapters/01-marco-teorico}
+\input{chapters/02-diseno}
+\input{chapters/03-implementacion}
+\input{chapters/04-pruebas}
+\input{chapters/05-resultados}
+\input{chapters/06-conclusiones}
+
+% ============================================================
+% REFERENCIAS
+% ============================================================
+\input{references/bibliography}
+
+% ============================================================
+% BIOGRAFÍAS
+% ============================================================
+\begin{IEEEbiographynophoto}{Holman Alba}
+Estudiante de Ingeniería Telemática.
+\end{IEEEbiographynophoto}
+
+\begin{IEEEbiographynophoto}{Duwan Sierra}
+Estudiante de Ingeniería Telemática.
+\end{IEEEbiographynophoto}
+
+\end{document}

@@ -1,0 +1,40 @@
+\section{Conclusiones y Trabajos Futuros}
+
+% TODO: Las conclusiones deben sintetizar los hallazgos del proyecto en relación
+% con los objetivos específicos planteados en el anteproyecto.
+
+\subsection{Conclusiones}
+
+% TODO: Desarrollar conclusiones para cada objetivo específico:
+% OE1: Rendimiento comparativo de los cuatro CNIs
+% OE2: Efectividad de las Network Policies para seguridad Zero Trust
+% OE3: Validez y utilidad del modelo MCDA como herramienta de decisión
+% OE4: Funcionalidad del prototipo recomendador SPA
+
+\subsection{Trabajos Futuros}
+
+El presente proyecto sienta las bases de un framework de evaluación que tiene múltiples posibilidades de extensión y mejora.
+
+\subsubsection{Extensión del Framework a Entornos Edge y 5G}
+
+El diseño actual del sistema de evaluación se implementó sobre infraestructura de nube pública. Una extensión natural sería adaptar el framework para entornos de computación edge, donde los nodos están geográficamente distribuidos con enlaces de menor capacidad y mayor latencia. Con el avance de las redes 5G y la proliferación de casos de uso de baja latencia (vehículos autónomos, cirugía remota, manufactura inteligente), la evaluación de CNIs en condiciones de edge computing se convierte en una necesidad urgente \cite{ref1}.
+
+\subsubsection{Incorporación de Inteligencia Artificial para Selección Dinámica de CNI}
+
+El modelo MCDA actual es estático: los pesos se definen manualmente según el perfil de usuario. Un trabajo futuro de alta relevancia sería desarrollar un modelo de aprendizaje automático que ajuste los pesos dinámicamente en función del comportamiento observado de las aplicaciones en tiempo real \cite{ref2}. Este tipo de gestión autónoma es uno de los pilares de las redes \emph{intent-based networking}.
+
+\subsubsection{Evaluación de Nuevas Tecnologías CNI y Service Meshes}
+
+El panorama de tecnologías de red para Kubernetes evoluciona rápidamente. Tecnologías emergentes como Kube-OVN (basado en Open Virtual Network), Multus CNI (que permite múltiples interfaces de red por Pod) y la integración de CNIs con Service Meshes como Istio o Linkerd están ganando relevancia. Un trabajo futuro significativo sería extender el framework para incluir estas tecnologías y evaluar el impacto de capas adicionales (Service Mesh) sobre las métricas de QoS.
+
+\subsubsection{Estandarización de la Metodología de Evaluación}
+
+En la revisión de la literatura, se identificó que no existe un estándar unificado para la evaluación de CNIs en Kubernetes. Diferentes estudios utilizan diferentes herramientas, métricas y entornos de prueba, lo que dificulta la comparación de resultados entre ellos \cite{ref7,ref8}. Un trabajo futuro de alto impacto sería publicar y proponer una metodología estandarizada basada en el framework desarrollado en este proyecto, potencialmente sometiéndola a revisión por la Cloud Native Computing Foundation (CNCF).
+
+\subsubsection{Evaluación del Impacto Energético y Sostenibilidad}
+
+El consumo energético de la infraestructura tecnológica es un tema de creciente relevancia económica y ambiental. Si bien este proyecto mide el consumo de CPU como proxy del consumo energético, una extensión futura sería implementar medición directa del consumo de energía mediante herramientas como PowerAPI o RAPL (Running Average Power Limit) de Intel, para calcular la eficiencia energética de cada CNI en términos de joules por gigabyte transferido.
+
+\subsubsection{Integración con Sistemas SIEM para Análisis de Seguridad}
+
+Las Network Policies implementadas en este proyecto proveen control de acceso a nivel de red, pero no generan alertas automáticas cuando se detectan intentos de conexión bloqueados. Un trabajo futuro sería integrar el sistema con un SIEM (Security Information and Event Management), como Elastic SIEM o Splunk, para correlacionar eventos de seguridad de red con otros indicadores de compromiso en el clúster, convirtiendo el sistema en uno activo de detección y respuesta (Network Detection and Response, NDR) \cite{ref27}.

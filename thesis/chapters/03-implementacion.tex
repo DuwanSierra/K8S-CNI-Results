@@ -1,0 +1,373 @@
+\section{Implementación de la Solución}
+
+Si el capítulo anterior describió el plano y los cimientos del edificio ---el diseño de la solución---, este capítulo narra cómo se construyó ladrillo por ladrillo. La implementación es la fase donde las decisiones de diseño dejan de ser teoría y se convierten en código, configuraciones y sistemas que realmente funcionan y generan datos medibles.
+
+Un principio guía de toda la implementación fue la reproducibilidad científica: cualquier decisión técnica que no pueda ser replicada de manera idéntica por otra persona no tiene valor académico. Por eso, toda la infraestructura y configuración está codificada en archivos de texto versionados en Git, y toda prueba está automatizada para eliminar la variabilidad humana de los resultados \cite{ref7}.
+
+\subsection{Aprovisionamiento de Infraestructura con Terraform}
+
+El primer paso de cualquier proyecto de infraestructura es levantar los servidores y las redes. En este proyecto, ese paso se realizó de manera completamente automatizada mediante Terraform (IaC). Con Terraform, se escribe una vez la descripción exacta de lo que se quiere, y el sistema se encarga de crearlo siempre de la misma manera \cite{ref7}.
+
+\subsubsection{Estructura del Código Terraform (K8s-bootstrap/00.bootstrap)}
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|}
+\hline
+\textbf{Archivo Terraform} & \textbf{Responsabilidad en la Infraestructura} \\
+\hline
+\texttt{main.tf} & Define los recursos principales: Droplets de DigitalOcean y red VPC privada. \\
+\texttt{variables.tf} & Centraliza todos los parámetros configurables: número de nodos (\texttt{agent\_count = 2}), tamaño de instancias, región y proveedor CNI. \\
+\texttt{ssh\_keys.tf} & Automatiza la gestión de llaves SSH para el acceso seguro entre nodos. \\
+\texttt{firewall.tf} & Configura las reglas de firewall a nivel de nube: primera línea de seguridad perimetral. \\
+\texttt{outputs.tf} & Genera automáticamente el archivo kubeconfig con las credenciales del clúster K3s. \\
+\hline
+\end{tabularx}
+\caption{Archivos Terraform del módulo de aprovisionamiento y su función específica.}
+\end{table*}
+
+El proceso de aprovisionamiento tiene tres etapas: \texttt{terraform plan} (compara estado actual vs. código), \texttt{terraform apply} (crea Droplets, VPC y firewall) y \texttt{terraform output} (extrae IPs y kubeconfig). Terraform mantiene un archivo \texttt{terraform.tfstate} que permite destruir y recrear toda la infraestructura de manera controlada, garantizando la repetibilidad científica: cada CNI se evaluó en condiciones idénticas de arranque.
+
+\subsection{Configuración del Clúster K3s en Alta Disponibilidad}
+
+Una vez aprovisionados los servidores, se instaló y configuró K3s, una distribución liviana de Kubernetes, con topología de 1 nodo Master + 2 nodos Worker dedicados.
+
+\subsubsection{Base de Datos Externa para el Plano de Control}
+
+El plano de control se configuró con una base de datos PostgreSQL gestionada de DigitalOcean (también provisionada via Terraform) como datastore externo. Esto elimina la complejidad de mantener un clúster etcd y garantiza un plano de control sin punto único de fallo (SPOF).
+
+\subsubsection{Instalación con Pizarra Limpia para Cada CNI}
+
+La parte más crítica de la implementación fue el parámetro \texttt{--flannel-backend=none} en la instalación de K3s, que desactiva completamente el CNI integrado y deja una ``pizarra limpia''. Esto garantiza que lo que se mide es el CNI bajo evaluación, sin interferencias del CNI predeterminado. Adicionalmente, se configura \texttt{--disable-network-policy} para que K3s no intente implementar NetworkPolicies por sí mismo.
+
+La configuración resultante en \texttt{/etc/rancher/k3s/config.yaml} para CNIs externos incluye:
+\begin{lstlisting}
+flannel-backend: none
+disable-network-policy: true
+\end{lstlisting}
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|Y|}
+\hline
+\textbf{CNI} & \textbf{Método de instalación} & \textbf{Configuración clave} \\
+\hline
+Flannel & Nativo K3s & \texttt{flannel-iface: eth1} (interfaz VPC de DigitalOcean) \\
+Calico & Tigera Operator v3.29.1 & \texttt{encapsulation: VXLAN}, CIDR \texttt{10.42.0.0/16}, \texttt{nodeAddressAutodetectionV4.interface: eth1} \\
+Cilium & Helm 1.16.5 & \texttt{routingMode=tunnel}, \texttt{tunnelProtocol=vxlan}, \texttt{ipam.mode=kubernetes}, \texttt{devices=eth1}, \texttt{operator.replicas=1} \\
+Antrea & Manifest v2.2.0 & \texttt{transportInterface: eth1}, \texttt{serviceCIDR: 10.43.0.0/16} \\
+\hline
+\end{tabularx}
+\caption{Instalación de CNIs: método y configuración clave en \texttt{user\_data/ks3\_server\_init.sh}.}
+\end{table*}
+
+El protocolo de rotación de CNIs tuvo cuatro pasos: (1) \texttt{kubectl delete} para eliminar recursos del CNI actual; (2) verificación de que no quedan interfaces de red anteriores en los nodos; (3) reinicio de los nodos Worker para limpiar estado en memoria; (4) aplicación del manifiesto del nuevo CNI via ArgoCD.
+
+\subsection{Orquestación y Entrega Continua: GitOps con ArgoCD}
+
+Con el clúster K3s funcionando y sin CNI, el siguiente componente instalado fue ArgoCD. ArgoCD implementa el paradigma GitOps: el repositorio Git es la única fuente de verdad sobre el estado del clúster. Todo lo que debe existir en el clúster está definido en archivos YAML dentro del repositorio \texttt{K8s-Tesis-Apps}.
+
+\subsubsection{El Patrón App of Apps}
+
+La implementación de ArgoCD utiliza el patrón App of Apps: existe UNA sola aplicación raíz (ubicada en \texttt{K8s-bootstrap/30.apps-of-apps-install}) que ArgoCD conoce directamente, y esa aplicación raíz contiene las definiciones de todas las demás aplicaciones (CNIs, stack de métricas, benchmarks, políticas de red).
+
+\subsubsection{Configuración de selfHeal y prune}
+
+\textbf{\emph{selfHeal: true}} --- Si alguien modifica manualmente un recurso del clúster (por ejemplo, borra una NetworkPolicy), ArgoCD detecta la diferencia con el repositorio Git y automáticamente restaura el estado original. Esto fue crítico para la integridad del experimento.
+
+\textbf{\emph{prune: true}} --- Si se elimina un archivo YAML del repositorio Git, ArgoCD elimina también el recurso correspondiente del clúster, evitando acumulación de recursos huérfanos.
+
+\begin{lstlisting}
+# Definicion de la Application raiz en ArgoCD (App of Apps)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: apps-of-apps
+  namespace: argocd
+spec:
+  source:
+    repoURL: https://github.com/equipo/K8s-Tesis-Apps
+    targetRevision: main
+    path: apps/
+  syncPolicy:
+    automated:
+      selfHeal: true   # Restaura cambios manuales automaticamente
+      prune: true      # Elimina recursos borrados del repo
+\end{lstlisting}
+
+\subsubsection{Overlays de Kustomize para los CNIs}
+
+Cada CNI tiene una configuración ligeramente diferente. Para gestionarlas sin duplicar código, se utilizó Kustomize con el patrón base/overlay: existe una configuración base con los parámetros comunes, y sobre esa base se aplican overlays específicas para cada CNI.
+
+Las apps gestionadas por ArgoCD incluyen: \texttt{cni-test-iperf} (benchmarks de throughput y latencia), \texttt{cni-resource-exporter} (exportación de recursos desde Prometheus), \texttt{cni-np-test} (pruebas de Network Policies, creada solo cuando \texttt{cni\_provider != "flannel"} y el caso de uso está definido), y \texttt{metrics} (Prometheus + Grafana).
+
+\subsection{Implementación del Stack de Observabilidad}
+
+El stack de observabilidad se implementó mediante el \texttt{kube-prometheus-stack} (Helm chart) que instala Prometheus, Grafana y exportadores preconfigurados para Kubernetes.
+
+\subsubsection{Prometheus: El Recolector de Métricas}
+
+Prometheus opera con un modelo pull: visita periódicamente los endpoints de métricas (cada 15 segundos en la configuración del proyecto). Para que Prometheus sepa qué métricas recolectar de los agentes CNI, se implementaron \texttt{ServiceMonitors} (CRD), apuntando específicamente al endpoint de métricas de cada agente.
+
+Las métricas clave recolectadas del agente CNI incluyen:
+\begin{itemize}
+\item \texttt{container\_cpu\_usage\_seconds\_total} (filtrado por pod del agente): costo computacional del CNI (criterio C2 del marco MCDA).
+\item \texttt{container\_memory\_rss} (filtrado por pod del agente): memoria física real del proceso del agente CNI.
+\item \texttt{node\_network\_transmit\_bytes\_total} / \texttt{node\_network\_receive\_bytes\_total}: bytes totales de red por nodo.
+\item \texttt{kube\_pod\_info} + \texttt{kube\_pod\_status\_phase}: estado del agente CNI para detectar reinicios durante las pruebas.
+\end{itemize}
+
+\subsubsection{Grafana: Los Dashboards de Red}
+
+Se configuraron dashboards de Grafana para: Throughput y Latencia (gráficas de series temporales de resultados iperf3), Consumo del Agente CNI (CPU RSS correlacionado con picos de tráfico) y Comparativa MCDA (ranking final calculado por \texttt{procesador.js}).
+
+\subsubsection{Resource Usage Exporter: Extracción Automatizada de Datos}
+
+Un componente personalizado es el \texttt{cni-resource-usage-exporter}, implementado como CronJob en \texttt{K8s-Tesis-Apps/grafana-exporter} (ArgoCD app: \texttt{cni-resource-exporter}). Este CronJob:
+\begin{itemize}
+\item Se ejecuta en los minutos 25 y 55 de cada hora (tras cada ventana de benchmarks).
+\item Consulta directamente la API HTTP de Prometheus (\texttt{/api/v1/query\_range}) --- no interactúa con Grafana.
+\item Métricas recolectadas: CPU\% por nodo, RAM\% por nodo, RAM usada en MiB, CPU cores y RAM del pod del agente CNI.
+\item Salida por corrida: \texttt{raw/} (JSON Prometheus), \texttt{csv/} (TSV procesado), \texttt{images/} (PNGs via gnuplot), \texttt{cni\_resource\_summary.json} (promedio para \texttt{procesador.js}).
+\item Todo se persiste con timestamp en \texttt{K8S-CNI-Results/results/cni-benchmarks/\{cni\}/resource\_usage\_nodes/}.
+\end{itemize}
+
+\subsection{Implementación del Banco de Pruebas de QoS}
+
+\subsubsection{Escenario de Rendimiento con iperf3}
+
+El banco de pruebas de throughput se implementó en \texttt{K8s-Tesis-Apps/cni\_test\_iperf}:
+
+\textbf{El iperf3-server (Deployment):} Un Deployment con una réplica que ejecuta iperf3 en modo servidor, expuesto con un Service de tipo ClusterIP para que el cliente pueda localizarlo por nombre DNS estable.
+
+\textbf{El iperf3-client (CronJob):} Programación \texttt{0,30 * * * *} (minutos 0 y 30 de cada hora), \texttt{concurrencyPolicy: Forbid}. Cuando se activa, crea un Pod cliente que ejecuta una ráfaga de tráfico TCP de 300 segundos con formato JSON de salida (\texttt{iperf3 -t 300 -i 10 -J}). Retención máxima: 5 corridas (\texttt{RETENTION\_MAX\_RUNS="5"}).
+
+La anti-afinidad del cliente frente al servidor se implementó como \texttt{preferredDuringSchedulingIgnoredDuringExecution} (suave, weight 100), forzando tráfico inter-nodo en la práctica. Esta decisión cambia por completo el valor de la prueba: con la anti-afinidad, Kubernetes prefiere ubicar el cliente en un nodo distinto al servidor, obligando a que los paquetes viajen por la red entre nodos y por el mecanismo de encapsulación o ruteo correspondiente.
+
+\begin{lstlisting}
+# iperf-client-cronjob.yaml -- fragmento relevante
+schedule: '0,30 * * * *'   # Minutos 0 y 30
+concurrencyPolicy: Forbid
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchLabels:
+            app: iperf-server
+        topologyKey: kubernetes.io/hostname
+# iperf3 -c iperf-server-svc -t 300 -i 10 -J
+\end{lstlisting}
+
+\subsubsection{Cliente de Latencia Personalizado}
+
+La prueba de latencia se implementó como CronJob (\texttt{latency-client-cronjob.yaml}) con programación en los minutos 10 y 40 de cada hora. Esta separación evita que la medición de latencia coincida exactamente con el inicio de la prueba de throughput.
+
+El cliente usa un script Bash midiendo TCP Connect (\texttt{nc -z -w 2}) con timestamp de ms. Toma 30 muestras por corrida y calcula min/avg/max/mdev. El JSON normalizado conserva campos \texttt{tcp\_connect\_avg\_ms}, \texttt{tcp\_connect\_min\_ms}, \texttt{tcp\_connect\_max\_ms}, \texttt{tcp\_connect\_mdev\_ms}, muestras intentadas y muestras exitosas.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|Y|}
+\hline
+\textbf{Métrica Capturada} & \textbf{Unidad} & \textbf{Relevancia para QoS Telemático} \\
+\hline
+Throughput TCP sostenido & Gbps / Mbps & Capacidad efectiva de la red. \\
+Latencia mínima TCP connect & ms & Overhead mínimo del CNI sin congestión. \\
+Latencia promedio TCP connect & ms & Comportamiento típico de solicitudes. \\
+Latencia máxima / Jitter & ms & Peor caso y variabilidad. Crítico para tiempo real. \\
+Retransmisiones TCP & count / sesión & Indicador de problemas en encapsulamiento o congestión. \\
+CPU del agente CNI & millicores (m) & Impacto directo en costo de infraestructura cloud. \\
+RAM del agente CNI (RSS) & MiB & Huella de memoria del agente CNI por nodo. \\
+\hline
+\end{tabularx}
+\caption{Métricas de QoS capturadas por el banco de pruebas y su relevancia telemática.}
+\end{table*}
+
+\subsection{Procesamiento Estadístico y Aplicación del Modelo MCDA}
+
+\subsubsection{Limpieza con el Rango Intercuartílico (IQR)}
+
+El archivo \texttt{docs/procesador.js} implementa la transformación de datos crudos a datos consolidados. Primero descubre automáticamente qué CNIs tienen resultados disponibles leyendo las carpetas bajo \texttt{results/cni-benchmarks}. Luego extrae métricas de JSON y CSV. Después aplica IQR:
+
+\begin{lstlisting}
+// procesador.js -- Funcion de limpieza estadistica IQR
+function calcularEstadisticasLimpias(valores) {
+  const sorted = [...valores].sort((a, b) => a - b);
+  const q1 = sorted[Math.floor(sorted.length * 0.25)];
+  const q3 = sorted[Math.floor(sorted.length * 0.75)];
+  const iqr = q3 - q1;
+  const lowerBound = q1 - 1.5 * iqr;
+  const upperBound = q3 + 1.5 * iqr;
+  const valoresLimpios = valores.filter(
+    v => v >= lowerBound && v <= upperBound);
+  const promedio = valoresLimpios.reduce(
+    (sum, v) => sum + v, 0) / valoresLimpios.length;
+  return { promedio,
+    outliersPorcentaje: ((valores.length - valoresLimpios.length)
+      / valores.length * 100).toFixed(1)
+  };
+}
+\end{lstlisting}
+
+\subsubsection{Normalización y Cálculo del Score MCDA}
+
+Después de la limpieza, las métricas pasan por normalización min-max: cada valor se escala al rango $[0, 1]$. Para métricas positivas (mayor es mejor, como el throughput), la normalización es directa. Para métricas negativas (menor es mejor, como la latencia o el consumo de CPU), se invierte: el valor más bajo recibe el puntaje 1 y el más alto recibe el 0.
+
+\begin{lstlisting}
+// procesador.js -- Calculo del score MCDA por perfil
+const perfiles = {
+  fintech:   { throughput: 0.15, latencia: 0.20,
+               retransmisiones: 0.15, cpu: 0.10,
+               ram: 0.10, networkPoliciesL7: 0.30 },
+  streaming: { throughput: 0.35, latencia: 0.35,
+               retransmisiones: 0.20, cpu: 0.10,
+               ram: 0.00, networkPoliciesL7: 0.00 },
+  iot:       { throughput: 0.25, latencia: 0.20,
+               retransmisiones: 0.15, cpu: 0.30,
+               ram: 0.10, networkPoliciesL7: 0.00 }
+};
+\end{lstlisting}
+
+También calcula overhead de seguridad: cuando existen carpetas bajo \texttt{with\_network\_policy}, compara la métrica base contra la métrica con política activa (aumento porcentual de latencia, pérdida porcentual de throughput).
+
+\subsection{Prototipo Recomendador: Aplicación Web SPA}
+
+\subsubsection{Tecnologías de Implementación}
+
+La SPA fue implementada con React~19 como framework de interfaz de usuario, Vite~7 como herramienta de empaquetado y Tailwind CSS~3 para el sistema de estilos. Esta combinación permite una interfaz responsiva sin escribir CSS personalizado.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|}
+\hline
+\textbf{Tecnología} & \textbf{Versión y Función en el Prototipo} \\
+\hline
+React & v19 --- Framework de UI basado en componentes reutilizables. Gestiona el estado de la aplicación (perfil seleccionado, datos cargados). \\
+Vite & v7 --- Bundler con Hot Module Replacement. Build de producción vía \texttt{build:pages} (\texttt{--outDir ../docs/recommender}). \\
+Tailwind CSS & v3 --- Framework CSS utilitario. Estilado directo en JSX. \\
+\hline
+\end{tabularx}
+\caption{Stack tecnológico del prototipo SPA recomendador.}
+\end{table*}
+
+Para actualizar datos: \texttt{npm run sync:data} ejecuta \texttt{procesador.js} (genera \texttt{cni-data.json}) y luego \texttt{export-spa-data.cjs} (inyecta los datos en el bundle). La lógica de recomendación se concentra en \texttt{recommendationModel.js}.
+
+\subsubsection{Flujo de la Aplicación}
+
+\begin{enumerate}
+\item \textbf{Selección de Perfil:} La pantalla principal muestra tres tarjetas (Fintech/Seguridad, Streaming/Rendimiento, IoT/Recursos).
+\item \textbf{Visualización de Resultados:} La aplicación carga \texttt{cni-data.json} y calcula el ranking MCDA para el perfil seleccionado. El CNI con mayor puntaje se resalta como la recomendación.
+\item \textbf{Justificación Técnica:} Se muestran las métricas brutas promedio de cada CNI en gráficas comparativas.
+\end{enumerate}
+
+\subsection{Implementación de Network Policies y Seguridad Zero Trust}
+
+\subsubsection{Políticas Default Deny}
+
+\begin{lstlisting}
+# default-deny-all.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: production
+spec:
+  podSelector: {}     # aplica a TODOS los Pods del namespace
+  policyTypes:
+  - Ingress           # Bloquea todo el trafico entrante
+  - Egress            # Bloquea todo el trafico saliente
+\end{lstlisting}
+
+\subsubsection{Micro-segmentación por Capas de Aplicación}
+
+Sobre la base de Default Deny, se implementaron políticas específicas que permiten únicamente el tráfico necesario. Las reglas explícitas \texttt{frontend $\rightarrow$ backend $\rightarrow$ database} se definen mediante label selectors. Para Cilium, se añade una \texttt{CiliumNetworkPolicy} de capa 7 que permite solo métodos \texttt{GET} y \texttt{HEAD} desde frontend hacia backend. Para Antrea, se utiliza una \texttt{ClusterNetworkPolicy} en el Tier \texttt{securityops} con prioridad sobre cualquier \texttt{NetworkPolicy} de namespace.
+
+\subsubsection{Validación Automatizada de Políticas}
+
+Se implementó un pipeline de validación usando \texttt{nc} (netcat) dentro de Pods de prueba para verificar la conectividad. Para cada par de Pods, el pipeline tiene una expectativa: ``esta conexión DEBE funcionar'' o ``esta conexión DEBE estar bloqueada''. Si la realidad no coincide, el pipeline reporta un error.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|}
+\hline
+\textbf{Prueba de Validación} & \textbf{Resultado Esperado y Justificación} \\
+\hline
+frontend $\rightarrow$ backend (puerto 8080) & PERMITIDO --- Comunicación necesaria para el funcionamiento de la aplicación. \\
+frontend $\rightarrow$ database (puerto 5432) & BLOQUEADO --- El frontend no debe acceder directamente a la base de datos. \\
+backend $\rightarrow$ database (puerto 5432) & PERMITIDO --- El backend necesita leer y escribir datos. \\
+database $\rightarrow$ cualquier Pod & BLOQUEADO --- La base de datos nunca debe iniciar conexiones salientes. \\
+Pod externo $\rightarrow$ namespace production & BLOQUEADO --- Sin una regla explícita, ningún Pod externo puede entrar. \\
+\hline
+\end{tabularx}
+\caption{Casos de prueba del pipeline de validación de Network Policies.}
+\end{table*}
+
+\subsection{Estructura de Repositorios y Entregables Técnicos}
+
+La implementación completa del proyecto está organizada en tres repositorios Git:
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|Y|}
+\hline
+\textbf{Repositorio} & \textbf{Contenido Principal} & \textbf{Relación con los Objetivos} \\
+\hline
+\texttt{K8s-bootstrap} & Código Terraform (\texttt{00.bootstrap}), scripts de instalación K3s HA (\texttt{10.k3s-ha-do}), manifiestos de ArgoCD (\texttt{20.argo-cd-install}) y App of Apps (\texttt{30.apps-of-apps-install}). & OE1: Provee la infraestructura controlada necesaria para las pruebas. \\
+\texttt{K8s-Tesis-Apps} & Overlays Kustomize para los 4 CNIs, stack de observabilidad (\texttt{apps/metrics}), benchmarks iperf3 (\texttt{cni\_test\_iperf}), cliente de latencia, Network Policies y Grafana Exporter. & OE1, OE2 y OE3: Implementa las pruebas, la seguridad y el sistema de recolección. \\
+\texttt{K8S-CNI-Results} & Archivos JSON/CSV con resultados por corrida, \texttt{procesador.js} (modelo MCDA) y la SPA recomendadora (\texttt{cni-recommender-spa}). & OE3 y OE4: Implementa el modelo de comparación objetiva y el prototipo. \\
+\hline
+\end{tabularx}
+\caption{Estructura de los tres repositorios del proyecto y su relación con los objetivos específicos.}
+\end{table*}
+
+Esta arquitectura implementa un flujo de datos unidireccional: \texttt{K8s-bootstrap} crea la infraestructura $\rightarrow$ \texttt{K8s-Tesis-Apps} despliega las aplicaciones y genera las métricas $\rightarrow$ \texttt{K8S-CNI-Results} almacena, procesa y visualiza los resultados.
+
+\subsection{Desafíos de Implementación y Soluciones Adoptadas}
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{|Y|Y|}
+\hline
+\textbf{Desafío Encontrado} & \textbf{Solución Técnica Implementada} \\
+\hline
+MTU mismatch al instalar Cilium: Pods no podían comunicarse, paquetes se fragmentaban silenciosamente en la VPC. & Se calculó la MTU efectiva: 1500 (VPC) - 50 (overhead VXLAN) = 1450. Se configuró el parámetro MTU en el overlay de Kustomize de Cilium. \\
+ArgoCD en estado OutOfSync tras la rotación de CNI: Pods perdían conectividad durante el cambio. & Se implementó una secuencia de rotación segura: poner ArgoCD en modo Suspended, rotar el CNI, verificar conectividad, reactivar ArgoCD. \\
+Outliers frecuentes en pruebas de madrugada: DigitalOcean mostraba throttling de CPU en horas de alta demanda del datacenter. & Se configuró una ventana de pruebas exclusiva para horario laboral. El algoritmo IQR filtra automáticamente estos outliers. \\
+\texttt{procesador.js} necesitaba datos de Network Policies L7 que iperf3 no puede medir (capa 4). & Se añadió una variable binaria (soporta/no soporta) al modelo MCDA para la capacidad de Network Policies L7. Cilium recibe valor 1, los demás 0. \\
+\hline
+\end{tabularx}
+\caption{Desafíos técnicos encontrados durante la implementación y soluciones adoptadas.}
+\end{table*}
+
+\subsection{Flujo completo de ejecución}
+
+El flujo completo puede resumirse en diez pasos secuenciales: (1) Terraform prepara la infraestructura; (2) se instala K3s y se obtiene acceso al clúster; (3) se instala ArgoCD; (4) ArgoCD sincroniza las aplicaciones declaradas; (5) se activa el CNI a evaluar; (6) los Pods de prueba quedan listos; (7) los CronJobs ejecutan throughput (0,30 min), latencia (10,40 min) y exportación de recursos (25,55 min); (8) los resultados se guardan en \texttt{K8S-CNI-Results}; (9) \texttt{procesador.js} consolida los datos; (10) el prototipo recomendador consume esos datos y presenta la recomendación.
+
+\begin{table*}[htbp]
+\centering
+\scriptsize
+\caption{Flujo de implementación de extremo a extremo.}
+\label{tab:flujo-implementacion}
+\begin{tabularx}{\textwidth}{|Y|Y|Y|}
+\hline
+\textbf{Etapa} & \textbf{Elemento implementado} & \textbf{Resultado esperado} \\
+\hline
+Infraestructura & Terraform y DigitalOcean. & Nodos, red privada y acceso base al entorno. \\
+Clúster & K3s en alta disponibilidad. & Plataforma Kubernetes para ejecutar pruebas. \\
+Entrega continua & ArgoCD y App of Apps. & Sincronización declarativa de aplicaciones. \\
+CNI & Flannel, Calico, Cilium o Antrea. & Plano de red activo para el escenario evaluado. \\
+Benchmark & iperf3 y cliente de latencia como CronJobs. & Resultados JSON normalizados por corrida. \\
+Observabilidad & Prometheus, Grafana y exporter. & Métricas de CPU y memoria en CSV, raw y resumen. \\
+Procesamiento & \texttt{procesador.js}. & Datos consolidados, limpios y listos para análisis. \\
+Recomendación & SPA React 19. & Ranking y recomendación según perfil de uso. \\
+\hline
+\end{tabularx}
+\end{table*}
