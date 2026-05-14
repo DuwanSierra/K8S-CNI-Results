@@ -27,5 +27,8 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 
+#Agents
+.agents/
+
 # Local session notes
 docs/SESION_RESUMEN_*.md

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "bib-search-citation": {
+      "source": "bahayonghang/academic-writing-skills",
+      "sourceType": "github",
+      "skillPath": "academic-writing-skills/bib-search-citation/SKILL.md",
+      "computedHash": "c893744bb454e70fd0f1b92adcc86306639bb0633c6fb0ee778239784fcd9ab5"
+    },
+    "industrial-ai-research": {
+      "source": "bahayonghang/academic-writing-skills",
+      "sourceType": "github",
+      "skillPath": "academic-writing-skills/industrial-ai-research/SKILL.md",
+      "computedHash": "968cdeec7f0b52ae426def3e959904fffd3e4859d1e914d7f8d4cd2c3a527a42"
+    },
+    "latex-paper-en": {
+      "source": "bahayonghang/academic-writing-skills",
+      "sourceType": "github",
+      "skillPath": "academic-writing-skills/latex-paper-en/SKILL.md",
+      "computedHash": "9e167b23d1148a05b0003fc0a5f2d9916bad4c260e6bccc67f6b8ad5d8465c0f"
+    },
+    "latex-thesis-zh": {
+      "source": "bahayonghang/academic-writing-skills",
+      "sourceType": "github",
+      "skillPath": "academic-writing-skills/latex-thesis-zh/SKILL.md",
+      "computedHash": "20752efd1a3726cf2a9fa53f37b35bcf8ec0525ef871f1c50c3fda3d1c84ccf7"
+    },
+    "paper-audit": {
+      "source": "bahayonghang/academic-writing-skills",
+      "sourceType": "github",
+      "skillPath": "academic-writing-skills/paper-audit/SKILL.md",
+      "computedHash": "e8838f579bd664b39d074ed07f1299cbac81280e310e64ac4ee6f9ba4b632554"
+    },
+    "typst-paper": {
+      "source": "bahayonghang/academic-writing-skills",
+      "sourceType": "github",
+      "skillPath": "academic-writing-skills/typst-paper/SKILL.md",
+      "computedHash": "dddc75c840c02e96baada2e7264e97115be8a05e64ee2636282ccc7b253a7f91"
+    }
+  }
+}
