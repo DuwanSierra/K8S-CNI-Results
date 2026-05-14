@@ -1,6 +1,6 @@
 \section{Pruebas y Validación}
 
-Si el diseño describe el plan y la implementación lo ejecuta, las pruebas son el momento de la verdad: el instante en que el sistema se somete a condiciones reales y se mide si el comportamiento observado coincide con el esperado. Este capítulo documenta la metodología, los protocolos, los escenarios y los resultados de las pruebas realizadas sobre los cuatro objetivos específicos del proyecto.
+Si el diseño describe el plan y la implementación lo ejecuta, las pruebas son el momento de la verdad: el instante en que el sistema se somete a condiciones reales y se mide si el comportamiento observado coincide con el esperado. Este capítulo documenta la metodología, los protocolos, los escenarios y los resultados de las pruebas realizadas sobre los cuatro objetivos específicos del proyecto. La documentación exhaustiva de cada protocolo garantiza que los resultados sean reproducibles por cualquier investigador que disponga del mismo testbed, y que las conclusiones sean atribuibles a los CNIs y no al procedimiento de medición.
 
 Un principio fundamental que guió todas las pruebas fue el control de variables: en cada experimento, se modificó únicamente el CNI bajo evaluación, manteniendo constantes el hardware, el sistema operativo, la versión de Kubernetes, el tamaño de los paquetes, la duración de las pruebas y las condiciones de red. Este control es lo que permite atribuir las diferencias en los resultados al CNI y no a factores externos.
 
@@ -41,6 +41,8 @@ Todas las pruebas se orquestaron mediante CronJobs de Kubernetes. La secuencia d
 \item Al finalizar ambas pruebas, el Resource Usage Exporter (minutos 25 y 55) consulta Prometheus para extraer el consumo de CPU y RAM del agente CNI.
 \item \texttt{procesador.js} actualiza \texttt{cni-data.json} con los nuevos datos procesados.
 \end{enumerate}
+
+La orquestación automática elimina la variabilidad humana de la ejecución: cada corrida sigue exactamente la misma secuencia con los mismos intervalos, de modo que las diferencias observadas entre CNIs se deben al plugin y no al operador.
 
 \begin{quote}
 \textbf{¿Por qué 5 corridas y no 1 o 100?}
@@ -92,7 +94,7 @@ Todos los CNIs se acercan al límite teórico de la red VPC de DigitalOcean ($\s
 
 \subsubsection{Protocolo de Prueba de Latencia TCP}
 
-La latencia de establecimiento TCP mide el tiempo que tarda en completarse el handshake de tres vías de TCP, que ocurre cada vez que una aplicación inicia una nueva conexión. El cliente ejecuta \texttt{nc -z -w 2} al servicio iperf3-server, mide el tiempo en ms y calcula min/avg/max/mdev sobre 30 muestras por corrida.
+La latencia de establecimiento TCP mide el tiempo que tarda en completarse el handshake de tres vías de TCP, que ocurre cada vez que una aplicación inicia una nueva conexión. El cliente ejecuta \texttt{nc -z -w 2} al servicio iperf3-server, mide el tiempo en ms y calcula min/avg/max/mdev sobre 30 muestras por corrida. Esta métrica es especialmente relevante para arquitecturas de microservicios, donde el costo de iniciar una conexión puede dominar el tiempo total de respuesta y el throughput del enlace no captura esa penalización.
 
 \subsubsection{Resultados de Latencia TCP por CNI}
 
@@ -245,6 +247,8 @@ Porcentaje de corridas descartadas en datos reales & Entre 0\% y 20\% por CNI \\
 \caption{Validación del algoritmo IQR con outlier controlado inyectado artificialmente.}
 \end{table*}
 
+Esta validación confirma que el promedio reportado para cada CNI es robusto ante eventos atípicos del entorno cloud, y que las diferencias entre CNIs en los resultados finales reflejan comportamiento estructural del plugin y no ruido experimental.
+
 \subsubsection{Validación de la Normalización Min-Max}
 
 \begin{table*}[htbp]
@@ -258,18 +262,23 @@ Throughput raw (Gbps) & 9.18 & 9.45 & 9.64 & 9.31 \\
 Throughput normalizado ($\uparrow$ mayor=mejor) & 0.00 & 0.59 & 1.00 & 0.28 \\
 Latencia raw (ms) & 0.687 & 0.431 & 0.312 & 0.512 \\
 Latencia normalizada ($\downarrow$ menor=mejor) & 0.00 & 0.67 & 1.00 & 0.46 \\
+Retransmisiones raw (por sesión) & 12.4 & 4.8 & 2.1 & 7.3 \\
+Retransmisiones normalizadas ($\downarrow$ menor=mejor) & 0.00 & 0.74 & 1.00 & 0.50 \\
 CPU raw (millicores) & 187 & 143 & 98 & 162 \\
 CPU normalizada ($\downarrow$ menor=mejor) & 0.00 & 0.49 & 1.00 & 0.28 \\
 RAM raw (MiB) & 42 & 78 & 185 & 94 \\
 RAM normalizada ($\downarrow$ menor=mejor) & 1.00 & 0.74 & 0.00 & 0.63 \\
+Network Policies L7 (binario) & 0 & 0 & 1 & 0 \\
 \hline
 \end{tabularx}
-\caption{Validación de la normalización min-max: valores brutos vs valores normalizados.}
+\caption{Validación de la normalización min-max de las seis métricas del modelo MCDA.}
 \end{table*}
 
-La tabla de normalización revela que Flannel, con el peor throughput, latencia y CPU, tiene la mejor puntuación en RAM (1.00) por ser el CNI más liviano en memoria. Cilium, el mejor en throughput, latencia y CPU, tiene la peor puntuación en RAM (0.00) por ser el más exigente en memoria. Este resultado justifica el enfoque MCDA con perfiles.
+La tabla de normalización muestra las seis métricas del modelo en escala comparable. Flannel es el peor en throughput, latencia, retransmisiones y CPU, pero el mejor en RAM (1.00). Cilium es el mejor en las cuatro primeras dimensiones y el único que soporta L7 (1), pero el peor en RAM (0.00). Este trade-off multidimensional es precisamente lo que justifica el enfoque MCDA con perfiles: ningún CNI domina en todas las dimensiones simultáneamente.
 
 \subsubsection{Validación del Scoring MCDA por Perfil}
+
+Los puntajes que se muestran a continuación son calculados por \texttt{procesador.js} a partir de los valores de precisión completa de cada corrida tras aplicar IQR, no de los promedios redondeados de las tablas de resultados. Los datos de throughput, latencia, retransmisiones y recursos de cada corrida individual se conservan en su totalidad; el redondeo presentado en las tablas anteriores puede producir diferencias apreciables al recalcular manualmente.
 
 \begin{table*}[htbp]
 \centering
@@ -330,7 +339,7 @@ Se trazó el flujo completo de un dato específico desde su origen hasta su visu
 ¿Cuáles son las diferencias en velocidad de respuesta entre los CNIs? & Cilium tiene la menor latencia promedio (0.312 ms), un 55\% menor que Flannel (0.687 ms). En throughput, la brecha es menor (Cilium 9.64 Gbps vs Flannel 9.18 Gbps, diferencia del 5\%). La mayor diferencia está en estabilidad: el jitter de Cilium ($\pm$0.087 ms) es 4.5 veces menor que el de Flannel ($\pm$0.389 ms). \\
 ¿Cómo impacta cada CNI en el consumo de recursos? & Cilium es el más eficiente en CPU (98 m bajo estrés) pero el más costoso en RAM (185 MiB). Flannel es lo opuesto: ineficiente en CPU (187 m) pero liviano en RAM (42 MiB). Para entornos con poca RAM (IoT/Edge), Antrea ofrece el mejor balance. \\
 ¿Qué tan efectivo es cada CNI para Network Policies? & Flannel no implementa Network Policies en su plano de datos. Calico, Cilium y Antrea las implementan correctamente. Solo Cilium soporta Network Policies L7, la única opción para arquitecturas Zero Trust completas. \\
-¿En qué medida se puede reducir el sobredimensionamiento? & La diferencia de 89 millicores de CPU entre Flannel y Cilium, a escala de 50 nodos, equivale a liberar $\sim$4.45 núcleos de CPU. Esto representa aproximadamente USD \$2,100 anuales en infraestructura cloud (estimado con precios de DigitalOcean). \\
+¿En qué medida se puede reducir el sobredimensionamiento? & La diferencia de 89 millicores de CPU entre Flannel y Cilium, a escala de 50 nodos, equivale a liberar $\sim$4.45 núcleos de CPU. Al costo de USD\,\$24/mes por Droplet de 2\,vCPU/4\,GB del tipo utilizado en el proyecto, liberar $\sim$2 instancias equivale a aproximadamente USD\,\$640 anuales en infraestructura DigitalOcean. \\
 \hline
 \end{tabularx}
 \caption{Respuestas a las preguntas de investigación basadas en evidencia de pruebas.}
@@ -344,7 +353,7 @@ Se trazó el flujo completo de un dato específico desde su origen hasta su visu
 
 \textbf{Flannel es más peligroso de lo que parece.} Es el CNI más popular en tutoriales de Kubernetes, pero las pruebas revelan que no implementa Network Policies. Muchas organizaciones están usando Flannel creyendo que tienen seguridad de red implementada, cuando en realidad sus políticas están siendo ignoradas.
 
-\textbf{El costo de seguridad es bajo.} Las pruebas demostraron que activar Network Policies introduce apenas entre 1.9\% y 5.1\% de overhead en latencia. La diferencia es de milésimas de milisegundo.
+\textbf{El costo de seguridad es bajo.} Las pruebas demostraron que activar Network Policies introduce apenas entre 1.9\% y 5.1\% de overhead en latencia. La diferencia es de milésimas de milisegundo. Este hallazgo refuta la creencia de que implementar seguridad de red completa requiere sacrificar rendimiento, respaldando la adopción de Zero Trust como práctica operativa estándar sin penalizar la experiencia de las aplicaciones.
 
 \subsection{Tabla Resumen de Cumplimiento de Objetivos}
 

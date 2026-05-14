@@ -1,12 +1,12 @@
 \section{Implementación de la Solución}
 
-Si el capítulo anterior describió el plano y los cimientos del edificio ---el diseño de la solución---, este capítulo narra cómo se construyó ladrillo por ladrillo. La implementación es la fase donde las decisiones de diseño dejan de ser teoría y se convierten en código, configuraciones y sistemas que realmente funcionan y generan datos medibles.
+Si el capítulo anterior describió el plano y los cimientos del edificio ---el diseño de la solución---, este capítulo narra cómo se construyó ladrillo por ladrillo. La implementación es la fase donde las decisiones de diseño dejan de ser teoría y se convierten en código, configuraciones y sistemas que realmente funcionan y generan datos medibles. Cada decisión de implementación documentada en este capítulo es verificable en el repositorio Git del proyecto, lo que convierte cada afirmación técnica en evidencia auditable y reproducible.
 
 Un principio guía de toda la implementación fue la reproducibilidad científica: cualquier decisión técnica que no pueda ser replicada de manera idéntica por otra persona no tiene valor académico. Por eso, toda la infraestructura y configuración está codificada en archivos de texto versionados en Git, y toda prueba está automatizada para eliminar la variabilidad humana de los resultados \cite{ref7}.
 
 \subsection{Aprovisionamiento de Infraestructura con Terraform}
 
-El primer paso de cualquier proyecto de infraestructura es levantar los servidores y las redes. En este proyecto, ese paso se realizó de manera completamente automatizada mediante Terraform (IaC). Con Terraform, se escribe una vez la descripción exacta de lo que se quiere, y el sistema se encarga de crearlo siempre de la misma manera \cite{ref7}.
+El primer paso de cualquier proyecto de infraestructura es levantar los servidores y las redes. En este proyecto, ese paso se realizó de manera completamente automatizada mediante Terraform (IaC). Con Terraform, se escribe una vez la descripción exacta de lo que se quiere, y el sistema se encarga de crearlo siempre de la misma manera, eliminando la posibilidad de que variaciones manuales en el aprovisionamiento introduzcan diferencias entre los entornos de cada CNI \cite{ref7}.
 
 \subsubsection{Estructura del Código Terraform (K8s-bootstrap/00.bootstrap)}
 
@@ -37,9 +37,11 @@ Una vez aprovisionados los servidores, se instaló y configuró K3s, una distrib
 
 El plano de control se configuró con una base de datos PostgreSQL gestionada de DigitalOcean (también provisionada via Terraform) como datastore externo. Esto elimina la complejidad de mantener un clúster etcd y garantiza un plano de control sin punto único de fallo (SPOF).
 
-\subsubsection{Instalación con Pizarra Limpia para Cada CNI}
+\subsubsection{Instalación: Pizarra Limpia para CNIs Externos; Modo Nativo para Flannel}
 
-La parte más crítica de la implementación fue el parámetro \texttt{--flannel-backend=none} en la instalación de K3s, que desactiva completamente el CNI integrado y deja una ``pizarra limpia''. Esto garantiza que lo que se mide es el CNI bajo evaluación, sin interferencias del CNI predeterminado. Adicionalmente, se configura \texttt{--disable-network-policy} para que K3s no intente implementar NetworkPolicies por sí mismo.
+Esta implementación establece una distinción metodológica deliberada: Flannel se evalúa en su modo de despliegue más habitual ---integrado nativamente en K3s con \texttt{flannel-iface: eth1}--- mientras que Calico, Cilium y Antrea se instalan como plugins externos sobre un clúster sin CNI. La asimetría refleja las condiciones reales de uso: Flannel es el CNI predeterminado de K3s y la mayoría de equipos lo adopta sin configuración adicional, mientras que los otros tres requieren instalación explícita y declarativa. Evaluar cada CNI en su escenario de despliegue típico aumenta la validez ecológica del experimento, aunque el lector debe tener en cuenta que Flannel se beneficia de la integración nativa de K3s (gestión automática de CIDR, hooks de kubelet) que los plugins externos deben replicar por su cuenta.
+
+Para los CNIs externos, la configuración crítica es el parámetro \texttt{--flannel-backend=none}, que desactiva completamente el CNI integrado de K3s y evita interferencias con el plugin bajo evaluación. Adicionalmente, se configura \texttt{--disable-network-policy} para que K3s no intente implementar NetworkPolicies por sí mismo.
 
 La configuración resultante en \texttt{/etc/rancher/k3s/config.yaml} para CNIs externos incluye:
 \begin{lstlisting}
@@ -63,11 +65,11 @@ Antrea & Manifest v2.2.0 & \texttt{transportInterface: eth1}, \texttt{serviceCID
 \caption{Instalación de CNIs: método y configuración clave en \texttt{user\_data/ks3\_server\_init.sh}.}
 \end{table*}
 
-El protocolo de rotación de CNIs tuvo cuatro pasos: (1) \texttt{kubectl delete} para eliminar recursos del CNI actual; (2) verificación de que no quedan interfaces de red anteriores en los nodos; (3) reinicio de los nodos Worker para limpiar estado en memoria; (4) aplicación del manifiesto del nuevo CNI via ArgoCD.
+El protocolo de rotación de CNIs tuvo cuatro pasos: (1) \texttt{kubectl delete} para eliminar recursos del CNI actual; (2) verificación de que no quedan interfaces de red anteriores en los nodos; (3) reinicio de los nodos Worker para limpiar estado en memoria; (4) aplicación del manifiesto del nuevo CNI via ArgoCD. Este protocolo garantiza que cada CNI inicia sobre un nodo completamente limpio, sin residuos de configuraciones anteriores que pudieran contaminar las métricas del siguiente ciclo de pruebas.
 
 \subsection{Orquestación y Entrega Continua: GitOps con ArgoCD}
 
-Con el clúster K3s funcionando y sin CNI, el siguiente componente instalado fue ArgoCD. ArgoCD implementa el paradigma GitOps: el repositorio Git es la única fuente de verdad sobre el estado del clúster. Todo lo que debe existir en el clúster está definido en archivos YAML dentro del repositorio \texttt{K8s-Tesis-Apps}.
+Con el clúster K3s funcionando y sin CNI, el siguiente componente instalado fue ArgoCD. ArgoCD implementa el paradigma GitOps: el repositorio Git es la única fuente de verdad sobre el estado del clúster. Todo lo que debe existir en el clúster está definido en archivos YAML dentro del repositorio \texttt{K8s-Tesis-Apps}. Esta centralización en Git facilita la auditoría del experimento: cualquier cambio en la configuración queda registrado con autor, fecha y motivo, haciendo el proceso de prueba completamente trazable.
 
 \subsubsection{El Patrón App of Apps}
 
@@ -109,7 +111,7 @@ El stack de observabilidad se implementó mediante el \texttt{kube-prometheus-st
 
 \subsubsection{Prometheus: El Recolector de Métricas}
 
-Prometheus opera con un modelo pull: visita periódicamente los endpoints de métricas (cada 15 segundos en la configuración del proyecto). Para que Prometheus sepa qué métricas recolectar de los agentes CNI, se implementaron \texttt{ServiceMonitors} (CRD), apuntando específicamente al endpoint de métricas de cada agente.
+Prometheus opera con un modelo pull: visita periódicamente los endpoints de métricas (cada 15 segundos en la configuración del proyecto). Para que Prometheus sepa qué métricas recolectar de los agentes CNI, se implementaron \texttt{ServiceMonitors} (CRD), apuntando específicamente al endpoint de métricas de cada agente. Un intervalo de 15 segundos proporciona suficiente granularidad para detectar picos de consumo durante las ráfagas de tráfico iperf3, sin generar una carga de scraping que interfiera con las métricas bajo observación.
 
 Las métricas clave recolectadas del agente CNI incluyen:
 \begin{itemize}
@@ -213,9 +215,11 @@ function calcularEstadisticasLimpias(valores) {
 }
 \end{lstlisting}
 
+Al eliminar los valores atípicos antes de calcular promedios, el pipeline garantiza que un único evento anómalo ---como un pico de mantenimiento del proveedor cloud--- no distorsione el puntaje MCDA de un CNI entero.
+
 \subsubsection{Normalización y Cálculo del Score MCDA}
 
-Después de la limpieza, las métricas pasan por normalización min-max: cada valor se escala al rango $[0, 1]$. Para métricas positivas (mayor es mejor, como el throughput), la normalización es directa. Para métricas negativas (menor es mejor, como la latencia o el consumo de CPU), se invierte: el valor más bajo recibe el puntaje 1 y el más alto recibe el 0.
+Después de la limpieza, las métricas pasan por normalización min-max: cada valor se escala al rango $[0, 1]$. Para métricas positivas (mayor es mejor, como el throughput), la normalización es directa. Para métricas negativas (menor es mejor, como la latencia o el consumo de CPU), se invierte: el valor más bajo recibe el puntaje 1 y el más alto recibe el 0. Esta escala común hace que el score MCDA sea comparable entre dimensiones con unidades distintas ---Gbps, milisegundos, millicores--- sin que ninguna métrica domine artificialmente por su magnitud numérica.
 
 \begin{lstlisting}
 // procesador.js -- Calculo del score MCDA por perfil
@@ -269,6 +273,8 @@ Para actualizar datos: \texttt{npm run sync:data} ejecuta \texttt{procesador.js}
 
 \subsubsection{Políticas Default Deny}
 
+El principio de Default Deny es la implementación operativa del modelo Zero Trust: en lugar de partir de un entorno abierto y bloquear lo peligroso, se cierra todo el tráfico y se habilita únicamente lo estrictamente necesario. Con esta regla activa, cualquier comunicación no autorizada explícitamente falla sin que se requiera ninguna acción adicional del operador. El siguiente manifiesto aplica esta política a todos los Pods del namespace \texttt{production}:
+
 \begin{lstlisting}
 # default-deny-all.yaml
 apiVersion: networking.k8s.io/v1
@@ -285,7 +291,7 @@ spec:
 
 \subsubsection{Micro-segmentación por Capas de Aplicación}
 
-Sobre la base de Default Deny, se implementaron políticas específicas que permiten únicamente el tráfico necesario. Las reglas explícitas \texttt{frontend $\rightarrow$ backend $\rightarrow$ database} se definen mediante label selectors. Para Cilium, se añade una \texttt{CiliumNetworkPolicy} de capa 7 que permite solo métodos \texttt{GET} y \texttt{HEAD} desde frontend hacia backend. Para Antrea, se utiliza una \texttt{ClusterNetworkPolicy} en el Tier \texttt{securityops} con prioridad sobre cualquier \texttt{NetworkPolicy} de namespace.
+Sobre la base de Default Deny, se implementaron políticas específicas que permiten únicamente el tráfico necesario. Las reglas explícitas \texttt{frontend $\rightarrow$ backend $\rightarrow$ database} se definen mediante label selectors. Para Cilium, se añade una \texttt{CiliumNetworkPolicy} de capa 7 que permite solo métodos \texttt{GET} y \texttt{HEAD} desde frontend hacia backend. Para Antrea, se utiliza una \texttt{ClusterNetworkPolicy} en el Tier \texttt{securityops} con prioridad sobre cualquier \texttt{NetworkPolicy} de namespace. Esta estratificación de controles permite evaluar en condiciones reales cómo cada CNI aplica seguridad granular, y cuantificar si dicha granularidad introduce un overhead de rendimiento detectable ---uno de los criterios del modelo MCDA.
 
 \subsubsection{Validación Automatizada de Políticas}
 
@@ -338,7 +344,7 @@ Esta arquitectura implementa un flujo de datos unidireccional: \texttt{K8s-boots
 \hline
 \textbf{Desafío Encontrado} & \textbf{Solución Técnica Implementada} \\
 \hline
-MTU mismatch al instalar Cilium: Pods no podían comunicarse, paquetes se fragmentaban silenciosamente en la VPC. & Se calculó la MTU efectiva: 1500 (VPC) - 50 (overhead VXLAN) = 1450. Se configuró el parámetro MTU en el overlay de Kustomize de Cilium. \\
+MTU mismatch al instalar Cilium: Pods no podían comunicarse, paquetes se fragmentaban silenciosamente en la VPC. Flannel y Calico detectan automáticamente la MTU de la interfaz subyacente en sus versiones actuales; Cilium requirió configuración explícita porque su dataplane eBPF no hereda el valor de MTU del sistema operativo sin intervención. & Se calculó la MTU efectiva: 1500 (VPC) $-$ 50 (overhead VXLAN) $=$ 1450. Se configuró el parámetro \texttt{mtu: 1450} en el overlay de Kustomize de Cilium. \\
 ArgoCD en estado OutOfSync tras la rotación de CNI: Pods perdían conectividad durante el cambio. & Se implementó una secuencia de rotación segura: poner ArgoCD en modo Suspended, rotar el CNI, verificar conectividad, reactivar ArgoCD. \\
 Outliers frecuentes en pruebas de madrugada: DigitalOcean mostraba throttling de CPU en horas de alta demanda del datacenter. & Se configuró una ventana de pruebas exclusiva para horario laboral. El algoritmo IQR filtra automáticamente estos outliers. \\
 \texttt{procesador.js} necesitaba datos de Network Policies L7 que iperf3 no puede medir (capa 4). & Se añadió una variable binaria (soporta/no soporta) al modelo MCDA para la capacidad de Network Policies L7. Cilium recibe valor 1, los demás 0. \\

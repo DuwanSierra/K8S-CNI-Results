@@ -1,8 +1,8 @@
 \section{Diseño de la Solución}
 
-Este capítulo describe, de manera detallada y comprensible, cómo se diseñó e implementó la solución propuesta para comparar las tecnologías de red que se utilizan dentro de un clúster Kubernetes. Para quienes no están familiarizados con el tema, un clúster Kubernetes es como una ciudad de servidores donde muchas aplicaciones conviven y se comunican entre sí; la ``red'' de esa ciudad es lo que garantiza que cada aplicación pueda hablar con las demás de forma rápida, segura y eficiente.
+Este capítulo describe, de manera detallada y comprensible, cómo se diseñó e implementó la solución propuesta para comparar las tecnologías de red que se utilizan dentro de un clúster Kubernetes. Para quienes no están familiarizados con el tema, un clúster Kubernetes es como una ciudad de servidores donde muchas aplicaciones conviven y se comunican entre sí; la ``red'' de esa ciudad es lo que garantiza que cada aplicación pueda hablar con las demás de forma rápida, segura y eficiente. Al finalizar este capítulo, el lector comprenderá por qué cada decisión de diseño fue necesaria para garantizar que los resultados de la comparativa sean válidos, reproducibles y aplicables en contextos reales.
 
-El diseño presentado en este capítulo responde directamente a las causas del problema identificadas en el árbol de problemas: la falta de criterios objetivos para seleccionar el componente de red (CNI), la ausencia de visibilidad sobre el tráfico que circula dentro del clúster, y el sobredimensionamiento de recursos que resulta de operar sin datos reales. La solución se construyó sobre cuatro pilares fundamentales: (1) una arquitectura de red bien definida, (2) un sistema de medición de Calidad de Servicio (QoS), (3) un modelo matemático para la toma de decisiones y (4) una estrategia de seguridad automatizada.
+El diseño presentado en este capítulo responde directamente a las causas del problema identificadas en el árbol de problemas: la falta de criterios objetivos para seleccionar el componente de red (CNI), la ausencia de visibilidad sobre el tráfico que circula dentro del clúster, y el sobredimensionamiento de recursos que resulta de operar sin datos reales. La solución se construyó sobre cuatro pilares fundamentales: (1) una arquitectura de red bien definida, (2) un sistema de medición de Calidad de Servicio (QoS), (3) un modelo matemático para la toma de decisiones y (4) una estrategia de seguridad automatizada. Esta correspondencia directa entre causas del problema y decisiones de diseño garantiza que cada componente del sistema tenga una justificación técnica derivada del problema de investigación, y no sea un elemento arbitrario de la solución \cite{ref29}.
 
 \subsection{Arquitectura de Red y Topología}
 
@@ -10,9 +10,9 @@ Antes de poder medir o comparar tecnologías, es necesario construir un entorno 
 
 \subsubsection{Diseño de la Red Underlay (La Infraestructura Física)}
 
-La red underlay es la base sobre la que todo lo demás se construye; es, en términos simples, la ``carretera'' real por donde viajan los datos. Para este proyecto se tomó una decisión de diseño fundamental: utilizar la nube pública de DigitalOcean en lugar de servidores físicos propios. Esta decisión tiene una razón técnica muy clara: eliminar el ``ruido'' que generaría el hardware local. En un laboratorio físico, factores como la temperatura, el estado del cable de red o interferencias electromagnéticas pueden afectar las mediciones. Al usar servidores en la nube, todos estos factores quedan controlados por el proveedor y son equivalentes para todas las pruebas \cite{ref2}.
+La red underlay es la base sobre la que todo lo demás se construye; es, en términos simples, la ``carretera'' real por donde viajan los datos. Para este proyecto se tomó una decisión de diseño fundamental: utilizar la nube pública de DigitalOcean en lugar de servidores físicos propios. Esta decisión tiene una razón técnica muy clara: eliminar el ``ruido'' que generaría el hardware local. En un laboratorio físico, factores como la temperatura, el estado del cable de red o interferencias electromagnéticas pueden afectar las mediciones. Al usar servidores en la nube, todos estos factores quedan controlados por el proveedor y son equivalentes para todas las pruebas \cite{ref2}. Esta equivalencia de condiciones es el requisito fundamental para que cualquier diferencia medida en throughput, latencia o consumo de CPU pueda atribuirse exclusivamente al CNI evaluado, y no a variaciones del entorno físico.
 
-El aprovisionamiento de esta infraestructura se realizó mediante Terraform, una herramienta de Infraestructura como Código (IaC). Esto significa que toda la configuración de los servidores está escrita en archivos de texto, como una receta de cocina, lo que garantiza que el entorno se pueda reproducir exactamente de la misma manera en cualquier momento. Si alguien quisiera replicar este experimento, bastaría con ejecutar esos archivos para obtener un entorno idéntico \cite{ref7}.
+El aprovisionamiento de esta infraestructura se realizó mediante Terraform, una herramienta de Infraestructura como Código (IaC). Esto significa que toda la configuración de los servidores está escrita en archivos de texto, como una receta de cocina, lo que garantiza que el entorno se pueda reproducir exactamente de la misma manera en cualquier momento. Esta reproducibilidad es una condición necesaria para la validez científica del experimento: si los resultados no pueden recrearse bajo las mismas condiciones, la comparación entre CNIs pierde su valor probatorio \cite{ref7}.
 
 \begin{quote}
 \textbf{¿Qué es K3s en Alta Disponibilidad?}
@@ -42,7 +42,7 @@ Red interna & VPC privada --- aísla el tráfico inter-nodo, garantiza medicione
 
 \subsubsection{Diseño de la Red Overlay (Los CNI bajo Evaluación)}
 
-Si la red underlay es la carretera física, la red overlay es el sistema de señalización, semáforos y rutas que organiza el tráfico dentro del clúster. Esta capa es implementada por los plugins CNI. Un CNI es el componente que hace posible que dos aplicaciones dentro del clúster se puedan ``hablar'' entre sí, aunque estén en servidores diferentes. Kubernetes no incluye esta funcionalidad por defecto; en cambio, permite que las organizaciones elijan el CNI que mejor se adapte a sus necesidades \cite{ref4,ref18}.
+Si la red underlay es la carretera física, la red overlay es el sistema de señalización, semáforos y rutas que organiza el tráfico dentro del clúster. Esta capa es implementada por los plugins CNI. Un CNI es el componente que hace posible que dos aplicaciones dentro del clúster se puedan ``hablar'' entre sí, aunque estén en servidores diferentes. Kubernetes no incluye esta funcionalidad por defecto; en cambio, permite que las organizaciones elijan el CNI que mejor se adapte a sus necesidades \cite{ref4,ref18}. Esta libertad de elección es precisamente el problema central que este proyecto aborda: sin criterios objetivos basados en mediciones controladas, esa decisión se toma con base en preferencias informales o recomendaciones genéricas, con consecuencias directas sobre el rendimiento y la seguridad del clúster.
 
 El núcleo del diseño de este proyecto es la comparativa de cuatro tecnologías de encapsulamiento y ruteo, cada una con una filosofía diferente:
 
@@ -66,7 +66,7 @@ Antrea & OVS (SDN) & 2.2.0 & Open vSwitch con sistema jerárquico de Tiers (Emer
 
 \textbf{eBPF (Extended Berkeley Packet Filter):} Es una tecnología que permite ejecutar programas directamente dentro del kernel de Linux de manera segura y eficiente. En el contexto de redes, esto significa que Cilium puede interceptar, analizar y redirigir paquetes de red sin necesidad de copiarlos al espacio de usuario, eliminando una de las principales fuentes de latencia de los sistemas tradicionales \cite{ref11}.
 
-\textbf{OVS (Open vSwitch):} Es un switch virtual sofisticado orientado a SDN. Antrea lo utiliza para implementar conectividad y políticas con un sistema de Tiers jerárquico que permite reglas corporativas de mayor prioridad que las NetworkPolicies estándar de Kubernetes.
+\textbf{OVS (Open vSwitch):} Es un switch virtual sofisticado orientado a SDN \cite{ref22}. Antrea lo utiliza para implementar conectividad y políticas con un sistema de Tiers jerárquico que permite reglas corporativas de mayor prioridad que las NetworkPolicies estándar de Kubernetes. La diversidad de enfoques representada por estos cuatro CNIs ---desde la encapsulación básica de Flannel hasta el filtrado en kernel de Cilium--- garantiza que los resultados del experimento sean representativos del espectro de opciones disponibles para un equipo DevOps real, cubriendo desde simplicidad operativa hasta capacidades avanzadas de observabilidad y seguridad.
 
 \subsection{Diseño del Sistema de Medición de Calidad de Servicio (QoS)}
 
@@ -104,13 +104,13 @@ Costo Computacional del CNI & \% CPU / MB RAM & Cuántos recursos del servidor c
 
 \subsubsection{La Pila de Observabilidad: Prometheus y Grafana}
 
-\textbf{Prometheus:} Sistema de recolección de métricas. Funciona como un inspector que visita periódicamente cada nodo del clúster y registra estadísticas de CPU, memoria, red y el estado de cada CNI. Los datos se almacenan en series temporales \cite{ref6}.
+\textbf{Prometheus:} Sistema de recolección de métricas. Funciona como un inspector que visita periódicamente cada nodo del clúster y registra estadísticas de CPU, memoria, red y el estado de cada CNI. Los datos se almacenan en series temporales, lo que permite correlacionar el consumo de recursos del agente CNI con los instantes exactos en que se ejecutan las pruebas de throughput y verificar que las métricas de eficiencia reflejen el comportamiento bajo carga y no en reposo \cite{ref6}.
 
-\textbf{Grafana:} Es la capa de visualización. Conecta con Prometheus y presenta los datos en dashboards interactivos que muestran en tiempo real: el throughput de cada CNI, la latencia promedio, el consumo de CPU del agente CNI y las retransmisiones TCP.
+\textbf{Grafana:} Es la capa de visualización. Conecta con Prometheus y presenta los datos en dashboards interactivos que muestran en tiempo real: el throughput de cada CNI, la latencia promedio, el consumo de CPU del agente CNI y las retransmisiones TCP. Esta visibilidad permitió detectar anomalías durante las sesiones de prueba ---como picos de CPU o reinicios inesperados del agente--- antes de que comprometieran la integridad de las corridas, y sirve como evidencia verificable del comportamiento del sistema \cite{ref6}.
 
 \subsection{Diseño del Modelo Matemático de Recomendación (MCDA)}
 
-Para resolver el problema de selección objetiva, se diseñó un modelo de Análisis de Decisión Multicriterio (MCDA). Este tipo de modelos se usan en ingeniería y economía cuando se deben tomar decisiones que involucran múltiples factores con diferentes niveles de importancia \cite{ref9}.
+Para resolver el problema de selección objetiva, se diseñó un modelo de Análisis de Decisión Multicriterio (MCDA). Este tipo de modelos se usan en ingeniería y economía cuando se deben tomar decisiones que involucran múltiples factores con diferentes niveles de importancia \cite{ref9}. A diferencia de una comparación basada en un único criterio ---como el throughput máximo---, el MCDA captura el trade-off inherente entre velocidad, eficiencia de recursos y capacidades de seguridad, produciendo una recomendación que refleja las prioridades reales de cada tipo de organización.
 
 \subsubsection{Algoritmo de Procesamiento y Limpieza Estadística}
 
@@ -147,13 +147,13 @@ donde $P_{CNI}$ es el puntaje total del plugin, $V_i$ es la valoración normaliz
 
 \subsection{Diseño de Seguridad y Micro-segmentación (Modelo Zero Trust)}
 
-En su configuración inicial, cualquier aplicación dentro del clúster puede comunicarse libremente con cualquier otra. Las Network Policies permiten implementar Zero Trust: permitir sólo lo necesario y verificar explícitamente cada solicitud de acceso \cite{ref24,ref25}.
+En su configuración inicial, cualquier aplicación dentro del clúster puede comunicarse libremente con cualquier otra. Las Network Policies permiten implementar Zero Trust: permitir sólo lo necesario y verificar explícitamente cada solicitud de acceso \cite{ref24,ref25}. Esto reduce drásticamente la superficie de ataque: si un atacante compromete un Pod, las políticas de red limitan su capacidad de movimiento lateral a únicamente las rutas explícitamente autorizadas, convirtiendo el clúster en una red de confianza mínima en lugar de un entorno totalmente abierto.
 
 \subsubsection{Estrategia de Default Deny}
 
 El diseño implementa Zero Trust en dos niveles. El primer nivel es la política de Default Deny: se crean reglas que bloquean todo el tráfico entrante y saliente de cada namespace. El segundo nivel es la habilitación selectiva: una vez bloqueado todo, se abren únicamente las comunicaciones necesarias.
 
-Se implementaron tres casos de uso ejecutados sobre cada CNI que soporta Network Policies (Calico, Cilium, Antrea; Flannel queda excluido):
+Se implementaron tres casos de uso ejecutados sobre cada CNI que soporta Network Policies (Calico, Cilium y Antrea); Flannel se incluye como referencia negativa para confirmar la ausencia de \emph{enforcement} en su plano de datos:
 
 \begin{table*}[htbp]
 \centering
@@ -178,7 +178,7 @@ Se implementaron tres casos de uso ejecutados sobre cada CNI que soporta Network
 
 \subsubsection{Automatización GitOps con ArgoCD}
 
-Para garantizar que las políticas de red sigan siendo efectivas después de cambios en el sistema, se diseñó un flujo de trabajo GitOps usando ArgoCD. Si alguien elimina una política de red del clúster, ArgoCD detecta la diferencia entre el estado actual y el estado definido en Git, y automáticamente restaura la política eliminada (\texttt{selfHeal: true}). Los recursos eliminados del repositorio también se eliminan del clúster (\texttt{prune: true}).
+Para garantizar que las políticas de red sigan siendo efectivas después de cambios en el sistema, se diseñó un flujo de trabajo GitOps usando ArgoCD. Si alguien elimina una política de red del clúster, ArgoCD detecta la diferencia entre el estado actual y el estado definido en Git, y automáticamente restaura la política eliminada (\texttt{selfHeal: true}). Los recursos eliminados del repositorio también se eliminan del clúster (\texttt{prune: true}). Esta automatización garantiza además la integridad del experimento: durante las rotaciones de CNI, las políticas de red se restauran a su estado esperado sin intervención manual, eliminando una fuente potencial de sesgo en los resultados comparativos \cite{ref25}.
 
 \subsection{Flujo Integral del Sistema}
 
