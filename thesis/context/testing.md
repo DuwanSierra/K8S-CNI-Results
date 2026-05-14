@@ -8,9 +8,18 @@ type: context
 ## Condiciones de control
 
 - Mismo tipo de instancia DigitalOcean para todos los CNIs → hardware homogéneo.
-- Misma versión de K3s en todas las corridas.
+- Misma versión de K3s (canal `stable`) en todas las corridas.
 - Despliegue secuencial de CNIs con entorno limpio entre cada uno.
 - **5 corridas** por tipo de prueba para obtener promedios confiables.
+
+### Versiones fijadas por CNI
+
+| CNI     | Versión | Modo de encapsulamiento |
+|---------|---------|------------------------|
+| Flannel | nativo K3s | VXLAN |
+| Calico  | 3.29.1 (Tigera Operator) | VXLAN (DO VPC) |
+| Cilium  | 1.16.5 | VXLAN tunnel |
+| Antrea  | 2.2.0 | OVS (Open vSwitch) |
 
 ## OE1 — Benchmarks de rendimiento
 
@@ -20,9 +29,9 @@ type: context
 - Métricas: bits/s en sender y receiver, retransmisiones TCP
 
 **Latencia**
-- Herramienta: script custom (Python/Bash) midiendo TCP Connect
-- 30 muestras por corrida → RTT min/avg/max
-- Garantía inter-nodo: `podAntiAffinity` fuerza cliente y servidor en nodos distintos
+- Herramienta: script Bash midiendo TCP Connect (`nc -z -w 2`) con timestamp de ms
+- 30 muestras por corrida → min/avg/max/mdev de tcp_connect_ms
+- Inter-nodo por diseño: `podAntiAffinity` (`preferredDuringSchedulingIgnoredDuringExecution`, weight 100) mantiene cliente y servidor en nodos distintos; con 2 workers dedicados disponibles el scheduler los separa en todos los casos prácticos
 
 ## OE2 — Validación de seguridad (Network Policies)
 

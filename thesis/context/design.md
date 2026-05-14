@@ -13,12 +13,12 @@ type: context
 
 ## CNIs evaluados (Red Overlay)
 
-| CNI     | Plano de datos | Mecanismo |
-|---------|---------------|-----------|
-| Flannel | VXLAN (L2)    | Máxima simplicidad, sin Network Policies nativas |
-| Calico  | BGP híbrido   | Ruteo nativo + políticas avanzadas L3/L4 |
-| Cilium  | eBPF          | Reemplaza iptables; operación en kernel para mínimo overhead |
-| Antrea  | OVS (SDN)     | Open vSwitch; conceptos SDN en el clúster |
+| CNI     | Plano de datos | Mecanismo | Versión desplegada |
+|---------|---------------|-----------|-------------------|
+| Flannel | VXLAN (L2)    | Máxima simplicidad, sin Network Policies nativas | nativo K3s (canal stable) |
+| Calico  | VXLAN (cloud) | Tigera Operator; políticas avanzadas L3/L4. BGP disponible en bare-metal; en DigitalOcean VPC se usa encapsulamiento VXLAN (`encapsulation: VXLAN`) | v3.29.1 |
+| Cilium  | eBPF + VXLAN tunnel | Reemplaza iptables vía eBPF; routing en modo tunnel VXLAN (`routingMode=tunnel`, `tunnelProtocol=vxlan`); añade filtrado L7 HTTP nativo sin service mesh | 1.16.5 |
+| Antrea  | OVS (SDN)     | Open vSwitch con sistema jerárquico de Tiers (Emergency > SecurityOps > NetworkOps > Platform > Application) que permite políticas corporativas de mayor prioridad que las NetworkPolicies estándar | v2.2.0 |
 
 ## Métricas de QoS capturadas (OE1)
 
@@ -29,7 +29,7 @@ type: context
 
 ## Diseño de la inyección de tráfico
 
-- `podAntiAffinity` fuerza que cliente y servidor iperf3 estén en nodos distintos → el tráfico siempre cruza el overlay.
+- `podAntiAffinity` (`preferredDuringSchedulingIgnoredDuringExecution`, weight 100) **prefiere** que cliente y servidor iperf3 queden en nodos distintos. Con 2 workers dedicados disponibles, el scheduler los separa en la práctica en todos los casos; se usa `preferred` (en lugar de `required`) para mantener resiliencia ante reinicios de nodo.
 - CronJobs lanzan ráfagas TCP de 300 s cada 30 min → muestras en diferentes momentos de carga.
 
 ## Modelo de recomendación MCDA (OE3)
@@ -49,6 +49,16 @@ Pipeline de procesamiento (archivo `docs/procesador.js`):
 
 ## Seguridad y micro-segmentación Zero Trust (OE2)
 
-- **Default Deny**: políticas que bloquean todo tráfico ingress y egress por defecto.
-- **Multi-tier**: reglas explícitas `frontend → backend → database` mediante label selectors.
+Tres casos de uso ejecutados sobre cada CNI que soporta Network Policies (Calico, Cilium, Antrea; Flannel queda excluido):
+
+| Caso | Descripción |
+|------|-------------|
+| `zero_trust` | Default Deny: bloquea todo ingress y egress por defecto; permite solo el tráfico benchmark explícito |
+| `multi_tier` | Reglas explícitas `frontend → backend → database` mediante label selectors |
+| `egress_block` | Bloqueo de egress externo con DNS permitido; tráfico inter-pod interno habilitado |
+
+### Diferenciadores de seguridad únicos por CNI
+
+- **Cilium** (`CiliumNetworkPolicy` L7): filtrado HTTP nativo por método (`GET`/`HEAD` permitido desde frontend a backend; `POST`/`PUT`/`DELETE` bloqueados) directamente en eBPF, sin service mesh. Esto demuestra inspección de capa 7 sin overhead de proxy.
+- **Antrea** (`ClusterNetworkPolicy` en Tier `securityops`): las reglas en el tier SecurityOps tienen prioridad sobre cualquier `NetworkPolicy` de namespace, modelando políticas corporativas obligatorias (ISO 27001 / SOC2) que los desarrolladores no pueden sobrescribir.
 - **GitOps enforcement**: ArgoCD con `selfHeal` restaura automáticamente cualquier política borrada manualmente, manteniendo la postura de seguridad declarativa.
