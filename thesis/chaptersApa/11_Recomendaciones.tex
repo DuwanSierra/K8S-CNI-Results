@@ -1,0 +1,13 @@
+\chapter{Recomendaciones} \label{sec:Recomendaciones}
+
+A partir de la experiencia y los resultados obtenidos en este proyecto de investigación, se formulan las siguientes recomendaciones para implementaciones reales de Kubernetes y selección de plugins CNI:
+
+\begin{itemize}
+    \item \textbf{Restringir el uso de Flannel:} Se recomienda evitar el despliegue de Flannel en cualquier clúster de Kubernetes en producción debido a su incapacidad para aplicar Network Policies, limitando su uso únicamente a entornos de pruebas o desarrollo local de baja complejidad.
+    
+    \item \textbf{Seleccionar Cilium para alto rendimiento y seguridad L7:} Para organizaciones que implementen microservicios transaccionales u orientados a tiempo real (Fintech y Streaming) y requieran visibilidad a nivel de API HTTP, se recomienda adoptar Cilium para aprovechar el enrutamiento eBPF y la micro-segmentación L7.
+    
+    \item \textbf{Adoptar Antrea o Calico en entornos de recursos limitados (Edge/IoT):} Debido a que Cilium demanda una huella de memoria RAM sustancialmente mayor (cercana a los 185 MiB por nodo), se aconseja emplear Antrea o Calico en clústeres operados sobre hardware limitado (como nodos Edge o dispositivos IoT), donde cada megabyte de memoria resulta crítico.
+    
+    \item \textbf{Mantener la configuración de red y seguridad vía GitOps:} Se recomienda automatizar y versionar tanto el despliegue de los plugins CNI como la declaración de las Network Policies en un repositorio de Git acoplado a ArgoCD, asegurando la restauración automática de la configuración ante desvíos manuales no autorizados.
+\end{itemize}

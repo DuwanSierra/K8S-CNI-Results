@@ -13,8 +13,8 @@
 
 CONTAINER_CMD := podman
 DOCKER_IMAGE  := docker.io/texlive/texlive:latest
-MAIN          := main
-OUTDIR        := build
+MAIN          := FormatoTesis
+OUTDIR        := build_apa
 
 CONTAINER_RUN := $(CONTAINER_CMD) run --rm \
 	-v "$(CURDIR):/workspace:z" \

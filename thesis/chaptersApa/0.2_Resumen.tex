@@ -1,0 +1,18 @@
+\chapter{Resumen}
+Kubernetes no impone un plugin de red específico, lo que obliga a los
+equipos a seleccionar un \emph{Container Network Interface} (CNI) sin
+métricas comparativas objetivas. Esta situación conduce a
+sobredimensionamiento de infraestructura (CPU/RAM) y a posturas de
+seguridad incompletas. El presente trabajo construye evidencia empírica
+reproducible —infraestructura como código, benchmarks automatizados y
+modelo de decisión multicriterio (MCDA)— para guiar esa selección.
+Se evalúan Flannel, Calico, Cilium y Antrea en un clúster K3s en alta
+disponibilidad sobre DigitalOcean, midiendo \emph{throughput} TCP,
+latencia de establecimiento, retransmisiones y overhead de CPU/RAM del
+agente CNI, así como el impacto de políticas de red Zero Trust.
+Los resultados alimentan un modelo MCDA parametrizable por perfil de
+uso (URLLC, Edge/IoT, microservicios transaccionales) y un prototipo
+web que expone las recomendaciones.
+
+\vspace{1cm}
+\textbf{Palabras clave:} Kubernetes, CNI, QoS, iperf3, Calico, Cilium, Flannel, Antrea, NetworkPolicy, Zero Trust, MCDA, K3s, DigitalOcean, GitOps, eBPF.

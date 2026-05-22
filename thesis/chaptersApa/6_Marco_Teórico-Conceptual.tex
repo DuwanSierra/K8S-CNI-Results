@@ -1,0 +1,80 @@
+\chapter{Marco Teórico - Conceptual}
+
+\section{El modelo de red de Kubernetes}
+
+Kubernetes no implementa por sí mismo la conectividad entre cargas de trabajo: define un modelo de red y delega su realización en componentes externos. Comprender ese modelo es condición previa para interpretar las métricas de este trabajo, ya que el plano de red ---y en particular el plugin que lo implementa--- determina el rendimiento, la seguridad y el consumo de recursos del clúster \cite{ref2}.
+
+El modelo de red de Kubernetes establece tres propiedades fundamentales: cada Pod recibe una dirección IP propia, los Pods se comunican entre sí sin traducción de direcciones, y los agentes de cada nodo alcanzan a todos los Pods del clúster. Sobre estas garantías se construyen las abstracciones de descubrimiento, balanceo y control de acceso descritas a continuación \cite{ref2}.
+
+\subsection{Identidad de red del Pod}
+
+Kubernetes adopta el modelo \emph{IP-por-Pod}: cada Pod obtiene su propia dirección IP y se comunica directamente con otros Pods sin traductores intermedios. Dado que la identidad del Pod es efímera ---las réplicas se crean, destruyen y sustituyen de manera dinámica---, la plataforma requiere abstracciones estables para el descubrimiento y el direccionamiento de los destinos \cite{ref2}.
+
+\subsection{Nodos y reenvío de paquetes}
+
+Cada nodo hospeda múltiples Pods y aporta CPU, memoria y conectividad. En este nivel se instalan las rutas y los mecanismos de reenvío que garantizan la entrega de paquetes al Pod de destino, conforme al modelo de red del clúster: alcance entre Pods, ausencia de superposición de rangos de direcciones y conectividad \emph{east--west} \cite{ref2}. El agente del plugin de red se ejecuta precisamente en este nivel; por ello, su consumo de CPU y memoria por nodo Worker constituye una de las métricas centrales de la comparativa.
+
+\subsection{Direccionamiento estable: Services y EndpointSlices}
+
+Un Service expone un identificador estable ---por ejemplo, una \emph{ClusterIP} o dirección IP virtual (VIP)--- que representa a un conjunto de Pods equivalentes. El cliente se conecta a ese identificador y la plataforma balancea la solicitud hacia una de las réplicas disponibles, desacoplando a los consumidores de los cambios en el ciclo de vida de los Pods \cite{ref3,ref13}. Para mantener actualizada la relación de destinos, Kubernetes emplea \emph{EndpointSlices}, que enumeran las direcciones y puertos de los Pods que respaldan cada Service y reducen la sobrecarga de control frente a los \emph{Endpoints} tradicionales \cite{ref1}. Esta capa es relevante para interpretar la latencia medida: el tiempo en que una solicitud alcanza el Pod correcto comprende tanto la resolución de la VIP como el reenvío realizado por el plugin de red.
+
+\subsection{Ingreso de tráfico externo}
+
+El tráfico procedente de Internet no accede directamente a los Pods, sino a través de una capa de entrada. La \emph{Gateway API} formaliza los roles asociados ---infraestructura, operador y equipo de aplicación--- y las reglas de capa 7 ---host, rutas y TLS--- que determinan el encaminamiento de cada solicitud hacia el Service correspondiente \cite{ref17}. En numerosos despliegues, esta capa se encuentra precedida por un balanceador de carga externo de capa 3/4; diseños de alto rendimiento como \emph{Maglev} muestran cómo el \emph{hash} consistente y el seguimiento de flujos permiten una distribución estable y resiliente antes de que el tráfico alcance el clúster \cite{ref5}.
+
+\subsection{Aislamiento lógico: Namespaces y NetworkPolicies}
+
+Un \emph{Namespace} es una partición lógica del clúster que organiza y nombra recursos por equipo o entorno (\texttt{dev}, \texttt{test}, \texttt{prod}) y evita colisiones de nombres sin multiplicar clústeres; no constituye, sin embargo, una barrera de tráfico \cite{ref2}. La unicidad de nombres opera dentro del namespace, por lo que pueden coexistir dos servicios homónimos en namespaces distintos; el nombre DNS completo de un servicio incluye el namespace (\texttt{<servicio>.<namespace>.svc.cluster.local}), y su uso evita ambigüedades de enrutamiento \cite{ref13,ref2}.
+
+Por defecto, la conectividad \emph{east--west} entre namespaces permanece abierta. La restricción del tráfico se especifica mediante \emph{NetworkPolicies} ---definidas con \emph{labels} y puertos---, cuya aplicación efectiva depende de que el plugin de red las implemente en su plano de datos. Este mecanismo materializa el principio de \emph{Zero Trust}: conceder únicamente los flujos necesarios y verificar explícitamente cada acceso \cite{ref4,ref24,ref25,ref26}.
+
+\subsection{Recorrido de una solicitud}
+
+El trayecto de una solicitud externa integra las abstracciones anteriores:
+
+\begin{enumerate}
+\item El cliente externo alcanza la capa de entrada (Ingress/Gateway), opcionalmente a través de un balanceador de carga previo \cite{ref17}.
+\item La capa de entrada aplica reglas de capa 7 y dirige la solicitud al Service correspondiente \cite{ref3,ref13}.
+\item El Service consulta sus EndpointSlices y selecciona un Pod activo \cite{ref1}.
+\item El plugin de red encamina el tráfico hasta el Pod de destino en su nodo \cite{ref2,ref4,ref18}.
+\end{enumerate}
+
+En síntesis, Kubernetes define identidad (IP-por-Pod), direccionamiento estable (Services y EndpointSlices), organización (Namespaces), control de acceso (NetworkPolicies) e ingreso gobernado (Gateway API); no obstante, la conectividad subyacente que sostiene todas estas abstracciones la provee el plugin de red, objeto de estudio de este trabajo \cite{ref1,ref2,ref3,ref4,ref13,ref17,ref18}.
+
+\section{Container Network Interface (CNI)}
+
+\subsection{Especificación y funciones núcleo}
+
+El \emph{Container Network Interface} (CNI) es la especificación ---y el conjunto de \emph{plugins} que la implementan--- que habilita la conectividad de red de los Pods en Kubernetes. La especificación define cómo el \emph{runtime} de contenedores solicita a un plugin que conecte un Pod a la red y cómo libera los recursos al eliminarlo, mediante operaciones encadenables (\texttt{ADD} y \texttt{DEL}) que permiten combinar responsabilidades, por ejemplo un plugin para IPAM y otro para el mapeo de puertos \cite{ref18,ref4,ref21,ref20}. Sus funciones núcleo son tres:
+
+\begin{itemize}
+  \item \textbf{Identidad de red del Pod.} Asignar a cada Pod su dirección IP propia y garantizar la alcanzabilidad \emph{east--west} \cite{ref2}.
+  \item \textbf{Conexión y enrutamiento.} Crear interfaces virtuales, instalar rutas y coordinar con el \emph{host} el tránsito del tráfico hacia y desde cada Pod \cite{ref18,ref4}.
+  \item \textbf{Gestión de direcciones (IPAM).} Reservar y entregar direcciones desde rangos predefinidos, evitando colisiones \cite{ref20,ref18}.
+\end{itemize}
+
+La elección del CNI y de su \emph{dataplane} condiciona la latencia, el \emph{throughput} y el consumo de CPU del clúster, con efecto directo sobre el sobredimensionamiento de recursos. Por tanto, su selección informada constituye un problema de ingeniería con consecuencias económicas y de seguridad medibles \cite{ref7,ref8,ref11,ref22}.
+
+\subsection{Modelos de dataplane: overlay y ruteo nativo}
+
+El \emph{dataplane} de un CNI sigue habitualmente uno de dos enfoques. En el modo \emph{overlay}, el tráfico entre nodos se encapsula ---por ejemplo, mediante VXLAN sobre UDP--- para transportar paquetes de Pods sin modificar la red física; ofrece simplicidad operativa y desacopla el direccionamiento del clúster respecto del \emph{underlay}, a costa de cabeceras adicionales, ajustes de MTU y cierta carga de CPU por encapsulación y descapsulación. En el modo de ruteo nativo, los Pods son alcanzables mediante rutas de capa 3 entre nodos, sin túneles; suele reducir la latencia y el consumo de CPU, pero exige una integración explícita con la red subyacente y un plan de direccionamiento coherente. La implementación concreta del \emph{fast path} ---conmutación basada en OVS o programas eBPF--- condiciona adicionalmente el rendimiento y la observabilidad del plano de datos \cite{ref7,ref8,ref11,ref22}.
+
+En este trabajo, los cuatro CNI evaluados operan en modo \emph{overlay} sobre la VPC de DigitalOcean ---Flannel, Calico y Cilium mediante VXLAN, y Antrea mediante GENEVE---, lo que acota las diferencias de encapsulación al dataplane de cada plugin y no a la topología subyacente. La evaluación se restringe al modo \emph{overlay} por ser el único compatible con la VPC de DigitalOcean sin modificar el \emph{underlay}; la comparación con ruteo nativo se plantea como línea de trabajo futuro.
+
+\subsection{Gestión de direcciones (IPAM)}
+
+La identidad de red del Pod se materializa en una dirección IP asignada por el mecanismo de \emph{IP Address Management} (IPAM) del CNI. Las estrategias de asignación pueden ser por nodo ---cada nodo administra un rango local--- o globales ---un \emph{pool} común---, con distintas implicaciones en simplicidad operativa y aprovechamiento de direcciones. El plugin \emph{host-local} ilustra el enfoque por nodo: asigna direcciones desde ficheros locales, garantizando unicidad sin dependencias externas. Un plan de direccionamiento bien definido ---rangos, \emph{leases}, reutilización y limpieza--- minimiza colisiones, facilita \emph{dual-stack} y reduce incidencias durante el escalado o la rotación de Pods \cite{ref18,ref20}.
+
+\subsection{MTU y fragmentación en redes con encapsulación}
+
+La encapsulación propia de los \emph{overlays} reduce la MTU efectiva, ya que parte de cada paquete se destina a cabeceras adicionales. Si la MTU no se ajusta, pueden aparecer fragmentación, caídas de \emph{throughput} y aumentos de latencia. La práctica recomendada consiste en calcular la MTU efectiva restando el \emph{overhead} del túnel y validar el ajuste mediante pruebas controladas, procedimiento especialmente relevante en despliegues con VXLAN o cifrado a nivel de red \cite{ref12}.
+
+\subsection{Observabilidad del plano de datos}
+
+La operación y optimización de la red del clúster requiere visibilidad sobre los flujos de tráfico: origen, destino, puertos y volúmenes. Las soluciones de \emph{flow visibility} a nivel CNI recolectan y agregan registros de flujo y los correlacionan con identidades lógicas ---namespaces y \emph{labels}---, lo que facilita detectar rutas críticas, validar políticas y priorizar mejoras. En arquitecturas de microservicios, esta observabilidad de red complementa las métricas de aplicación para diagnosticar dependencias inesperadas \cite{ref23,ref6}.
+
+\subsection{Métricas de rendimiento y sobredimensionamiento}
+
+La evaluación de un CNI debe considerar la latencia ---promedio y colas P95/P99---, el \emph{throughput} sostenido y el costo de CPU por conexión o paquete, fijando el modo del dataplane y el perfil de tráfico para garantizar comparaciones reproducibles. La literatura reporta patrones consistentes entre modos de dataplane y entre \emph{fast paths}, con variaciones significativas en entornos de recursos limitados o de alta tasa de conexión \cite{ref7,ref8,ref9,ref11,ref22,ref27}.
+
+Estas métricas tienen una consecuencia económica directa: un CNI adecuadamente seleccionado y sintonizado reduce los recursos aprovisionados por precaución. Tres prácticas resultan especialmente efectivas: seleccionar el dataplane según el entorno, ajustar la MTU para evitar fragmentación, y automatizar \emph{NetworkPolicies} bajo el principio de \emph{Zero Trust} para limitar el tráfico innecesario. La observabilidad de flujos cierra el ciclo de mejora continua y permite sostener los objetivos de nivel de servicio (SLO) con menor consumo de CPU y memoria \cite{ref7,ref8,ref12,ref23,ref24,ref25}.

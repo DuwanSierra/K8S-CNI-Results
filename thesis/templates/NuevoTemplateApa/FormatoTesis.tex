@@ -1,0 +1,122 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[letterpaper,12pt, oneside]{book}
+\usepackage{TesisUTB}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%     PLANTILLA LATEX PARA PRESENTACION DE TRABAJOS DE GRADO     %%
+%%     Formato:                                                   %%
+%%         letterpaper: tamaño carta                              %%
+%%         12pt       : letra de tamaño 12                        %%
+%%                    : espaciado simple                          %%
+%%     Autor:                                                     %%
+%%          DIEGO ALBERTO GUEVARA AMAYA                           %%
+%%          (guevarad@utb.edu.co)        				          %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                 %%
+% Extensión sugerida: 80 páginas                                  %%
+% Producto obligatorio: Artículo científico para revista indexada %%
+%                                                                 %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%% MODIFICA LOS DATOS EN ESTA SECCIÓN %%%%%%%%%%%%%%%%%%%%%%%
+%% para modificar la portada, pies de página y encabezados %%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\def\TITULO{\textbf{Título del trabajo de grado}}
+
+\def\SUBTITULO{Subtítulo del trabajo de grado}
+
+\def\AUTOR{\textbf{Nombres Apellidos}}
+
+\def\AUTORR{{N. Apellido}}
+
+\def\DIRECTOR{Nombre del director}
+
+\def\CODIRECTOR{Nombre del codirector}
+
+\def\FACULTAD{Facultad}
+
+\def\PROGRAMA{Maestría en Ingeniería}
+
+\def\LINEAINVESTIGACION{Línea de investigación}
+
+\def\FECHA{Fecha}
+
+\def\UTB{UNIVERSIDAD TECNOLÓGICA DE BOLÍVAR}
+
+\def\UTBS{Universidad Tecnológica de Bolívar}
+
+\def\UTBB{UTB}
+
+\def\LUGAR{Ciudad - País}
+
+
+
+\begin{document}
+\frontmatter
+
+\include{0.0_Portada}
+\include{0.1_Agradecimientos}
+\include{0.2_Resumen}
+\include{0.3_Abstract}
+\include{Abstract}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\tableofcontents
+\addcontentsline{toc}{chapter}{Tabla de Contenido}
+
+\renewcommand{\listtablename}{Lista de tablas}
+\listoftables
+\addcontentsline{toc}{chapter}{Lista de tablas}
+
+\listoffigures
+\addcontentsline{toc}{chapter}{Lista de figuras}
+
+\cleardoublepage
+\mainmatter
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{1_Introduccion}
+\input{2_Estado_del_arte}
+\input{3_Planteamiento_del_Problema}
+\input{4_Justificación}
+\input{5_Objetivos}
+\input{6_Marco_Teórico-Conceptual}
+\input{7_Metodología}
+\input{8_Resultados}
+\input{9_Discusión}
+\input{10_Conclusiones}
+\input{11_Recomendaciones}
+\input{12_Trabajo_Futuro}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+%%%%%%%%%%%%%%%%%%%%%% - BIBLIOGRAFÍA - %%%%%%%%%%%%%%%%%%%%%%%%
+
+\bibliographystyle{IEEEtran}
+{\footnotesize
+\bibliography{13_Referencias}}
+\addcontentsline{toc}{chapter}{Referencias}
+
+%%%%%%%%%%%%%%%%%%%%%%%% - APÉNDICE - %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\appendix
+\renewcommand{\appendixpagename}{Apéndices}
+\renewcommand{\appendixtocname}{Apéndices}
+\appendixpage
+
+\include{14.0_Apendice_A}
+
+%%%%%%%%%%%%%%%%%%%%%%%% - ANEXO - %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{Anexos}
+\chapter*{Anexos}
+
+\include{15.0_Anexo_A}
+
+
+\end{document}.

@@ -1,0 +1,27 @@
+\chapter{Trabajos Futuros} \label{sec:TrabajosFuturos}
+
+El presente proyecto sienta las bases de un framework de evaluación susceptible de múltiples extensiones y mejoras en la investigación telemática.
+
+\section{Extensión del Framework a Entornos Edge y 5G}
+
+El sistema de evaluación se implementó sobre infraestructura de nube pública. Una extensión natural consiste en adaptar el framework a entornos de computación edge, donde los nodos están geográficamente distribuidos con enlaces de menor capacidad y mayor latencia. Con el avance de las redes 5G y la proliferación de casos de uso de baja latencia ---vehículos autónomos, cirugía remota, manufactura inteligente---, la evaluación de CNIs en condiciones de edge computing constituye una necesidad creciente \cite{ref1}.
+
+\section{Incorporación de Inteligencia Artificial para Selección Dinámica de CNI}
+
+El modelo MCDA actual es estático: los pesos se definen manualmente según el perfil de usuario. Una línea de trabajo futuro consiste en desarrollar un modelo de aprendizaje automático que ajuste los pesos de forma dinámica, en función del comportamiento observado de las aplicaciones en tiempo real \cite{ref2}. Esta gestión autónoma es uno de los pilares de las redes \emph{intent-based networking}.
+
+\section{Evaluación de Nuevas Tecnologías CNI y Service Meshes}
+
+El panorama de tecnologías de red para Kubernetes evoluciona con rapidez. Tecnologías emergentes como Kube-OVN ---basado en Open Virtual Network---, Multus CNI ---que habilita múltiples interfaces de red por Pod--- y la integración de CNIs con Service Meshes como Istio o Linkerd ganan relevancia de forma sostenida. Extender el framework para incorporar estas tecnologías, y evaluar el impacto de capas adicionales como un Service Mesh sobre las métricas de QoS, constituye otra dirección de interés.
+
+\section{Estandarización de la Metodología de Evaluación}
+
+La revisión de la literatura evidenció la ausencia de un estándar unificado para la evaluación de CNIs en Kubernetes: los estudios emplean herramientas, métricas y entornos de prueba dispares, lo que dificulta la comparación de sus resultados \cite{ref7,ref8}. Sobre la base del framework desarrollado en este proyecto sería posible proponer una metodología de evaluación estandarizada y someterla a revisión por la Cloud Native Computing Foundation (CNCF).
+
+\section{Evaluación del Impacto Energético y Sostenibilidad}
+
+El consumo energético de la infraestructura tecnológica es un asunto de creciente relevancia económica y ambiental. Si bien este proyecto emplea el consumo de CPU como aproximación al consumo energético, una extensión futura consiste en incorporar la medición directa de energía ---mediante herramientas como PowerAPI o RAPL (Running Average Power Limit) de Intel--- para calcular la eficiencia de cada CNI en joules por gigabyte transferido.
+
+\section{Integración con Sistemas SIEM para Análisis de Seguridad}
+
+Las Network Policies implementadas en este proyecto proveen control de acceso a nivel de red, pero no generan alertas automáticas ante intentos de conexión bloqueados. La integración del sistema con una plataforma SIEM (Security Information and Event Management) ---como Elastic SIEM o Splunk--- permitiría correlacionar los eventos de seguridad de red con otros indicadores de compromiso del clúster, transformándolo en un sistema activo de detección y respuesta (Network Detection and Response, NDR) \cite{ref27}.

@@ -1,0 +1,19 @@
+\chapter{Discusión} \label{sec:Discusion}
+
+Este capítulo sintetiza y discute los resultados obtenidos en las pruebas experimentales detalladas en el capítulo anterior, contextualizándolos en la discusión académica y evaluando su impacto en el problema de investigación.
+
+\section{Síntesis de Resultados Experimentales}
+
+Los resultados evidencian diferencias estructurales en el rendimiento y consumo de recursos de cada CNI bajo evaluación. Mientras que Cilium destaca por su velocidad de respuesta y eficiencia de CPU, requiere una mayor cantidad de memoria RAM. Por otro lado, Flannel ofrece una configuración de menor consumo de RAM pero carece del soporte e implementación de políticas de seguridad Zero Trust.
+
+\section{Comparación con la Literatura}
+
+Los hallazgos de este experimento se alinean con estudios previos de Kang et al. (2021) \cite{ref7} y Koukis et al. (2024) \cite{ref8} sobre el rendimiento de plugins CNI en entornos cloud. Las mediciones corroboran que el enrutamiento eBPF ofrece ventajas en latencia sobre encapsulamientos tradicionales VXLAN y switches virtuales como OVS, manteniendo un overhead bajo.
+
+\section{Discusión del Modelo MCDA}
+
+El modelo MCDA desarrollado permite reconciliar criterios heterogéneos (throughput, latencia, CPU, RAM y seguridad) para ofrecer recomendaciones adaptadas a distintos perfiles de uso. Su principal limitación radica en el uso de variables binarias para la evaluación L7, que puede enriquecerse en futuros trabajos midiendo el throughput bajo reglas de filtrado de contenido específicas.
+
+\section{Impacto en la Reducción del Sobredimensionamiento}
+
+El consumo de recursos medido bajo estrés de red demuestra que una selección adecuada del CNI disminuye el consumo total de CPU del clúster. Al extrapolar estos resultados a despliegues de gran escala, la ganancia de eficiencia computacional disminuye directamente los costos asociados a instancias de nube y contribuye a evitar el sobredimensionamiento de infraestructura.
