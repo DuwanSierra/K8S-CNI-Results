@@ -1,2 +1,15 @@
 \chapter{Introducción} \label{sec:Introduccion}
-Esta sección se completará en la siguiente fase.
+
+Los servicios digitales modernos requieren una comunicación constante para entregar información a usuarios de todo el mundo. Cuando estos sistemas de comunicación subyacentes fallan, las plataformas web se vuelven lentas o completamente inaccesibles. Por lo tanto, seleccionar y asegurar la infraestructura de red adecuada es crítico para prevenir costosas interrupciones operativas.
+
+La mayoría de las organizaciones emplean Kubernetes (K8S) para ejecutar sus aplicaciones de software en contenedores. Sin embargo, K8S no administra las comunicaciones de red de manera predeterminada y delega esta tarea a una interfaz de red de contenedores (Container Network Interface, CNI). Los equipos técnicos deben seleccionar entre múltiples complementos, como Calico, Cilium, Flannel y Antrea, sin contar con datos objetivos de rendimiento. Esta falta de criterios propicia configuraciones inseguras y un gasto excesivo en la nube por el sobredimensionamiento de recursos computacionales. En consecuencia, las empresas enfrentan riesgos operativos e ineficiencias financieras al elegir un complemento de red inadecuado.
+
+Esta situación plantea una pregunta de investigación central. ¿Cómo pueden las organizaciones comparar complementos de red y automatizar políticas de comunicación segura para optimizar recursos sin degradar el rendimiento?
+
+Esta tesis tiene como objetivo desarrollar un modelo de evaluación, selección y validación de complementos CNI en clústeres K8S.
+
+Evaluar los complementos de red proporciona datos empíricos que ayudan a las organizaciones a tomar decisiones fundamentadas. La implementación de políticas de red automatizadas restringe las comunicaciones no autorizadas y establece un modelo de seguridad Zero Trust. Además, comprender el consumo de recursos permite a los equipos de ingeniería minimizar los costos de infraestructura y el desperdicio energético. Tanto investigadores académicos como profesionales de la industria se benefician de una metodología reproducible para medir la eficiencia de red.
+
+Este trabajo evalúa Flannel, Calico, Cilium y Antrea en un clúster K3s hospedado en la nube de DigitalOcean. La evaluación mide la velocidad de transferencia, la latencia, el uso de CPU, de memoria y la efectividad de las políticas de seguridad. No obstante, esta investigación solo considera configuraciones de red superpuestas (overlay). El estudio excluye despliegues en servidores físicos (bare-metal) o enrutamiento nativo debido a las restricciones de la red virtual privada.
+
+El documento está organizado en doce capítulos. El Capítulo 2 revisa el estado del arte y el Capítulo 3 presenta el planteamiento del problema. El Capítulo 4 y el Capítulo 5 describen la justificación y los objetivos del estudio. El Capítulo 6 y el Capítulo 7 detallan el marco teórico y la metodología aplicada. Finalmente, los Capítulos 8 al 12 exponen los resultados, la discusión, las conclusiones, las recomendaciones y el trabajo futuro.

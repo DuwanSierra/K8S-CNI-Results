@@ -17,3 +17,9 @@ build/
 
 ## Keep compiled PDF if committed alongside source
 # !build/main.pdf
+
+## Scratch and temporary build directories
+scratch/
+build_apa/
+chaptersApa/.polish-state/
+
