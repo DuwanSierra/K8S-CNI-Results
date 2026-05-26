@@ -2,7 +2,7 @@
 
 \section{El modelo de red de Kubernetes}
 
-Kubernetes (K8S) no implementa por sí mismo la conectividad entre cargas de trabajo; define un modelo de red y delega su realización en componentes externos. Comprender este modelo es una condición indispensable para interpretar las métricas experimentales del proyecto, dado que el plano de red ---y en particular el plugin que lo implementa--- determina el rendimiento, la seguridad y la eficiencia en la utilización de recursos dentro del clúster~\cite{ref2}.
+Kubernetes (K8S) no implementa por sí mismo la conectividad entre cargas de trabajo; define un modelo de red y delega su realización en componentes externos. Comprender este modelo es necesario para interpretar las métricas del experimento, dado que el plano de red ---y en particular el plugin que lo implementa--- determina el rendimiento, la seguridad y la eficiencia en la utilización de recursos dentro del clúster~\cite{ref2}.
 
 El modelo de red de Kubernetes establece tres principios fundamentales:
 \begin{enumerate}
@@ -12,7 +12,7 @@ El modelo de red de Kubernetes establece tres principios fundamentales:
 \end{enumerate}
 Sobre estas garantías se construyen las abstracciones de descubrimiento, balanceo y control de acceso del clúster~\cite{ref2}.
 
-Para comprender la topología y dinámicas de esta conectividad, resulta conveniente recurrir a una analogía urbana estructurada, donde las cargas de trabajo e identidades interactúan bajo reglas de acceso específicas:
+La siguiente analogía ayuda a visualizar cómo interactúan estos componentes:
 \begin{itemize}
     \item \textbf{Pods (Viviendas):} Constituyen las residencias particulares del clúster. Cada Pod cuenta con una dirección IP única y efímera que le permite comunicarse directamente con cualquier otra vivienda del entorno sin intermediarios.
     \item \textbf{Nodos (Barrios):} Alojan múltiples viviendas y proveen los recursos físicos y de cómputo (CPU, memoria y conectividad) indispensables para la subsistencia de los servicios.
@@ -35,7 +35,7 @@ Kubernetes adopta el modelo de direccionamiento IP por Pod, asignando una direcc
 
 \subsection{Nodos y reenvío de paquetes}
 
-Cada nodo (Host o máquina virtual/física) hospeda múltiples Pods y aporta recursos de CPU, memoria y conectividad. En este nivel se instalan las rutas del sistema operativo y los mecanismos de reenvío local que garantizan la entrega de paquetes al Pod de destino, conforme al modelo de red del clúster: alcance directo entre Pods, ausencia de superposición de rangos de red y conectividad bidireccional este-oeste (\emph{east-west})~\cite{ref2}. El agente del plugin de red se ejecuta precisamente en este nivel; por ello, su consumo de CPU y memoria por nodo Worker constituye una de las métricas centrales de la comparativa.
+Cada nodo (Host o máquina virtual/física) hospeda múltiples Pods y aporta recursos de CPU, memoria y conectividad. En este nivel se instalan las rutas del sistema operativo y los mecanismos de reenvío local que garantizan la entrega de paquetes al Pod de destino, conforme al modelo de red del clúster: alcance directo entre Pods, ausencia de superposición de rangos de red y conectividad bidireccional este-oeste~\cite{ref2}. El agente del plugin de red se ejecuta precisamente en este nivel; por ello, su consumo de CPU y memoria por nodo Worker constituye una de las métricas centrales de la comparativa.
 
 \subsection{Direccionamiento estable: Services y EndpointSlices}
 
@@ -76,8 +76,6 @@ El ciclo completo del tráfico responde a la siguiente secuencia operativa:
     \item El plugin de red encamina el tráfico hasta el Pod de destino en su nodo correspondiente~\cite{ref2,ref4,ref18}.
 \end{enumerate}
 
----
-
 \section{La Interfaz de Red de Contenedores (CNI)}
 
 \subsection{Especificación y funciones núcleo}
@@ -87,7 +85,7 @@ La especificación Container Network Interface (CNI) define el estándar mediant
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.85\textwidth]{figures/workflow_cni.png}
-    \caption{Workflow del Container Network Interface (CNI) mostrando las interacciones entre Kubelet, Pod y plugins CNI.}
+    \caption{Diagrama de operación del CNI: interacciones entre Kubelet, Pod y plugins de red.}
     \label{fig:workflow_cni}
 \end{figure}
 
@@ -106,7 +104,7 @@ El plano de datos del CNI se suele clasificar en dos estrategias principales:
     \item \textbf{Enrutamiento Nativo (Directo):} Prescinde de túneles lógicos y expone las IPs de los Pods directamente a la red física mediante enrutamiento L3 convencional. Aunque mejora el rendimiento de red y reduce el consumo de CPU, demanda un diseño de direccionamiento rígido y una estrecha integración con la red corporativa.
 \end{itemize}
 
-Estudios previos muestran diferencias significativas en el desempeño según el dataplane adoptado, condicionando la viabilidad técnica en entornos con recursos limitados como edge computing o nubes públicas~\cite{ref7,ref8}. Por el contrario (\emph{unlike}), la aceleración mediante planos de datos avanzados como Open vSwitch (OVS) o programas eBPF (extended Berkeley Packet Filter) incide sustancialmente en la latencia de procesamiento~\cite{ref11,ref22}.
+Estudios previos muestran diferencias significativas en el desempeño según el dataplane adoptado, condicionando la viabilidad técnica en entornos con recursos limitados como edge computing o nubes públicas~\cite{ref7,ref8}. En contraste, la aceleración mediante planos de datos avanzados como Open vSwitch (OVS) o programas eBPF (extended Berkeley Packet Filter) incide sustancialmente en la latencia de procesamiento~\cite{ref11,ref22}.
 
 \subsection{Gestión de direcciones (IPAM)}
 
@@ -114,7 +112,7 @@ La asignación eficiente de direccionamiento mediante IPAM (localizado en archiv
 
 \subsection{MTU y fragmentación en redes con encapsulación}
 
-En redes superpuestas, el overhead de la encapsulación disminuye el tamaño máximo de segmento de datos útil. Es indispensable ajustar la Unidad Máxima de Transmisión (MTU, Maximum Transmission Unit) efectiva restando el tamaño de las cabeceras adicionales para prevenir la fragmentación de paquetes, caídas drásticas de rendimiento y pérdidas de conexiones bajo carga de trabajo~\cite{ref12}, un proceso ilustrado en la Figura~\ref{fig:ajuste_mtu}.
+En redes superpuestas, el overhead de la encapsulación disminuye el tamaño máximo de segmento de datos útil. Se debe ajustar la Unidad Máxima de Transmisión (MTU, Maximum Transmission Unit) efectiva restando el tamaño de las cabeceras adicionales para prevenir la fragmentación de paquetes, caídas de rendimiento y pérdidas de conexión bajo carga~\cite{ref12}, un proceso ilustrado en la Figura~\ref{fig:ajuste_mtu}.
 
 \begin{figure}[htbp]
     \centering
@@ -125,8 +123,42 @@ En redes superpuestas, el overhead de la encapsulación disminuye el tamaño má
 
 \subsection{Observabilidad del plano de datos}
 
-Para operar de forma robusta una arquitectura de microservicios, se requiere visibilidad detallada sobre los flujos de red. Soluciones de monitoreo de flujos integradas en el CNI permiten agregar telemetría detallada de origen y destino correlacionándola directamente con las identidades nativas del clúster (Namespaces y etiquetas) mediante estándares como IP Flow Information Export (IPFIX)~\cite{ref6,ref23}.
+La operación confiable de microservicios requiere visibilidad sobre los flujos de red. Soluciones de monitoreo de flujos integradas en el CNI permiten agregar telemetría detallada de origen y destino correlacionándola directamente con las identidades nativas del clúster (Namespaces y etiquetas) mediante estándares como IP Flow Information Export (IPFIX)~\cite{ref6,ref23}.
 
 \subsection{Métricas de rendimiento y sobredimensionamiento}
 
-La evaluación y comparación objetiva de los plugins CNI se sustenta en tres métricas fundamentales: la latencia media y de percentiles críticos (P95 y P99), el throughput TCP/UDP sostenido y el uso de recursos (CPU y RAM) por paquete procesado~\cite{ref7,ref8}. Estas mediciones son determinantes para mitigar el sobredimensionamiento preventivo de hardware en la nube, optimizando la relación costo-rendimiento de la infraestructura~\cite{ref7,ref8,ref12,ref23,ref24,ref25}.
+La comparación entre CNIs descansa en tres métricas principales: la latencia media y de percentiles críticos (P95 y P99), el throughput TCP/UDP sostenido y el uso de recursos (CPU y RAM) por paquete procesado~\cite{ref7,ref8}. Estas mediciones son determinantes para mitigar el sobredimensionamiento preventivo de hardware en la nube, optimizando la relación costo-rendimiento de la infraestructura~\cite{ref7,ref8,ref12,ref23,ref24,ref25}.
+
+\section{eBPF como mecanismo de aceleración en el kernel}
+
+El filtro de paquetes de Berkeley extendido (eBPF, \emph{extended Berkeley Packet Filter}) es una tecnología del kernel de Linux que permite ejecutar programas en espacio privilegiado de forma segura, sin modificar el código fuente del kernel ni cargar módulos adicionales~\cite{ref27}. Originalmente concebido para el filtrado eficiente de paquetes de red, evolucionó en un entorno de ejecución de propósito general que hoy sustenta funcionalidades de red, seguridad y observabilidad dentro del sistema operativo.
+
+Para entender por qué eBPF importa en este contexto, conviene compararlo con iptables, el mecanismo tradicional de filtrado de paquetes en Linux. iptables funciona como una lista de reglas que el kernel revisa una por una cada vez que llega un paquete: cuantas más reglas haya ---producto de más servicios y más políticas de red---, mayor es el tiempo que tarda cada decisión de enrutamiento. eBPF reemplaza ese mecanismo por tablas hash donde la respuesta se obtiene en tiempo constante, sin importar cuántas reglas existan. En un clúster con cientos de servicios y políticas de seguridad, esta diferencia se traduce en latencias medibles.
+
+Técnicamente, un programa eBPF se compila a un bytecode que el kernel verifica antes de ejecutarlo, comprobando que no acceda a memoria no autorizada ni genere bucles infinitos. Una vez aprobado, se ejecuta directamente en el kernel mediante un compilador JIT (\emph{just-in-time}), sin necesidad de copiar datos al espacio de usuario~\cite{ref27}. Esta arquitectura elimina dos fuentes principales de latencia en el procesamiento de red tradicional: las copias de memoria entre kernel y espacio de usuario, y el recorrido lineal de las cadenas de reglas de iptables.
+
+En el contexto de los CNI evaluados en este trabajo, Cilium utiliza eBPF tanto para el reenvío de paquetes entre Pods como para la aplicación de NetworkPolicies, incluidas reglas de capa 7 sobre el protocolo HTTP. Calico también ofrece un modo eBPF opcional como alternativa a su dataplane basado en iptables~\cite{ref11,ref27}.
+
+\section{Arquitectura de Confianza Cero y control de red en Kubernetes}
+
+La Arquitectura de Confianza Cero (Zero Trust Architecture, ZTA) es un modelo de seguridad que parte de una premisa opuesta al perímetro de red tradicional: ninguna carga de trabajo es confiable por defecto, independientemente de si se encuentra dentro o fuera de la red corporativa. Rose et al.~\cite{ref24} formalizaron este paradigma en el NIST SP 800-207, definiendo tres principios operativos fundamentales: verificar siempre la identidad del solicitante, aplicar el menor privilegio posible en cada acceso, y asumir que la red puede estar comprometida en cualquier momento.
+
+Una forma de imaginar Zero Trust es pensar en un edificio donde todas las puertas están cerradas con llave por defecto. Para que alguien entre a una oficina no basta con que esté dentro del edificio; necesita una llave específica para esa puerta. En Kubernetes, cada llave es una regla de NetworkPolicy.
+
+Llevado al entorno de Kubernetes, Zero Trust se operacionaliza mediante NetworkPolicies: reglas declarativas que el CNI aplica en el plano de datos de cada nodo. El punto de partida es una política de \emph{Default Deny} ---denegar todo el tráfico por defecto--- sobre la cual se habilitan únicamente las comunicaciones explícitamente necesarias. Esta estrategia reduce la superficie de ataque porque, ante el compromiso de un Pod, el atacante no puede alcanzar otros servicios del clúster sin una regla que lo permita~\cite{ref24,ref25}.
+
+Un aspecto crítico, y directamente relevante para este trabajo, es que la NetworkPolicy es un objeto de la API de Kubernetes, pero su aplicación efectiva depende del CNI. Si el plugin no implementa las políticas en su plano de datos, el objeto existe en la base de datos del clúster y el operador puede creerlo activo, pero no produce ningún efecto real sobre el tráfico~\cite{ref4}. Esta distinción entre la declaración de una política y su \emph{enforcement} efectivo es una de las variables centrales del experimento.
+
+\section{Análisis de Decisión Multicriterio (MCDA)}
+
+El Análisis de Decisión Multicriterio (MCDA) es un conjunto de métodos formales para seleccionar entre alternativas cuando existen múltiples criterios de evaluación con distinta importancia relativa~\cite{ref9}. Es el enfoque adecuado cuando ninguna alternativa es la mejor en todas las dimensiones al mismo tiempo: en este trabajo, ningún CNI lidera simultáneamente en throughput, latencia, consumo de CPU, consumo de RAM y capacidades de seguridad. Ignorar ese compromiso y elegir únicamente por throughput equivale a comprar un automóvil mirando solo la velocidad máxima.
+
+El modelo implementado en este trabajo utiliza la \textbf{suma ponderada} como método de agregación:
+\[
+P_{CNI} = \sum_{i=1}^{n} (V_i \times W_i)
+\]
+donde $P_{CNI}$ es el puntaje final del complemento, $V_i$ es el valor normalizado de la métrica $i$ y $W_i$ es el peso asignado a esa métrica según el perfil de usuario evaluado, con la condición $\sum W_i = 1$.
+
+Para que métricas con unidades distintas (Gbps, milisegundos, millicores) sean comparables en esa fórmula, se aplica \textbf{normalización min-max}: cada valor bruto se escala al intervalo $[0,\,1]$. En métricas donde un valor mayor es mejor (throughput), la normalización es directa; en métricas donde un valor menor es mejor (latencia, CPU, RAM), la escala se invierte para que 1 siempre represente la mejor situación y 0 la peor. Así, el puntaje MCDA no depende de la magnitud numérica de cada variable sino de su posición relativa entre las alternativas disponibles.
+
+Los pesos $W_i$ son los parámetros que capturan las prioridades de cada organización. En este trabajo se definen tres perfiles: Fintech, que asigna mayor peso a la seguridad; Streaming, orientado al rendimiento de red; e IoT, centrado en el menor consumo de recursos por nodo. La parametrización explícita de los pesos hace que el modelo sea ajustable ante nuevos perfiles sin modificar el procedimiento de medición.

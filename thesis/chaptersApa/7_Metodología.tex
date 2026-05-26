@@ -4,7 +4,7 @@ En este capítulo se expone la metodología empleada y el diseño detallado e im
 
 \section{Diseño de la Solución}
 
-El diseño responde directamente a las causas identificadas en el árbol de problemas: la ausencia de criterios objetivos para seleccionar el componente de red (CNI), la falta de visibilidad sobre el tráfico interno del clúster y el sobredimensionamiento de recursos que resulta de operar sin datos reales \cite{ref29}. La solución se estructura en cuatro pilares ---una arquitectura de red controlada, un sistema de medición de Calidad de Servicio (QoS), un modelo de decisión multicriterio (MCDA) y una estrategia de seguridad automatizada---, de modo que cada componente posee una justificación técnica derivada del problema de investigación y no constituye un elemento arbitrario de la solución.
+El diseño responde directamente a las causas identificadas en el árbol de problemas: la ausencia de criterios objetivos para seleccionar el componente de red (CNI), la falta de visibilidad sobre el tráfico interno del clúster y el sobredimensionamiento de recursos que resulta de operar sin datos reales \cite{ref29}. La solución se estructura en cuatro pilares: una arquitectura de red controlada, un sistema de medición de Calidad de Servicio (QoS), un modelo de decisión multicriterio (MCDA) y una estrategia de seguridad automatizada.
 
 \subsection{Arquitectura de Red y Topología}
 
@@ -171,7 +171,44 @@ El flujo completo de datos se organiza en cinco etapas:
 
 \subsection{Arquitectura por Capas}
 
-La solución se organizó en siete capas para separar responsabilidades: la \textbf{capa 1} es la infraestructura underlay (DigitalOcean); la \textbf{capa 2}, el clúster Kubernetes K3s en alta disponibilidad; la \textbf{capa 3}, el plano CNI (Flannel, Calico, Cilium o Antrea); la \textbf{capa 4}, el plano de inyección de tráfico (Pods iperf3 y CronJobs); la \textbf{capa 5}, observabilidad y captura (Prometheus, Grafana y exporter de recursos); la \textbf{capa 6}, procesamiento y decisión (\texttt{procesador.js}: IQR, normalización y MCDA); y la \textbf{capa 7}, presentación y recomendación (SPA React). Transversalmente opera la estrategia de seguridad Zero Trust ---Network Policies con Default Deny, micro-segmentación y automatización GitOps con ArgoCD---, que asegura que tanto el entorno de prueba como las recomendaciones incorporen consideraciones de seguridad \cite{ref16}.
+La solución se organizó en siete capas para separar responsabilidades: la \textbf{capa 1} es la infraestructura underlay (DigitalOcean); la \textbf{capa 2}, el clúster Kubernetes K3s en alta disponibilidad; la \textbf{capa 3}, el plano CNI (Flannel, Calico, Cilium o Antrea); la \textbf{capa 4}, el plano de inyección de tráfico (Pods iperf3 y CronJobs); la \textbf{capa 5}, observabilidad y captura (Prometheus, Grafana y exporter de recursos); la \textbf{capa 6}, procesamiento y decisión (\texttt{procesador.js}: IQR, normalización y MCDA); y la \textbf{capa 7}, presentación y recomendación (SPA React). Transversalmente opera la estrategia de seguridad Zero Trust ---Network Policies con Default Deny, micro-segmentación y automatización GitOps con ArgoCD---, que asegura que tanto el entorno de prueba como las recomendaciones incorporen consideraciones de seguridad \cite{ref16}. La Figura~\ref{fig:arquitectura-capas} ilustra esta estructura.
+
+\shorthandoff{>}
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[font=\footnotesize]
+\tikzset{lay/.style={draw=gray!55, minimum width=11cm, minimum height=1.1cm,
+    text width=10.4cm, align=left, inner sep=4pt, rounded corners=2pt}}
+
+\node[lay, fill=blue!12] at (0,0.0)
+    {\textbf{C1 --- Infraestructura underlay:} DigitalOcean Droplets, VPC privada, PostgreSQL (datastore K3s HA)};
+\node[lay, fill=blue!8] at (0,1.3)
+    {\textbf{C2 --- Clúster Kubernetes K3s HA:} 1 nodo Control Plane + 2 Workers; canal stable};
+\node[lay, fill=green!10] at (0,2.6)
+    {\textbf{C3 --- Plano CNI:} Flannel / Calico / Cilium / Antrea (variable \texttt{cni\_provider} en Terraform)};
+\node[lay, fill=green!8] at (0,3.9)
+    {\textbf{C4 --- Inyección de tráfico:} CronJobs iperf3 (throughput TCP) + \texttt{nc} (latencia); \texttt{podAntiAffinity} cliente--servidor};
+\node[lay, fill=orange!10] at (0,5.2)
+    {\textbf{C5 --- Observabilidad:} Prometheus, Grafana, Resource Usage Exporter; resultados almacenados como JSON};
+\node[lay, fill=orange!8] at (0,6.5)
+    {\textbf{C6 --- Procesamiento y decisión:} \texttt{procesador.js}: limpieza IQR, normalización min-max, modelo MCDA};
+\node[lay, fill=yellow!18] at (0,7.8)
+    {\textbf{C7 --- Presentación y recomendación:} SPA React + Vite desplegada en GitHub Pages};
+
+% Zero Trust transversal bar
+\fill[red!6, draw=red!55!black, rounded corners=2pt] (5.75,-0.55) rectangle (7.20,8.35);
+\node[rotate=90, font=\footnotesize\bfseries, text=red!60!black] at (6.475,3.90)
+    {Zero Trust transversal (NetworkPolicies + GitOps)};
+
+% Data flow arrow
+\draw[->, thick, gray!60] (-6.10,-0.40) -- (-6.10,8.40);
+\node[rotate=90, font=\footnotesize, text=gray!65] at (-5.80,3.90) {Flujo de datos};
+
+\end{tikzpicture}
+\caption{Arquitectura por capas del testbed experimental.}
+\label{fig:arquitectura-capas}
+\end{figure}
+\shorthandon{>}
 
 \subsection{Trazabilidad y Requisitos de Diseño}
 
@@ -207,15 +244,15 @@ El prototipo recomendador es la capa de interacción entre el modelo matemático
 
 \subsection{Alcance y Límites del Diseño}
 
-El diseño se limita a evaluar CNIs en un testbed controlado sobre Kubernetes y no pretende generalizar automáticamente los resultados a cualquier proveedor, versión o hardware. Emplea tráfico TCP controlado como señal principal y no asume que una mayor complejidad implique un mejor resultado. La solución se concibió para sostener una mejora continua: a medida que se incorporen nuevas corridas o versiones de CNIs, el pipeline puede recalcular los puntajes. En lugar de entregar una decisión congelada, ofrece un método para decidir con evidencia actualizable, cuyo beneficio es a la vez técnico ---reemplaza opiniones por datos medidos en condiciones reproducibles--- y económico, pues conocer el consumo de CPU de cada CNI por unidad de tráfico permite dimensionar la infraestructura sin márgenes precautorios excesivos \cite{ref29}.
+El diseño se limita a evaluar CNIs en un testbed controlado sobre Kubernetes y no pretende generalizar automáticamente los resultados a cualquier proveedor, versión o hardware. Emplea tráfico TCP controlado como señal principal y no asume que una mayor complejidad implique un mejor resultado. La solución se concibió para sostener una mejora continua: a medida que se incorporen nuevas corridas o versiones de CNIs, el pipeline puede recalcular los puntajes. En lugar de entregar una decisión congelada, ofrece un método para decidir con evidencia actualizable: técnicamente, reemplaza opiniones por datos medidos en condiciones reproducibles; económicamente, conocer el consumo de CPU de cada CNI por unidad de tráfico permite dimensionar la infraestructura sin márgenes precautorios excesivos \cite{ref29}.
 
 \section{Implementación de la Solución}
 
-Toda la infraestructura está codificada en Terraform, toda la configuración en manifiestos YAML versionados en Git, y toda prueba está automatizada en CronJobs de Kubernetes ---condición necesaria para que los resultados sean reproducibles y atribuibles al CNI \cite{ref7}.
+La infraestructura está codificada en Terraform, la configuración en manifiestos YAML versionados en Git y las pruebas automatizadas en CronJobs de Kubernetes ---condición necesaria para que los resultados sean reproducibles y atribuibles al CNI \cite{ref7}.
 
 \subsection{Aprovisionamiento de Infraestructura con Terraform}
 
-El aprovisionamiento de servidores y redes se realizó de forma completamente automatizada mediante Terraform (IaC). Al describir la infraestructura en archivos versionados, Terraform la recrea de manera idéntica en cada ejecución y elimina la posibilidad de que variaciones manuales en el aprovisionamiento introduzcan diferencias entre los entornos de cada CNI \cite{ref7}.
+El aprovisionamiento de servidores y redes se realizó mediante Terraform (IaC). Al describir la infraestructura en archivos versionados, Terraform la recrea de manera idéntica en cada ejecución y elimina la posibilidad de que variaciones manuales introduzcan diferencias entre los entornos de cada CNI \cite{ref7}.
 
 \subsubsection{Estructura del Código Terraform (K8s-bootstrap/00.bootstrap)}
 
@@ -255,7 +292,7 @@ El plano de control se configuró con una base de datos PostgreSQL gestionada de
 
 \subsubsection{Instalación: clúster sin CNI para plugins externos y modo nativo para Flannel}
 
-La implementación establece una distinción metodológica deliberada: Flannel se evalúa en su modo de despliegue más habitual ---integrado nativamente en K3s con \texttt{flannel-iface: eth1}---, mientras que Calico, Cilium y Antrea se instalan como plugins externos sobre un clúster sin CNI. La asimetría refleja las condiciones reales de uso: Flannel es el CNI predeterminado de K3s y la mayoría de equipos lo adopta sin configuración adicional, en tanto que los otros tres requieren instalación explícitamente y de forma declarativa. Evaluar cada CNI en su escenario de despliegue típico aumenta la validez ecológica del experimento; debe considerarse, no obstante, que Flannel se beneficia de la integración nativa de K3s ---gestión automática de CIDR y \emph{hooks} de kubelet--- que los plugins externos deben replicar por su cuenta.
+La implementación establece una distinción metodológica deliberada: Flannel se evalúa en su modo de despliegue más habitual ---integrado nativamente en K3s con \texttt{flannel-iface: eth1}---, mientras que Calico, Cilium y Antrea se instalan como plugins externos sobre un clúster sin CNI. La asimetría refleja las condiciones reales de uso: Flannel es el CNI predeterminado de K3s y la mayoría de equipos lo adopta sin configuración adicional, en tanto que los otros tres requieren instalación explícitamente y de forma declarativa. Evaluar cada CNI en su escenario de despliegue típico aumenta la validez ecológica del experimento~\cite{ref7}; debe considerarse, no obstante, que Flannel se beneficia de la integración nativa de K3s ---gestión automática de CIDR y \emph{hooks} de kubelet--- que los plugins externos deben replicar por su cuenta.
 
 Para los CNIs externos, la configuración crítica es el parámetro \texttt{--flannel-backend=none}, que desactiva completamente el CNI integrado de K3s y evita interferencias con el plugin bajo evaluación. Adicionalmente, se configura \texttt{--disable-network-policy} para que K3s no intente implementar NetworkPolicies por sí mismo.
 
@@ -287,7 +324,7 @@ Antrea & Manifest v2.2.0 & \texttt{transportInterface: eth1}, \texttt{serviceCID
 \end{tabularx}
 \end{table}
 
-El protocolo de rotación de CNIs tuvo cuatro pasos: (1) \texttt{kubectl delete} para eliminar recursos del CNI actual; (2) verificación de que no quedan interfaces de red anteriores en los nodos; (3) reinicio de los nodos Worker para limpiar estado en memoria; (4) aplicación del manifiesto del nuevo CNI via ArgoCD. Este protocolo garantiza que cada CNI inicia sobre un nodo completamente limpio, sin residuos de configuraciones anteriores que pudieran contaminar las métricas del siguiente ciclo de pruebas.
+El protocolo de rotación de CNIs se implementó mediante el reemplazo completo de la infraestructura entre ciclos. Para cambiar de un CNI al siguiente, se modificó la variable \texttt{cni\_provider} en \texttt{terraform.tfvars} y se ejecutó \texttt{terraform destroy} seguido de \texttt{terraform apply}: el primero eliminó todos los recursos de DigitalOcean (Droplets, VPC y base de datos PostgreSQL), y el segundo los recreó desde cero con el nuevo CNI preconfigurado en el script de inicialización de K3s. Este enfoque garantiza que cada ciclo de prueba parte de nodos completamente limpios, sin residuos de configuración del CNI anterior que pudieran contaminar las métricas.
 
 \subsection{Orquestación y Entrega Continua: GitOps con ArgoCD}
 
@@ -586,7 +623,7 @@ La arquitectura mantiene un flujo unidireccional. \texttt{K8s-bootstrap} crea in
 \hline
 MTU mismatch al instalar Cilium: Pods no podían comunicarse, paquetes se fragmentaban silenciosamente en la VPC. Flannel y Calico detectan automáticamente la MTU de la interfaz subyacente en sus versiones actuales; Cilium requirió configuración explícita porque su dataplane eBPF no hereda el valor de MTU del sistema operativo sin intervención. & Se calculó la MTU efectiva: 1500 (VPC) $-$ 50 (overhead VXLAN) $=$ 1450. Se configuró el parámetro \texttt{mtu: 1450} en el overlay de Kustomize de Cilium. \\
 \hline
-ArgoCD en estado OutOfSync tras la rotación de CNI: Pods perdían conectividad durante el cambio. & Se implementó una secuencia de rotación segura: poner ArgoCD en modo Suspended, rotar el CNI, verificar conectividad, reactivar ArgoCD. \\
+ArgoCD en estado OutOfSync al instalar el stack de métricas (Prometheus + Grafana): los CRDs del \texttt{kube-prometheus-stack} se aplicaban en el mismo ciclo de sync que los recursos que los consumían, provocando fallo en el despliegue porque el API server aún no conocía los tipos personalizados. & Se separó la instalación en dos Applications independientes usando sync waves: \texttt{kube-prometheus-stack-crds} (wave~$-1$) despliega el mismo chart con todos los componentes deshabilitados ---solo crea los CRDs--- usando \texttt{ServerSideApply=true}; \texttt{kube-prometheus-stack} (wave~$0$) despliega el stack completo con \texttt{skipCrds:~true} y \texttt{SkipDryRunOnMissingResource=true}, garantizando que los CRDs existen antes de crear los recursos dependientes. \\
 \hline
 Outliers frecuentes en pruebas de madrugada: DigitalOcean mostraba throttling de CPU en horas de alta demanda del datacenter. & Se configuró una ventana de pruebas exclusiva para horario laboral. El algoritmo IQR filtra automáticamente estos outliers. \\
 \hline

@@ -1,6 +1,6 @@
 \chapter{Recomendaciones} \label{sec:Recomendaciones}
 
-A partir de la experiencia y los resultados obtenidos en este proyecto de investigación, se formulan las siguientes recomendaciones para implementaciones reales de Kubernetes y selección de plugins CNI:
+Las siguientes recomendaciones se derivan de los hallazgos del experimento y están dirigidas a equipos que evalúen o desplieguen clústeres Kubernetes en producción:
 
 \begin{itemize}
     \item \textbf{Restringir el uso de Flannel:} Se recomienda evitar el despliegue de Flannel en cualquier clúster de Kubernetes en producción debido a su incapacidad para aplicar Network Policies, limitando su uso únicamente a entornos de pruebas o desarrollo local de baja complejidad.
@@ -10,4 +10,6 @@ A partir de la experiencia y los resultados obtenidos en este proyecto de invest
     \item \textbf{Adoptar Antrea o Calico en entornos de recursos limitados (Edge/IoT):} Debido a que Cilium demanda una huella de memoria RAM sustancialmente mayor (cercana a los 185 MiB por nodo), se aconseja emplear Antrea o Calico en clústeres operados sobre hardware limitado (como nodos Edge o dispositivos IoT), donde cada megabyte de memoria resulta crítico.
     
     \item \textbf{Mantener la configuración de red y seguridad vía GitOps:} Se recomienda automatizar y versionar tanto el despliegue de los plugins CNI como la declaración de las Network Policies en un repositorio de Git acoplado a ArgoCD, asegurando la restauración automática de la configuración ante desvíos manuales no autorizados.
+
+    \item \textbf{Tratar el modelo MCDA como un proceso de decisión continuo:} El modelo de decisión multicriterio no debe entenderse como una evaluación puntual, sino como un proceso periódico. A medida que la organización incorpore nuevas cargas de trabajo, actualice las versiones de los CNIs o cambie sus prioridades de negocio, recalibrar las métricas y los pesos asegura que la selección de infraestructura refleje el estado real del entorno y no una decisión congelada en el tiempo.
 \end{itemize}

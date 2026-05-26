@@ -1,16 +1,18 @@
 \chapter{Resultados y Pruebas} \label{sec:Resultados}
 
-Este capítulo documenta los protocolos, escenarios y resultados de las pruebas sobre los cuatro objetivos específicos del proyecto. En cada ciclo se modificó únicamente el CNI bajo evaluación; hardware, sistema operativo, versión de Kubernetes, tamaño de paquetes, duración y condiciones de red permanecieron constantes, lo que hace posible atribuir las diferencias observadas al plugin y no al entorno.
+En cada ciclo de prueba se modificó únicamente el CNI bajo evaluación; hardware, sistema operativo, versión de Kubernetes, tamaño de paquetes, duración y condiciones de red permanecieron constantes, lo que hace posible atribuir las diferencias observadas al plugin y no al entorno.
 
 \section{Metodología General de Pruebas}
 
-\subsection{Control de Condiciones: el Escenario de Referencia (Baseline)}
+\subsection{Control de Condiciones: el Escenario de Referencia}
 
 Se definió un escenario de referencia con los siguientes parámetros fijos para todos los CNIs:
 
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Parámetros del escenario de referencia para todas las pruebas.}
+\label{tab:baseline-pruebas}
 \begin{tabularx}{\textwidth}{|Y|Y|}
 \hline
 \textbf{Parámetro Controlado} & \textbf{Valor Fijo para Todo el Experimento} \\
@@ -19,7 +21,7 @@ Tipo de instancia cloud & DigitalOcean Droplet --- Ubuntu 22.04 LTS, 2 vCPU, 4 G
 \hline
 Versión de Kubernetes & K3s canal stable --- la misma versión en todos los ciclos de prueba \\
 \hline
-Región del datacenter & fra1 (Frankfurt) --- mismo datacenter para todos los nodos en todas las pruebas \\
+Región del datacenter & nyc3 (Nueva York) --- mismo datacenter para todos los nodos en todas las pruebas \\
 \hline
 Red entre nodos & VPC privada DigitalOcean --- MTU 1500 bytes, sin tráfico externo \\
 \hline
@@ -34,8 +36,6 @@ Herramienta de throughput & iperf3 con salida JSON (\texttt{-J}), un solo stream
 Herramienta de latencia & Script Bash con \texttt{nc -z -w 2} --- 30 muestras por corrida \\
 \hline
 \end{tabularx}
-\caption{Parámetros del escenario de referencia (baseline) para todas las pruebas.}
-\label{tab:baseline-pruebas}
 \end{table}
 
 \subsection{Automatización: de la Prueba Manual a la Prueba Orquestada}
@@ -51,7 +51,7 @@ Todas las pruebas se orquestaron mediante CronJobs de Kubernetes. La secuencia d
 
 La orquestación automática elimina la variabilidad humana de la ejecución: cada corrida sigue exactamente la misma secuencia con los mismos intervalos, de modo que las diferencias observadas entre CNIs se deben al plugin y no al operador.
 
-La elección de cinco corridas por CNI responde a un equilibrio entre rigor estadístico y viabilidad operativa. Una sola corrida permitiría que un documento o evento anómalo dominara el resultado, mientras que un número muy elevado extendería el tiempo de prueba sin un beneficio proporcional. Con dosificadas corridas distribuidas en el tiempo, el algoritmo IQR puede identificar y descartar una corrida anómala, y el promedio de las restantes resulta estadísticamente representativo; este criterio es habitual en la investigación de redes sobre entornos cloud \cite{ref7,ref8}.
+La elección de cinco corridas por CNI responde a un equilibrio entre rigor estadístico y viabilidad operativa. Una sola corrida permitiría que un dato atípico o evento anómalo dominara el resultado, mientras que un número muy elevado extendería el tiempo de prueba sin un beneficio proporcional. Con cinco corridas distribuidas en el tiempo, el algoritmo IQR puede identificar y descartar una corrida anómala, y el promedio de las restantes resulta estadísticamente representativo; este criterio es habitual en la investigación de redes sobre entornos cloud \cite{ref7,ref8}.
 
 \section{Pruebas de Rendimiento de Red --- Objetivo Específico 1}
 
@@ -74,6 +74,8 @@ Los resultados presentados son los promedios de las 5 corridas de 300 segundos p
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Resultados de throughput TCP por CNI (promedio de 5 corridas de 300 segundos).}
+\label{tab:throughput-resultados}
 \begin{tabularx}{\textwidth}{|Y|Y|Y|Y|Y|}
 \hline
 \textbf{Métrica} & \textbf{Flannel (VXLAN)} & \textbf{Calico (VXLAN)} & \textbf{Cilium (eBPF)} & \textbf{Antrea (OVS)} \\
@@ -91,11 +93,9 @@ Variabilidad entre corridas ($\sigma$) & $\pm$0.18 Gbps & $\pm$0.09 Gbps & $\pm$
 Outliers descartados por IQR & 1 de 5 (20\%) & 0 de 5 (0\%) & 0 de 5 (0\%) & 1 de 5 (20\%) \\
 \hline
 \end{tabularx}
-\caption{Resultados de throughput TCP por CNI (promedio de 5 corridas de 300 segundos).}
-\label{tab:throughput-resultados}
 \end{table}
 
-Todos los CNIs se aproximan al límite teórico de la red VPC de DigitalOcean ($\sim$9.7--9.8 Gbps). Las diferencias en retransmisiones, en cambio, son significativas: Cilium con eBPF genera 2.1 retransmisiones por sesión, frente a las 12.4 de Flannel ---casi seis veces más---. Esta diferencia se explica porque eBPF opera directamente en el kernel y resuelve las decisiones de enrutamiento con mayor rapidez que el mecanismo VXLAN de Flannel.
+Todos los CNIs se aproximan al límite teórico de la red VPC de DigitalOcean ($\sim$9.7--9.8 Gbps). Las diferencias en retransmisiones, en cambio, son significativas: Cilium con eBPF genera 2.1 retransmisiones por sesión, frente a las 12.4 de Flannel ---casi seis veces más---. Esta diferencia se explica porque eBPF opera directamente en el kernel y resuelve las decisiones de enrutamiento con mayor rapidez que el mecanismo VXLAN de Flannel~\cite{ref27}.
 
 \subsection{Protocolo de Prueba de Latencia TCP}
 
@@ -106,6 +106,8 @@ La latencia de establecimiento TCP mide el tiempo que tarda en completarse el ha
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Resultados de latencia TCP por CNI (30 muestras $\times$ 5 corridas, outliers IQR eliminados).}
+\label{tab:latencia-resultados}
 \begin{tabularx}{\textwidth}{|Y|Y|Y|Y|Y|}
 \hline
 \textbf{Métrica de Latencia} & \textbf{Flannel (VXLAN)} & \textbf{Calico (VXLAN)} & \textbf{Cilium (eBPF)} & \textbf{Antrea (OVS)} \\
@@ -123,8 +125,6 @@ Percentil P95 (ms) & 1.834 ms & 0.712 ms & 0.478 ms & 0.893 ms \\
 Percentil P99 (ms) & 2.156 ms & 0.843 ms & 0.521 ms & 1.067 ms \\
 \hline
 \end{tabularx}
-\caption{Resultados de latencia TCP por CNI (30 muestras $\times$ 5 corridas, outliers IQR eliminados).}
-\label{tab:latencia-resultados}
 \end{table}
 
 Los datos de latencia revelan la mayor brecha de rendimiento entre CNIs. Cilium logra una latencia promedio de 0.312 ms, mientras que Flannel alcanza 0.687 ms, el doble. El P99 de Flannel (2.156 ms) significa que el 1\% de las conexiones tardan más de 2 ms en establecerse. En una aplicación que realiza 10.000 conexiones por segundo, ese 1\% representa 100 conexiones lentas por segundo.
@@ -138,6 +138,8 @@ Se diseñó una matriz de pruebas que cubre los escenarios críticos de segurida
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Matriz completa de pruebas de seguridad con Network Policies.}
+\label{tab:matriz-seguridad}
 \begin{tabularx}{\textwidth}{|Y|Y|}
 \hline
 \textbf{Caso de Prueba} & \textbf{Descripción, Herramienta y Criterio de Éxito} \\
@@ -159,8 +161,6 @@ TC-SEC-07: Bloqueo entre namespaces & Un Pod de namespace staging no puede comun
 TC-SEC-08: GitOps Auto-restauración & Si una política se elimina manualmente, ArgoCD la restaura en menos de 3 minutos. ÉXITO: Política restaurada automáticamente. \\
 \hline
 \end{tabularx}
-\caption{Matriz completa de pruebas de seguridad con Network Policies.}
-\label{tab:matriz-seguridad}
 \end{table}
 
 \subsection{Resultados de las Pruebas de Seguridad por CNI}
@@ -168,6 +168,8 @@ TC-SEC-08: GitOps Auto-restauración & Si una política se elimina manualmente, 
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Resultados de pruebas de seguridad por CNI.}
+\label{tab:resultados-seguridad}
 \begin{tabularx}{\textwidth}{|Y|Y|Y|Y|Y|}
 \hline
 \textbf{Caso de Prueba} & \textbf{Flannel} & \textbf{Calico} & \textbf{Cilium} & \textbf{Antrea} \\
@@ -193,8 +195,6 @@ Network Policies L7 (HTTP paths) & NO SOPORTA & NO SOPORTA & SOPORTA & NO SOPORT
 \textbf{RESULTADO GLOBAL} & \textbf{INSUFICIENTE} & \textbf{APROBADO} & \textbf{APROBADO+} & \textbf{APROBADO} \\
 \hline
 \end{tabularx}
-\caption{Resultados de pruebas de seguridad por CNI.}
-\label{tab:resultados-seguridad}
 \end{table}
 
 El hallazgo más crítico es que Flannel no implementa Network Policies en su plano de datos: las políticas se crean sin error en Kubernetes, pero el tráfico que debería bloquearse continúa fluyendo. Esto descarta a Flannel para cualquier organización con requisitos de seguridad.
@@ -208,31 +208,31 @@ Se ejecutaron las pruebas de rendimiento nuevamente con las políticas de seguri
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Impacto de las Network Policies en el rendimiento de red de cada CNI.}
+\label{tab:overhead-seguridad}
 \begin{tabularx}{\textwidth}{|Y|Y|}
 \hline
 \textbf{CNI y Estado de Políticas} & \textbf{Latencia promedio TCP / Throughput TCP} \\
 \hline
-Calico --- Sin políticas (baseline) & 0.431 ms / 9.45 Gbps \\
+Calico --- Sin políticas (referencia) & 0.431 ms / 9.45 Gbps \\
 \hline
 Calico --- Con políticas activas & 0.449 ms / 9.42 Gbps \\
 \hline
 Calico --- Overhead introducido & +0.018 ms (+4.2\%) / $-$0.03 Gbps ($-$0.3\%) \\
 \hline
-Cilium --- Sin políticas (baseline) & 0.312 ms / 9.64 Gbps \\
+Cilium --- Sin políticas (referencia) & 0.312 ms / 9.64 Gbps \\
 \hline
 Cilium --- Con políticas activas & 0.318 ms / 9.62 Gbps \\
 \hline
 Cilium --- Overhead introducido & +0.006 ms (+1.9\%) / $-$0.02 Gbps ($-$0.2\%) \\
 \hline
-Antrea --- Sin políticas (baseline) & 0.512 ms / 9.31 Gbps \\
+Antrea --- Sin políticas (referencia) & 0.512 ms / 9.31 Gbps \\
 \hline
 Antrea --- Con políticas activas & 0.538 ms / 9.27 Gbps \\
 \hline
 Antrea --- Overhead introducido & +0.026 ms (+5.1\%) / $-$0.04 Gbps ($-$0.4\%) \\
 \hline
 \end{tabularx}
-\caption{Impacto de las Network Policies en el rendimiento de red de cada CNI.}
-\label{tab:overhead-seguridad}
 \end{table}
 
 El overhead de seguridad es mínimo en todos los CNIs: la latencia adicional oscila entre el 1.9\% de Cilium y el 5.1\% de Antrea. Este resultado confirma la premisa del diseño Zero Trust: es viable implementar seguridad completa sin sacrificar el rendimiento de forma significativa.
@@ -244,6 +244,8 @@ Las métricas de consumo fueron capturadas por Prometheus durante las sesiones a
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Consumo computacional del agente CNI bajo estrés de red ($\sim$9 Gbps de tráfico TCP).}
+\label{tab:consumo-recursos}
 \begin{tabularx}{\textwidth}{|Y|Y|Y|Y|Y|}
 \hline
 \textbf{Métrica de Eficiencia} & \textbf{Flannel (VXLAN)} & \textbf{Calico (VXLAN)} & \textbf{Cilium (eBPF)} & \textbf{Antrea (OVS)} \\
@@ -263,11 +265,9 @@ Eficiencia: Gbps por 100 millicores CPU & 4.92 Gbps & 6.61 Gbps & 9.84 Gbps & 5.
 Adecuado para entornos Edge/IoT & Medio (RAM) & Medio-alto & Bajo (alta RAM) & Medio \\
 \hline
 \end{tabularx}
-\caption{Consumo computacional del agente CNI bajo estrés de red ($\sim$9 Gbps de tráfico TCP).}
-\label{tab:consumo-recursos}
 \end{table}
 
-Los resultados revelan un trade-off interesante. Cilium con eBPF es el más eficiente en CPU: consume solo 98 millicores para procesar el tráfico más rápido del experimento. Su métrica de eficiencia (9.84 Gbps por cada 100 millicores de CPU) es prácticamente el doble que Flannel (4.92 Gbps / 100m). Sin embargo, Cilium tiene el mayor consumo de RAM: 185 MiB bajo estrés, frente a 42 MiB de Flannel. En entornos IoT/Edge con restricciones de memoria, este consumo puede ser una limitación importante.
+Los resultados revelan un compromiso relevante. Cilium con eBPF es el más eficiente en CPU: consume solo 98 millicores para procesar el tráfico más rápido del experimento. Su métrica de eficiencia (9.84 Gbps por cada 100 millicores de CPU) prácticamente duplica la de Flannel (4.92 Gbps / 100\,m). Sin embargo, Cilium tiene el mayor consumo de RAM: 185 MiB bajo estrés, frente a 42 MiB de Flannel. En entornos IoT/Edge con restricciones de memoria, este consumo puede ser una limitación importante.
 
 \section{Validación del Modelo Matemático MCDA --- Objetivo Específico 3}
 
@@ -278,6 +278,8 @@ Para validar que el algoritmo IQR funciona correctamente, se inyectó artificial
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Validación del algoritmo IQR con outlier controlado inyectado artificialmente.}
+\label{tab:iqr-validacion}
 \begin{tabularx}{\textwidth}{|Y|Y|}
 \hline
 \textbf{Verificación del IQR} & \textbf{Resultado Observado} \\
@@ -293,8 +295,6 @@ Latencia promedio de Cilium CON outlier y CON IQR & 0.318 ms (+1.9\% de error) \
 Porcentaje de corridas descartadas en datos reales & Entre 0\% y 20\% por CNI \\
 \hline
 \end{tabularx}
-\caption{Validación del algoritmo IQR con outlier controlado inyectado artificialmente.}
-\label{tab:iqr-validacion}
 \end{table}
 
 Esta validación confirma que el promedio reportado para cada CNI es robusto ante eventos atípicos del entorno cloud, y que las diferencias entre CNIs en los resultados finales reflejan comportamiento estructural del plugin y no ruido experimental.
@@ -304,6 +304,8 @@ Esta validación confirma que el promedio reportado para cada CNI es robusto ant
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Validación de la normalización min-max de las seis métricas del modelo MCDA.}
+\label{tab:normalizacion-validacion}
 \begin{tabularx}{\textwidth}{|Y|Y|Y|Y|Y|}
 \hline
 \textbf{Métrica (valor bruto)} & \textbf{Flannel} & \textbf{Calico} & \textbf{Cilium} & \textbf{Antrea} \\
@@ -331,11 +333,9 @@ RAM normalizada ($\downarrow$ menor=mejor) & 1.00 & 0.74 & 0.00 & 0.63 \\
 Network Policies L7 (binario) & 0 & 0 & 1 & 0 \\
 \hline
 \end{tabularx}
-\caption{Validación de la normalización min-max de las seis métricas del modelo MCDA.}
-\label{tab:normalizacion-validacion}
 \end{table}
 
-La tabla de normalización muestra las seis métricas del modelo en escala comparable. Flannel es el peor en throughput, latencia, retransmisiones y CPU, pero el mejor en RAM (1.00). Cilium es el mejor en las cuatro primeras dimensiones y el único que soporta L7 (1), pero el peor en RAM (0.00). Este trade-off multidimensional es precisamente lo que justifica el enfoque MCDA con perfiles: ningún CNI domina en todas las dimensiones simultáneamente.
+La tabla de normalización muestra las seis métricas del modelo en escala comparable. Flannel es el peor en throughput, latencia, retransmisiones y CPU, pero el mejor en RAM (1.00). Cilium es el mejor en las cuatro primeras dimensiones y el único que soporta L7 (1), pero el peor en RAM (0.00). Este compromiso multidimensional es precisamente lo que justifica el enfoque MCDA con perfiles: ningún CNI domina en todas las dimensiones de forma simultánea.
 
 \subsection{Validación del Scoring MCDA por Perfil}
 
@@ -344,6 +344,8 @@ Los puntajes que se muestran a continuación son calculados por \texttt{procesad
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Puntajes MCDA finales por CNI y perfil ($\star$ indica recomendación del sistema para ese perfil).}
+\label{tab:scores-mcda}
 \begin{tabularx}{\textwidth}{|Y|Y|Y|Y|Y|}
 \hline
 \textbf{Perfil de Usuario} & \textbf{Flannel} & \textbf{Calico} & \textbf{Cilium} & \textbf{Antrea} \\
@@ -355,11 +357,9 @@ Streaming / Rendimiento & 0.298 & 0.651 & $\star$ 0.879 & 0.603 \\
 IoT / Recursos limitados & 0.521 & 0.614 & 0.487 & $\star$ 0.628 \\
 \hline
 \end{tabularx}
-\caption{Scores MCDA finales por CNI y perfil ($\star$ indica recomendación del sistema para ese perfil).}
-\label{tab:scores-mcda}
 \end{table}
 
-Los resultados son coherentes con las expectativas técnicas. Cilium lidera en los perfiles de seguridad y rendimiento gracias a su combinación única de eBPF y soporte de Network Policies L7. Para IoT, Antrea resulta la recomendación porque el alto consumo de RAM de Cilium (185 MiB) es un factor penalizador en entornos con memoria limitada. Este resultado demuestra que el modelo MCDA captura correctamente los trade-offs entre CNIs según el contexto.
+Los resultados son coherentes con las expectativas técnicas. Cilium lidera en los perfiles de seguridad y rendimiento gracias a su combinación única de eBPF y soporte de Network Policies L7. Para IoT, Antrea resulta la recomendación porque el alto consumo de RAM de Cilium (185 MiB) es un factor penalizador en entornos con memoria limitada. Este resultado demuestra que el modelo MCDA captura correctamente los compromisos entre CNIs según el contexto.
 
 \section{Validación Funcional del Prototipo Recomendador --- Objetivo Específico 4}
 
@@ -368,6 +368,8 @@ Los resultados son coherentes con las expectativas técnicas. Cilium lidera en l
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Resultados de pruebas de corrección funcional del prototipo SPA.}
+\label{tab:pruebas-funcionales-spa}
 \begin{tabularx}{\textwidth}{|Y|Y|}
 \hline
 \textbf{Caso de Prueba Funcional} & \textbf{Resultado Esperado vs Resultado Observado} \\
@@ -389,11 +391,9 @@ PF-07: Responsividad en pantalla móvil & ESPERADO: Layout responsivo en iOS Saf
 PF-08: Manejo de error si \texttt{cni-data.json} no disponible & ESPERADO: Mensaje de espera y reintento automático. OBSERVADO: Reintento cada 30 s. $\checkmark$ \\
 \hline
 \end{tabularx}
-\caption{Resultados de pruebas de corrección funcional del prototipo SPA.}
-\label{tab:pruebas-funcionales-spa}
 \end{table}
 
-\subsection{Prueba de Integridad de Datos End-to-End}
+\subsection{Prueba de Integridad de Datos de Extremo a Extremo}
 
 Se trazó el flujo completo de un dato específico desde su origen hasta su visualización: iperf3 reporta \texttt{bits\_per\_second: 9638201234} $\rightarrow$ script guarda el JSON sin modificaciones $\rightarrow$ \texttt{procesador.js} aplica IQR, calcula promedio = 9.638 Gbps, normaliza a 1.00, calcula score MCDA = 0.879 $\rightarrow$ \texttt{cni-data.json} registra los valores $\rightarrow$ SPA muestra ``9.638 Gbps | Score: 0.879''. Los 5 valores son idénticos. Sin redondeo, truncamiento ni pérdida de precisión en ningún punto del pipeline.
 
@@ -404,6 +404,8 @@ Se trazó el flujo completo de un dato específico desde su origen hasta su visu
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Respuestas a las preguntas de investigación basadas en evidencia de pruebas.}
+\label{tab:respuestas-preguntas}
 \begin{tabularx}{\textwidth}{|Y|Y|}
 \hline
 \textbf{Pregunta de Investigación} & \textbf{Respuesta basada en evidencia} \\
@@ -417,8 +419,6 @@ Se trazó el flujo completo de un dato específico desde su origen hasta su visu
 ¿En qué medida se puede reducir el sobredimensionamiento? & La diferencia de 89 millicores de CPU entre Flannel y Cilium, a escala de 50 nodos, equivale a liberar $\sim$4.45 núcleos de CPU. Al costo de USD\,\$24/mes por Droplet de 2\,vCPU/4\,GB del tipo utilizado en el proyecto, liberar $\sim$2 instancias equivale a aproximadamente USD\,\$640 anuales en infraestructura DigitalOcean. \\
 \hline
 \end{tabularx}
-\caption{Respuestas a las preguntas de investigación basadas en evidencia de pruebas.}
-\label{tab:respuestas-preguntas}
 \end{table}
 
 \subsection{Lecciones Aprendidas de las Pruebas}
@@ -436,6 +436,8 @@ Se trazó el flujo completo de un dato específico desde su origen hasta su visu
 \begin{table}[htbp]
 \centering
 \scriptsize
+\caption{Cumplimiento de objetivos específicos del proyecto basado en evidencia de pruebas.}
+\label{tab:cumplimiento-objetivos}
 \begin{tabularx}{\textwidth}{|Y|Y|}
 \hline
 \textbf{Objetivo Específico} & \textbf{Estado de Cumplimiento y Evidencia} \\
@@ -446,9 +448,7 @@ OE2: Evaluar cómo la configuración segura de las Network Policies reduce la su
 \hline
 OE3: Desarrollar criterios y métricas para la comparación objetiva entre CNIs. & CUMPLIDO --- Algoritmo IQR validado con outlier controlado. Normalización min-max verificada. Scoring MCDA calculado para 3 perfiles. \\
 \hline
-OE4: Implementar un prototipo funcional que recomiende el CNI más adecuado. & CUMPLIDO --- 8 casos de prueba funcionales, todos aprobados. Prueba de integridad de datos end-to-end completada. Actualización automática validada ($<$5 min). \\
+OE4: Implementar un prototipo funcional que recomiende el CNI más adecuado. & CUMPLIDO --- 8 casos de prueba funcionales, todos aprobados. Prueba de integridad de datos de extremo a extremo completada. Actualización automática validada ($<$5 min). \\
 \hline
 \end{tabularx}
-\caption{Cumplimiento de objetivos específicos del proyecto basado en evidencia de pruebas.}
-\label{tab:cumplimiento-objetivos}
 \end{table}

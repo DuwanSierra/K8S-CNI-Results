@@ -1,6 +1,6 @@
 \chapter{Conclusiones} \label{sec:Conclusiones}
 
-Con base en el desarrollo experimental y los resultados obtenidos en este trabajo de grado, se presentan las siguientes conclusiones organizadas por cada uno de los objetivos específicos:
+Los resultados del experimento permiten formular las siguientes conclusiones por objetivo específico:
 
 \begin{itemize}
     \item \textbf{Evaluación cuantitativa de rendimiento (OE1):} Las pruebas controladas demostraron que el dataplane de Cilium, impulsado por eBPF, ofrece la mayor eficiencia de red con un throughput promedio de 9.64 Gbps y la menor latencia de conexión (0.312 ms). Alternativas de VXLAN tradicionales como Flannel e implementaciones sobre switch virtual como Antrea mostraron latencias superiores y una mayor tasa de retransmisión de paquetes.
@@ -11,3 +11,5 @@ Con base en el desarrollo experimental y los resultados obtenidos en este trabaj
     
     \item \textbf{Prototipo recomendador web (OE4):} El desarrollo de la aplicación web SPA basada en React e integrada a un pipeline automatizado validó la factibilidad de exponer los resultados del modelo MCDA de forma interactiva y amigable. Las pruebas funcionales confirmaron la consistencia e integridad de los datos end-to-end sin pérdida de precisión.
 \end{itemize}
+
+Estos hallazgos confirman que la selección fundamentada de un complemento CNI ---apoyada en evidencia empírica y un modelo de decisión estructurado--- mejora simultáneamente el rendimiento técnico del clúster, reduce el riesgo de seguridad y optimiza los costos operativos. La combinación de un testbed reproducible, políticas Zero Trust automatizadas con GitOps y un modelo MCDA parametrizable por perfil constituye una metodología transferible a cualquier organización que opere Kubernetes en producción.

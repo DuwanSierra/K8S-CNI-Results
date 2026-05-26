@@ -1,19 +1,37 @@
 \chapter{Discusión} \label{sec:Discusion}
 
-Este capítulo sintetiza y discute los resultados obtenidos en las pruebas experimentales detalladas en el capítulo anterior, contextualizándolos en la discusión académica y evaluando su impacto en el problema de investigación.
+\section{El papel determinante del dataplane}
 
-\section{Síntesis de Resultados Experimentales}
+El rendimiento, la eficiencia de recursos y las capacidades de seguridad de un clúster Kubernetes no son propiedades del clúster en sí, sino del plugin CNI que implementa su plano de datos. Las diferencias observadas entre los cuatro CNIs ---con hardware, versión de Kubernetes y topología idénticos en cada ciclo--- lo confirman con claridad.
 
-Los resultados evidencian diferencias estructurales en el rendimiento y consumo de recursos de cada CNI bajo evaluación. Mientras que Cilium destaca por su velocidad de respuesta y eficiencia de CPU, requiere una mayor cantidad de memoria RAM. Por otro lado, Flannel ofrece una configuración de menor consumo de RAM pero carece del soporte e implementación de políticas de seguridad Zero Trust.
+La ventaja de Cilium no es marginal. Su latencia promedio (0.312 ms) es el doble de rápida que la de Flannel (0.687 ms), y su estabilidad ---medida por el jitter ($\pm$0.087 ms frente a $\pm$0.389 ms de Flannel)--- es 4.5 veces mayor. Esta brecha no se explica únicamente por una mejor implementación de software, sino por una diferencia arquitectónica: eBPF ejecuta las decisiones de enrutamiento directamente en el kernel, eliminando las copias de datos al espacio de usuario y el recorrido lineal de las cadenas de iptables que caracterizan los dataplanes tradicionales. Este comportamiento es consistente con los trabajos de Zhang et al.~\cite{ref27} y con la fundamentación de Pfaff et al.~\cite{ref22}, que anticipaban este tipo de ventaja para arquitecturas de conmutación avanzadas.
 
-\section{Comparación con la Literatura}
+El liderazgo de Cilium tiene, sin embargo, un costo concreto: su consumo de RAM bajo estrés (185 MiB) cuadruplica el de Flannel (42 MiB). Este compromiso no es un defecto de implementación, sino consecuencia directa de la riqueza funcional de eBPF: los mapas hash que reemplazan las cadenas de iptables, las tablas de seguimiento de conexiones y los programas compilados al vuelo residen en memoria. El modelo MCDA captura este compromiso correctamente, lo que explica por qué Cilium no lidera en el perfil IoT, donde la RAM es el recurso limitante.
 
-Los hallazgos de este experimento se alinean con estudios previos de Kang et al. (2021) \cite{ref7} y Koukis et al. (2024) \cite{ref8} sobre el rendimiento de plugins CNI en entornos cloud. Las mediciones corroboran que el enrutamiento eBPF ofrece ventajas en latencia sobre encapsulamientos tradicionales VXLAN y switches virtuales como OVS, manteniendo un overhead bajo.
+\section{Flannel: el riesgo silencioso de la configuración predeterminada}
 
-\section{Discusión del Modelo MCDA}
+El hallazgo más crítico en seguridad no es la diferencia de latencia entre CNIs, sino el comportamiento de Flannel ante las NetworkPolicies. Las políticas se crean en la API de Kubernetes sin ningún error, el sistema las acepta, pero el tráfico que debería bloquearse continúa fluyendo sin restricción. Un operador que despliegue Flannel y aplique políticas de aislamiento obtiene una falsa certeza de seguridad: el clúster parece configurado correctamente, pero en la práctica está expuesto.
 
-El modelo MCDA desarrollado permite reconciliar criterios heterogéneos (throughput, latencia, CPU, RAM y seguridad) para ofrecer recomendaciones adaptadas a distintos perfiles de uso. Su principal limitación radica en el uso de variables binarias para la evaluación L7, que puede enriquecerse en futuros trabajos midiendo el throughput bajo reglas de filtrado de contenido específicas.
+El dato cobra especial peso porque Flannel es el CNI predeterminado de K3s y de numerosas guías de inicio rápido de Kubernetes, lo que lo convierte en la opción más frecuente en entornos de aprendizaje y en primeras implementaciones productivas. La literatura advertía sobre esta limitación~\cite{ref4,ref18}, pero la evidencia experimental confirma que el riesgo no es teórico: en todos los casos de prueba que requerían enforcement de políticas, Flannel los reprobó. Cualquier organización que opere Flannel en producción con NetworkPolicies definidas debe tratar esas políticas como declarativas ---sin efecto real sobre el tráfico--- hasta realizar una validación explícita del enforcement.
 
-\section{Impacto en la Reducción del Sobredimensionamiento}
+\section{Zero Trust es viable sin penalizar el rendimiento}
 
-El consumo de recursos medido bajo estrés de red demuestra que una selección adecuada del CNI disminuye el consumo total de CPU del clúster. Al extrapolar estos resultados a despliegues de gran escala, la ganancia de eficiencia computacional disminuye directamente los costos asociados a instancias de nube y contribuye a evitar el sobredimensionamiento de infraestructura.
+Una premisa frecuente en los equipos de operaciones es que activar políticas de red completas degrada el rendimiento del clúster de forma inaceptable. Los resultados contradicen esa premisa con datos concretos. El overhead de latencia introducido por las políticas activas osciló entre el 1.9\% de Cilium y el 5.1\% de Antrea; en throughput, el impacto fue inferior al 0.5\% en todos los CNIs evaluados.
+
+Este resultado contrasta favorablemente con las advertencias de Chandramouli et al.~\cite{ref26} sobre el costo de las arquitecturas de Service Mesh ---que emplean proxies L7 en espacio de usuario---: las NetworkPolicies implementadas en el plano de datos del CNI operan en el kernel y son órdenes de magnitud más eficientes que un proxy intermedio. El overhead documentado en la literatura de Service Mesh no aplica a las políticas nativas del CNI. Los datos no justifican diferir la adopción de Zero Trust por temor al impacto en el rendimiento, siempre que el CNI soporte NetworkPolicies en su plano de datos.
+
+\section{Alcance y limitaciones del modelo MCDA}
+
+El modelo MCDA produjo recomendaciones diferenciadas por perfil de uso a partir de criterios heterogéneos. Que ningún CNI domine en todas las dimensiones de forma simultánea valida la necesidad del enfoque multicriterio: una comparación basada únicamente en throughput habría recomendado Cilium para todos los perfiles, lo cual sería técnicamente incorrecto para el perfil IoT, donde Antrea ofrece un balance superior.
+
+El modelo tiene, sin embargo, limitaciones concretas. Los pesos asignados a cada criterio por perfil son juicios de diseño razonados, no valores calibrados empíricamente a partir de organizaciones reales; un trabajo futuro podría derivarlos mediante entrevistas estructuradas con equipos de ingeniería. La evaluación de NetworkPolicies L7 se implementó como variable binaria (soporta/no soporta), perdiendo matices sobre la facilidad de expresar reglas complejas o el overhead de distintos patrones de filtrado. Finalmente, el experimento se ejecutó sobre dos nodos Worker; los efectos de escala con decenas de nodos y miles de Pods ---donde el overhead del plano de control del CNI se vuelve más visible--- podrían modificar el ranking, especialmente en las dimensiones de RAM y CPU en reposo.
+
+\section{Respuesta al problema de investigación}
+
+La pregunta de investigación era cómo comparar complementos de red y automatizar políticas de comunicación segura para optimizar recursos sin degradar el rendimiento. Los resultados ofrecen tres respuestas concretas.
+
+La comparación objetiva es posible mediante un testbed reproducible, benchmarks automatizados y un modelo MCDA que pondera los criterios según el perfil de uso. El prototipo construido demuestra que esta comparación puede exponerse de forma interactiva y actualizable, sin exigir al usuario la interpretación de datos brutos ni conocimientos estadísticos.
+
+La automatización de políticas de seguridad es viable sin sacrificar rendimiento: Calico, Cilium y Antrea lo hacen con un overhead documentado e inferior al 6\%. La integración con GitOps garantiza la persistencia de estas políticas ante modificaciones no autorizadas, convirtiendo la seguridad en un estado mantenido continuamente y no en una configuración puntual.
+
+La reducción del sobredimensionamiento tiene respaldo cuantitativo: la diferencia de eficiencia entre Cilium (9.84 Gbps/100\,m de CPU) y Flannel (4.92 Gbps/100\,m) implica que, a escala de 50 nodos, es posible liberar el equivalente a aproximadamente dos instancias cloud ---con un ahorro estimado de USD\,\$640 anuales en el proveedor utilizado--- sin modificar la carga de trabajo ni el rendimiento de las aplicaciones.
