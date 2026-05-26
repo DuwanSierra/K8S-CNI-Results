@@ -69,7 +69,7 @@ iperf3 -c iperf-server-svc.cni-benchmark.svc.cluster.local \
 
 \subsection{Resultados de Throughput TCP por CNI}
 
-Los resultados presentados son los promedios de las 5 corridas de 300 segundos para cada CNI, después de aplicar el filtro IQR para eliminar outliers.
+Los resultados presentados son los promedios de las 5 corridas de 300 segundos para cada CNI, después de aplicar el filtro IQR para eliminar outliers. La Tabla~\ref{tab:throughput-resultados} registra tres dimensiones de calidad del canal: cuántos datos por segundo puede transportar (throughput), cuántos paquetes tuvieron que reenviarse por error (retransmisiones) y qué tan predecible es el canal entre corridas (variabilidad).
 
 \begin{table}[htbp]
 \centering
@@ -80,15 +80,15 @@ Los resultados presentados son los promedios de las 5 corridas de 300 segundos p
 \hline
 \textbf{Métrica} & \textbf{Flannel (VXLAN)} & \textbf{Calico (VXLAN)} & \textbf{Cilium (eBPF)} & \textbf{Antrea (OVS)} \\
 \hline
-Throughput Sender promedio & 9.21 Gbps & 9.48 Gbps & 9.67 Gbps & 9.35 Gbps \\
+Throughput Sender --- Gbps \newline\textit{($\uparrow$ mayor es mejor: más datos por segundo)} & 9.21 Gbps & 9.48 Gbps & 9.67 Gbps & 9.35 Gbps \\
 \hline
-Throughput Receiver promedio & 9.18 Gbps & 9.45 Gbps & 9.64 Gbps & 9.31 Gbps \\
+Throughput Receiver --- Gbps \newline\textit{($\uparrow$ mayor es mejor: dato que recibe la aplicación destino)} & 9.18 Gbps & 9.45 Gbps & 9.64 Gbps & 9.31 Gbps \\
 \hline
-Retransmisiones TCP (promedio) & 12.4 / sesión & 4.8 / sesión & 2.1 / sesión & 7.3 / sesión \\
+Retransmisiones TCP --- paquetes/sesión \newline\textit{($\downarrow$ menor es mejor: cada retransmisión es un paquete que llegó con error y debió reenviarse, consumiendo capacidad extra)} & 12.4 & 4.8 & 2.1 & 7.3 \\
 \hline
-Diferencia Sender-Receiver & $\sim$0.03 Gbps & $\sim$0.03 Gbps & $\sim$0.03 Gbps & $\sim$0.04 Gbps \\
+Diferencia Sender$-$Receiver \newline\textit{(idealmente cercana a cero: refleja paquetes en tránsito o pérdidas)} & $\sim$0.03 Gbps & $\sim$0.03 Gbps & $\sim$0.03 Gbps & $\sim$0.04 Gbps \\
 \hline
-Variabilidad entre corridas ($\sigma$) & $\pm$0.18 Gbps & $\pm$0.09 Gbps & $\pm$0.07 Gbps & $\pm$0.12 Gbps \\
+Variabilidad entre corridas ($\sigma$) \newline\textit{($\downarrow$ menor es mejor: un canal estable produce resultados consistentes y predecibles)} & $\pm$0.18 Gbps & $\pm$0.09 Gbps & $\pm$0.07 Gbps & $\pm$0.12 Gbps \\
 \hline
 Outliers descartados por IQR & 1 de 5 (20\%) & 0 de 5 (0\%) & 0 de 5 (0\%) & 1 de 5 (20\%) \\
 \hline
@@ -103,26 +103,28 @@ La latencia de establecimiento TCP mide el tiempo que tarda en completarse el ha
 
 \subsection{Resultados de Latencia TCP por CNI}
 
+En todas las filas de la Tabla~\ref{tab:latencia-resultados}, \textbf{un valor menor es mejor ($\downarrow$)}: menos milisegundos significa que el CNI establece conexiones más rápido. Los percentiles P95 y P99 son especialmente relevantes: P95 indica el tiempo de conexión que supera solo el 5\% más lento de las mediciones, y P99 el que supera el 1\% más lento. En sistemas de alta demanda estos valores determinan la experiencia del usuario en el peor caso --- un P99 elevado significa que una de cada 100 conexiones tarda considerablemente más que el promedio.
+
 \begin{table}[htbp]
 \centering
 \scriptsize
-\caption{Resultados de latencia TCP por CNI (30 muestras $\times$ 5 corridas, outliers IQR eliminados).}
+\caption{Resultados de latencia TCP por CNI (30 muestras $\times$ 5 corridas, outliers IQR eliminados). Todas las métricas: $\downarrow$ menor es mejor.}
 \label{tab:latencia-resultados}
 \begin{tabularx}{\textwidth}{|Y|Y|Y|Y|Y|}
 \hline
-\textbf{Métrica de Latencia} & \textbf{Flannel (VXLAN)} & \textbf{Calico (VXLAN)} & \textbf{Cilium (eBPF)} & \textbf{Antrea (OVS)} \\
+\textbf{Métrica de Latencia ($\downarrow$ menor=mejor)} & \textbf{Flannel (VXLAN)} & \textbf{Calico (VXLAN)} & \textbf{Cilium (eBPF)} & \textbf{Antrea (OVS)} \\
 \hline
-Latencia mínima (ms) & 0.412 ms & 0.287 ms & 0.198 ms & 0.341 ms \\
+Latencia mínima --- ms \newline\textit{(mejor caso observado)} & 0.412 ms & 0.287 ms & 0.198 ms & 0.341 ms \\
 \hline
-Latencia promedio (ms) & 0.687 ms & 0.431 ms & 0.312 ms & 0.512 ms \\
+Latencia promedio --- ms \newline\textit{(comportamiento típico)} & 0.687 ms & 0.431 ms & 0.312 ms & 0.512 ms \\
 \hline
-Latencia máxima (ms) & 2.341 ms & 0.891 ms & 0.543 ms & 1.124 ms \\
+Latencia máxima --- ms \newline\textit{(peor caso observado)} & 2.341 ms & 0.891 ms & 0.543 ms & 1.124 ms \\
 \hline
-Jitter / Desviación estándar (ms) & $\pm$0.389 ms & $\pm$0.142 ms & $\pm$0.087 ms & $\pm$0.201 ms \\
+Jitter / Desviación estándar --- ms \newline\textit{(variabilidad: cuánto oscila la latencia entre conexiones)} & $\pm$0.389 ms & $\pm$0.142 ms & $\pm$0.087 ms & $\pm$0.201 ms \\
 \hline
-Percentil P95 (ms) & 1.834 ms & 0.712 ms & 0.478 ms & 0.893 ms \\
+Percentil P95 --- ms \newline\textit{(el 95\% de las conexiones son más rápidas que este valor)} & 1.834 ms & 0.712 ms & 0.478 ms & 0.893 ms \\
 \hline
-Percentil P99 (ms) & 2.156 ms & 0.843 ms & 0.521 ms & 1.067 ms \\
+Percentil P99 --- ms \newline\textit{(el 99\% de las conexiones son más rápidas; el 1\% restante define el peor caso para el usuario)} & 2.156 ms & 0.843 ms & 0.521 ms & 1.067 ms \\
 \hline
 \end{tabularx}
 \end{table}
@@ -203,12 +205,12 @@ Cilium es el único CNI que soporta Network Policies de capa 7 (L7), lo que perm
 
 \subsection{Prueba de Overhead de Seguridad}
 
-Se ejecutaron las pruebas de rendimiento nuevamente con las políticas de seguridad activas y se compararon con los resultados base:
+Se ejecutaron las pruebas de rendimiento nuevamente con las políticas de seguridad activas y se compararon con los resultados base. El \textbf{overhead} es el costo adicional que introduce activar las políticas: \textbf{cuanto menor el porcentaje, mejor ($\downarrow$)}, porque significa que la seguridad se aplica sin penalizar el rendimiento de las aplicaciones. Un overhead del 5\% en latencia, por ejemplo, significa que una conexión que tardaba 0.500\,ms ahora tarda 0.525\,ms --- imperceptible para el usuario final.
 
 \begin{table}[htbp]
 \centering
 \scriptsize
-\caption{Impacto de las Network Policies en el rendimiento de red de cada CNI.}
+\caption{Impacto de las Network Policies en el rendimiento de red de cada CNI ($\downarrow$ menor overhead es mejor).}
 \label{tab:overhead-seguridad}
 \begin{tabularx}{\textwidth}{|Y|Y|}
 \hline
@@ -239,7 +241,7 @@ El overhead de seguridad es mínimo en todos los CNIs: la latencia adicional osc
 
 \section{Pruebas de Eficiencia Computacional --- Consumo del Agente CNI}
 
-Las métricas de consumo fueron capturadas por Prometheus durante las sesiones activas de iperf3 (cuando la red estaba bajo carga máxima). Se midió específicamente el consumo del proceso del agente CNI en cada nodo worker.
+Las métricas de consumo fueron capturadas por Prometheus durante las sesiones activas de iperf3 (cuando la red estaba bajo carga máxima). Se midió específicamente el consumo del proceso del agente CNI en cada nodo Worker. En esta tabla conviven dos direcciones de optimización: \textbf{CPU y RAM son mejores cuanto menores sean ($\downarrow$)}, porque el CNI consume recursos que de otro modo estarían disponibles para las aplicaciones; la \textbf{eficiencia Gbps/100\,m es mejor cuanto mayor sea ($\uparrow$)}, porque indica cuánto tráfico puede procesar el CNI por cada unidad de CPU que consume. Un millicore (m) equivale a la milésima parte de un núcleo de CPU: 1\,000\,m = 1 núcleo completo.
 
 \begin{table}[htbp]
 \centering
@@ -252,15 +254,15 @@ Las métricas de consumo fueron capturadas por Prometheus durante las sesiones a
 \hline
 Nombre del agente CNI & flanneld & calico-node & cilium-agent & antrea-agent \\
 \hline
-CPU bajo estrés (millicores) & 187 m & 143 m & 98 m & 162 m \\
+CPU bajo estrés --- millicores \newline\textit{($\downarrow$ menor es mejor: menos CPU consume el CNI, más queda para las apps)} & 187 m & 143 m & 98 m & 162 m \\
 \hline
-CPU en reposo (millicores) & 12 m & 28 m & 31 m & 22 m \\
+CPU en reposo --- millicores \newline\textit{(costo fijo del agente cuando no hay tráfico activo)} & 12 m & 28 m & 31 m & 22 m \\
 \hline
-RAM RSS bajo estrés (MiB) & 42 MiB & 78 MiB & 185 MiB & 94 MiB \\
+RAM RSS bajo estrés --- MiB \newline\textit{($\downarrow$ menor es mejor: memoria real ocupada bajo carga máxima)} & 42 MiB & 78 MiB & 185 MiB & 94 MiB \\
 \hline
-RAM RSS en reposo (MiB) & 31 MiB & 61 MiB & 168 MiB & 76 MiB \\
+RAM RSS en reposo --- MiB \newline\textit{(huella de memoria base del agente sin tráfico)} & 31 MiB & 61 MiB & 168 MiB & 76 MiB \\
 \hline
-Eficiencia: Gbps por 100 millicores CPU & 4.92 Gbps & 6.61 Gbps & 9.84 Gbps & 5.77 Gbps \\
+Eficiencia: Gbps/100\,m de CPU \newline\textit{($\uparrow$ mayor es mejor: más tráfico procesado por unidad de CPU consumida)} & 4.92 Gbps & 6.61 Gbps & 9.84 Gbps & 5.77 Gbps \\
 \hline
 Adecuado para entornos Edge/IoT & Medio (RAM) & Medio-alto & Bajo (alta RAM) & Medio \\
 \hline
@@ -301,10 +303,12 @@ Esta validación confirma que el promedio reportado para cada CNI es robusto ant
 
 \subsection{Validación de la Normalización Min-Max}
 
+La Tabla~\ref{tab:normalizacion-validacion} muestra los valores brutos de cada métrica junto con su equivalente normalizado en la escala 0--1 que utiliza el modelo MCDA. La regla de lectura es uniforme: \textbf{1.00 = mejor CNI en esa dimensión; 0.00 = peor CNI en esa dimensión}, independientemente de las unidades originales (Gbps, ms, millicores). Esta escala permite comparar directamente métricas que originalmente tienen magnitudes y unidades muy distintas. En métricas donde un valor mayor es deseable (throughput), el CNI con el Gbps más alto recibe 1.00; en métricas donde un valor menor es deseable (latencia, CPU, RAM), el CNI con el valor más bajo recibe 1.00.
+
 \begin{table}[htbp]
 \centering
 \scriptsize
-\caption{Validación de la normalización min-max de las seis métricas del modelo MCDA.}
+\caption{Validación de la normalización min-max de las seis métricas del modelo MCDA. Escala normalizada: 1.00 = mejor, 0.00 = peor en cada dimensión.}
 \label{tab:normalizacion-validacion}
 \begin{tabularx}{\textwidth}{|Y|Y|Y|Y|Y|}
 \hline
@@ -339,12 +343,12 @@ La tabla de normalización muestra las seis métricas del modelo en escala compa
 
 \subsection{Validación del Scoring MCDA por Perfil}
 
-Los puntajes que se muestran a continuación son calculados por \texttt{procesador.js} a partir de los valores de precisión completa de cada corrida tras aplicar IQR, no de los promedios redondeados de las tablas de resultados. Los datos de throughput, latencia, retransmisiones y recursos de cada corrida individual se conservan en su totalidad; el redondeo presentado en las tablas anteriores puede producir diferencias apreciables al recalcular manualmente.
+Los puntajes que se muestran a continuación son calculados por \texttt{procesador.js} a partir de los valores de precisión completa de cada corrida tras aplicar IQR, no de los promedios redondeados de las tablas de resultados. Los datos de throughput, latencia, retransmisiones y recursos de cada corrida individual se conservan en su totalidad; el redondeo presentado en las tablas anteriores puede producir diferencias apreciables al recalcular manualmente. En la Tabla~\ref{tab:scores-mcda}, \textbf{el puntaje va de 0 a 1: cuanto mayor el valor, más adecuado es ese CNI para ese perfil}. El símbolo~$\star$ marca la recomendación del sistema para cada perfil. Un puntaje de 0.834 significa, por ejemplo, que ese CNI ocupa el 83.4\% del espacio posible entre el peor y el mejor CNI teórico para ese conjunto de pesos.
 
 \begin{table}[htbp]
 \centering
 \scriptsize
-\caption{Puntajes MCDA finales por CNI y perfil ($\star$ indica recomendación del sistema para ese perfil).}
+\caption{Puntajes MCDA finales por CNI y perfil ($\star$ indica recomendación; escala 0--1, mayor es mejor).}
 \label{tab:scores-mcda}
 \begin{tabularx}{\textwidth}{|Y|Y|Y|Y|Y|}
 \hline
