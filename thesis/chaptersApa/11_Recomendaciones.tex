@@ -5,9 +5,9 @@ Las siguientes recomendaciones se derivan de los hallazgos del experimento y est
 \begin{itemize}
     \item \textbf{Restringir el uso de Flannel:} Se recomienda evitar el despliegue de Flannel en cualquier clúster de Kubernetes en producción debido a su incapacidad para aplicar Network Policies, limitando su uso únicamente a entornos de pruebas o desarrollo local de baja complejidad.
     
-    \item \textbf{Seleccionar Cilium para alto rendimiento y seguridad L7:} Para organizaciones que implementen microservicios transaccionales u orientados a tiempo real (Fintech y Streaming) y requieran visibilidad a nivel de API HTTP, se recomienda adoptar Cilium para aprovechar el enrutamiento eBPF y la micro-segmentación L7.
+    \item \textbf{Seleccionar Cilium para seguridad crítica L7:} Para organizaciones que implementen microservicios transaccionales bajo arquitectura Zero Trust (perfil Fintech) y requieran control a nivel de API HTTP (capa 7), se recomienda adoptar Cilium para aprovechar el filtrado eBPF y la microsegmentación dinámica. En perfiles de Streaming o alto rendimiento sin necesidad de políticas complejas, se aconseja Flannel.
     
-    \item \textbf{Adoptar Antrea o Calico en entornos de recursos limitados (Edge/IoT):} Debido a que Cilium demanda una huella de memoria RAM sustancialmente mayor (cercana a los 185 MiB por nodo), se aconseja emplear Antrea o Calico en clústeres operados sobre hardware limitado (como nodos Edge o dispositivos IoT), donde cada megabyte de memoria resulta crítico.
+    \item \textbf{Adoptar Flannel en entornos de recursos limitados (Edge/IoT):} Debido a que Calico y Cilium demandan una huella de memoria RAM y CPU sustancialmente mayor ($1672.83$ MB y $1497.19$ MB respectivamente bajo estrés, frente a los $1176.54$ MB y $19.45\%$ CPU de Flannel), se aconseja emplear Flannel en clústeres operados sobre hardware limitado, siempre que la seguridad perimetral del clúster sea suficiente y no se requieran Network Policies.
     
     \item \textbf{Mantener la configuración de red y seguridad vía GitOps:} Se recomienda automatizar y versionar tanto el despliegue de los plugins CNI como la declaración de las Network Policies en un repositorio de Git acoplado a ArgoCD, asegurando la restauración automática de la configuración ante desvíos manuales no autorizados.
 

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Fuente única de verdad de la tesis. Datos procesados por procesador.js y scores calculados con el algoritmo exacto de recommendationModel.js. NO editar manualmente — regenerar con: node docs/generate_thesis_data.js",
-    "generated_at": "2026-06-02T03:56:17.947Z",
+    "generated_at": "2026-06-02T05:02:10.630Z",
     "source_benchmark": "cni-recommender-spa/public/cni-data.json",
     "source_algorithm": "cni-recommender-spa/src/data/recommendationModel.js (buildCniMetricsFromBenchmark + buildGuidedProfile + calculateScores)",
     "score_scale": "1 (peor) a 5 (mejor)",
@@ -447,23 +447,23 @@
       {
         "label": "Fintech / Seguridad crítica",
         "sliderInputs": {
-          "latencyNeed": 4,
-          "stabilityNeed": 4,
-          "throughputNeed": 3,
-          "resourceLimit": 2,
+          "latencyNeed": 3,
+          "stabilityNeed": 5,
+          "throughputNeed": 4,
+          "resourceLimit": 1,
           "securityNeed": 5
         },
         "weights": {
-          "latency": 0.238,
-          "jitter": 0.219,
-          "throughput": 0.167,
-          "resourceEfficiency": 0.124,
-          "networkPolicy": 0.252,
+          "latency": 0.208,
+          "jitter": 0.248,
+          "throughput": 0.21,
+          "resourceEfficiency": 0.081,
+          "networkPolicy": 0.253,
           "_pct": {
-            "latency": "24%",
-            "jitter": "22%",
-            "throughput": "17%",
-            "resourceEfficiency": "12%",
+            "latency": "21%",
+            "jitter": "25%",
+            "throughput": "21%",
+            "resourceEfficiency": "8%",
             "networkPolicy": "25%"
           }
         },
@@ -474,29 +474,29 @@
           {
             "cni": "cilium",
             "name": "Cilium",
-            "score": 3.668,
-            "rawScore": 3.668,
+            "score": 3.631,
+            "rawScore": 3.631,
             "securityPenalized": false
           },
           {
             "cni": "calico",
             "name": "Calico",
-            "score": 3.058,
-            "rawScore": 3.058,
+            "score": 3.168,
+            "rawScore": 3.168,
             "securityPenalized": false
           },
           {
             "cni": "antrea",
             "name": "Antrea",
-            "score": 2.103,
-            "rawScore": 2.103,
+            "score": 2.211,
+            "rawScore": 2.211,
             "securityPenalized": false
           },
           {
             "cni": "flannel",
             "name": "Flannel",
-            "score": 1.34,
-            "rawScore": 3.35,
+            "score": 1.331,
+            "rawScore": 3.328,
             "securityPenalized": true
           }
         ]
@@ -561,24 +561,24 @@
       {
         "label": "IoT / Recursos limitados",
         "sliderInputs": {
-          "latencyNeed": 2,
-          "stabilityNeed": 2,
-          "throughputNeed": 2,
+          "latencyNeed": 3,
+          "stabilityNeed": 3,
+          "throughputNeed": 3,
           "resourceLimit": 5,
-          "securityNeed": 1
+          "securityNeed": 2
         },
         "weights": {
-          "latency": 0.192,
-          "jitter": 0.172,
-          "throughput": 0.172,
-          "resourceEfficiency": 0.351,
-          "networkPolicy": 0.113,
+          "latency": 0.208,
+          "jitter": 0.19,
+          "throughput": 0.185,
+          "resourceEfficiency": 0.28,
+          "networkPolicy": 0.137,
           "_pct": {
-            "latency": "19%",
-            "jitter": "17%",
-            "throughput": "17%",
-            "resourceEfficiency": "35%",
-            "networkPolicy": "11%"
+            "latency": "21%",
+            "jitter": "19%",
+            "throughput": "19%",
+            "resourceEfficiency": "28%",
+            "networkPolicy": "14%"
           }
         },
         "securityRequired": false,
@@ -588,29 +588,29 @@
           {
             "cni": "flannel",
             "name": "Flannel",
-            "score": 3.976,
-            "rawScore": 3.976,
+            "score": 3.834,
+            "rawScore": 3.834,
             "securityPenalized": false
           },
           {
             "cni": "cilium",
             "name": "Cilium",
-            "score": 3.123,
-            "rawScore": 3.123,
+            "score": 3.232,
+            "rawScore": 3.232,
             "securityPenalized": false
           },
           {
             "cni": "calico",
             "name": "Calico",
-            "score": 2.8,
-            "rawScore": 2.8,
+            "score": 2.952,
+            "rawScore": 2.952,
             "securityPenalized": false
           },
           {
             "cni": "antrea",
             "name": "Antrea",
-            "score": 2.234,
-            "rawScore": 2.234,
+            "score": 2.224,
+            "rawScore": 2.224,
             "securityPenalized": false
           }
         ]
@@ -674,6 +674,177 @@
             "score": 2.219,
             "rawScore": 2.219,
             "securityPenalized": false
+          }
+        ]
+      },
+      {
+        "label": "Todo bajo",
+        "sliderInputs": {
+          "latencyNeed": 2,
+          "stabilityNeed": 2,
+          "throughputNeed": 2,
+          "resourceLimit": 2,
+          "securityNeed": 2
+        },
+        "weights": {
+          "latency": 0.218,
+          "jitter": 0.195,
+          "throughput": 0.195,
+          "resourceEfficiency": 0.195,
+          "networkPolicy": 0.195,
+          "_pct": {
+            "latency": "22%",
+            "jitter": "20%",
+            "throughput": "20%",
+            "resourceEfficiency": "20%",
+            "networkPolicy": "20%"
+          }
+        },
+        "securityRequired": false,
+        "securityPenaltyApplied": false,
+        "winner": "flannel",
+        "ranking": [
+          {
+            "cni": "flannel",
+            "name": "Flannel",
+            "score": 3.561,
+            "rawScore": 3.561,
+            "securityPenalized": false
+          },
+          {
+            "cni": "cilium",
+            "name": "Cilium",
+            "score": 3.391,
+            "rawScore": 3.391,
+            "securityPenalized": false
+          },
+          {
+            "cni": "calico",
+            "name": "Calico",
+            "score": 3.04,
+            "rawScore": 3.04,
+            "securityPenalized": false
+          },
+          {
+            "cni": "antrea",
+            "name": "Antrea",
+            "score": 2.203,
+            "rawScore": 2.203,
+            "securityPenalized": false
+          }
+        ]
+      },
+      {
+        "label": "Todo medio",
+        "sliderInputs": {
+          "latencyNeed": 3,
+          "stabilityNeed": 3,
+          "throughputNeed": 3,
+          "resourceLimit": 3,
+          "securityNeed": 3
+        },
+        "weights": {
+          "latency": 0.219,
+          "jitter": 0.199,
+          "throughput": 0.194,
+          "resourceEfficiency": 0.194,
+          "networkPolicy": 0.194,
+          "_pct": {
+            "latency": "22%",
+            "jitter": "20%",
+            "throughput": "19%",
+            "resourceEfficiency": "19%",
+            "networkPolicy": "19%"
+          }
+        },
+        "securityRequired": false,
+        "securityPenaltyApplied": false,
+        "winner": "flannel",
+        "ranking": [
+          {
+            "cni": "flannel",
+            "name": "Flannel",
+            "score": 3.575,
+            "rawScore": 3.575,
+            "securityPenalized": false
+          },
+          {
+            "cni": "cilium",
+            "name": "Cilium",
+            "score": 3.405,
+            "rawScore": 3.405,
+            "securityPenalized": false
+          },
+          {
+            "cni": "calico",
+            "name": "Calico",
+            "score": 3.05,
+            "rawScore": 3.05,
+            "securityPenalized": false
+          },
+          {
+            "cni": "antrea",
+            "name": "Antrea",
+            "score": 2.204,
+            "rawScore": 2.204,
+            "securityPenalized": false
+          }
+        ]
+      },
+      {
+        "label": "Todo alto",
+        "sliderInputs": {
+          "latencyNeed": 4,
+          "stabilityNeed": 4,
+          "throughputNeed": 4,
+          "resourceLimit": 4,
+          "securityNeed": 4
+        },
+        "weights": {
+          "latency": 0.219,
+          "jitter": 0.202,
+          "throughput": 0.193,
+          "resourceEfficiency": 0.193,
+          "networkPolicy": 0.193,
+          "_pct": {
+            "latency": "22%",
+            "jitter": "20%",
+            "throughput": "19%",
+            "resourceEfficiency": "19%",
+            "networkPolicy": "19%"
+          }
+        },
+        "securityRequired": true,
+        "securityPenaltyApplied": true,
+        "winner": "cilium",
+        "ranking": [
+          {
+            "cni": "cilium",
+            "name": "Cilium",
+            "score": 3.411,
+            "rawScore": 3.411,
+            "securityPenalized": false
+          },
+          {
+            "cni": "calico",
+            "name": "Calico",
+            "score": 3.052,
+            "rawScore": 3.052,
+            "securityPenalized": false
+          },
+          {
+            "cni": "antrea",
+            "name": "Antrea",
+            "score": 2.201,
+            "rawScore": 2.201,
+            "securityPenalized": false
+          },
+          {
+            "cni": "flannel",
+            "name": "Flannel",
+            "score": 1.432,
+            "rawScore": 3.58,
+            "securityPenalized": true
           }
         ]
       },
@@ -797,7 +968,7 @@
     "_description": "Tabla resumen de ganadores por perfil de la tesis.",
     "fintech_seguridad": {
       "winner": "cilium",
-      "score": 3.668,
+      "score": 3.631,
       "runner_up": "calico"
     },
     "streaming_rendimiento": {
@@ -807,7 +978,7 @@
     },
     "iot_recursos_limitados": {
       "winner": "flannel",
-      "score": 3.976,
+      "score": 3.834,
       "runner_up": "cilium"
     }
   },

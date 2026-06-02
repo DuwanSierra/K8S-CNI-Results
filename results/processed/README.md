@@ -1,7 +1,7 @@
 # Datos Procesados — Fuente de Verdad de la Tesis
 
 > **Regenerar con:** `node docs/generate_thesis_data.js`  
-> **Generado:** 2026-06-02T03:56:17.956Z
+> **Generado:** 2026-06-02T05:02:10.652Z
 
 Este directorio contiene los datos **ya procesados y verificados** que debe usar cualquier IA o persona al redactar la tesis. NO usar los datos de `results/cni-benchmarks/` directamente (son datos crudos por corrida).
 
@@ -35,9 +35,9 @@ Este directorio contiene los datos **ya procesados y verificados** que debe usar
 
 | Perfil | Flannel | Calico | Cilium | Antrea | **Ganador** |
 |---|---|---|---|---|---|
-| Fintech / Seguridad crítica | 1.34* | 3.058 | **3.668** | 2.103 | **Cilium** |
+| Fintech / Seguridad crítica | 1.331* | 3.168 | **3.631** | 2.211 | **Cilium** |
 | Streaming / Alto rendimiento | **3.686** | 3.567 | 3.294 | 2.256 | **Flannel** |
-| IoT / Recursos limitados | **3.976** | 2.8 | 3.123 | 2.234 | **Flannel** |
+| IoT / Recursos limitados | **3.834** | 2.952 | 3.232 | 2.224 | **Flannel** |
 
 *Penalizado ×0.4 por no soportar NetworkPolicies (securityNeed ≥ 4).
 
@@ -46,6 +46,9 @@ Este directorio contiene los datos **ya procesados y verificados** que debe usar
 | Escenario | Ganador | Puntaje |
 |---|---|---|
 | Todo mínimo (1,1,1,1,1) | **flannel** | 3.553 |
+| Todo bajo (2,2,2,2,2) | **flannel** | 3.561 |
+| Todo medio (3,3,3,3,3) | **flannel** | 3.575 |
+| Todo alto (4,4,4,4,4) | **cilium** | 3.411 |
 | Todo máximo (5,5,5,5,5) | **cilium** | 3.411 |
 | Latencia+Datos altos, resto medio | **flannel** | 3.577 |
 

@@ -1,9 +1,197 @@
-\chapter{Material Complementario del Trabajo de Grado} \label{chap:apendice_a}
+\chapter{Anexo Técnico de Entregables y Repositorios} \label{chap:apendice_a}
 
-El presente apéndice contiene directrices sobre los materiales complementarios asociados a la investigación:
+Para garantizar la reproducibilidad y el rigor científico de esta investigación, todos los desarrollos técnicos, configuraciones de infraestructura, scripts de pruebas y el algoritmo del modelo matemático han sido publicados bajo licencias de código abierto. Este apéndice detalla la estructura de directorios, fragmentos clave de código y las instrucciones de reproducción correspondientes a cada Objetivo Específico (OE).
+
+\section{Repositorio Principal del Proyecto}
+El código fuente general, los conjuntos de datos consolidados y la SPA recomendadora se encuentran alojados en GitHub:
+\begin{itemize}
+    \item \textbf{URL del Repositorio Principal:} \url{https://github.com/DuwanSierra/K8S-CNI-Results}
+    \item \textbf{Sitio Web del Recomendador CNI (OE4):} \url{https://duwansierra.github.io/K8S-CNI-Results/}
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Detalle Técnico y Entregables por Objetivo Específico}
+
+\subsection{Objetivo Específico 1: Aprovisionamiento y Automatización del Testbed}
+El aprovisionamiento de la infraestructura multi-nodo y la orquestación de la rotación de los cuatro CNIs se realizaron mediante Infraestructura como Código (IaC) y automatización con Ansible.
 
 \begin{itemize}
-    \item Contiene material elaborado por el propio autor del trabajo.
-    \item Amplía, complementa o detalla información ya mencionada en el documento de tesis.
-    \item Incluye la documentación técnica complementaria, tales como enlaces a repositorios de código fuente, especificaciones de configuración de la infraestructura y scripts de automatización empleados en el laboratorio.
+    \item \textbf{Repositorio de Aprovisionamiento:} \url{https://github.com/DuwanSierra/HA-K3s-Terraform-DO}
+    \item \textbf{Estructura del Repositorio:}
+\begin{verbatim}
+HA-K3s-Terraform-DO/
+|-- agent.tf                # Definicion de Droplets Worker
+|-- server.tf               # Definicion de Droplets Control Plane
+|-- server_init.tf          # Inicializacion del Control Plane maestro
+|-- loadbalancer.tf         # Balanceador de carga para alta disponibilidad
+|-- database.tf             # Aprovisionamiento de base de datos PostgreSQL
+|-- variables.tf            # Variables de region, tamano de nodos y CNI
+`-- user_data/
+    |-- k3s_server.sh       # Script de arranque de servidores K3s
+    `-- k3s_agent.sh        # Script de arranque de agentes Worker K3s
+\end{verbatim}
+    
+    \item \textbf{Fragmento de Terraform (Aprovisionamiento de Workers en \texttt{agent.tf}):}
+\begin{lstlisting}[language=bash]
+resource "digitalocean_droplet" "k3s_agent" {
+  count      = var.agent_count
+  name       = "k3s-agent-${var.region}-${count.index + 1}"
+  image      = var.droplet_image
+  region     = var.region
+  size       = var.agent_size
+  vpc_uuid   = digitalocean_vpc.k3s_vpc.id
+  ssh_keys   = var.ssh_key_fingerprints
+  user_data  = templatefile("${path.module}/user_data/k3s_agent.sh", {
+    k3s_channel  = var.k3s_channel
+    k3s_token    = random_password.k3s_token.result
+    k3s_lb_ip    = digitalocean_loadbalancer.k3s_lb.ip
+    cni_provider = var.cni_provider
+  })
+}
+\end{lstlisting}
+
+    \item \textbf{Procesamiento Estadístico (IQR en \path{K8S-CNI-Results/docs/procesador.js}):}
+\begin{lstlisting}
+// Limpieza de outliers mediante Rango Intercuartilico (IQR)
+function filterOutliers(data, key) {
+  const values = data.map(d => d[key]).sort((a, b) => a - b);
+  const q1 = values[Math.floor(values.length * 0.25)];
+  const q3 = values[Math.floor(values.length * 0.75)];
+  const iqr = q3 - q1;
+  const lowerBound = q1 - 1.5 * iqr;
+  const upperBound = q3 + 1.5 * iqr;
+  
+  return data.filter(d => d[key] >= lowerBound && d[key] <= upperBound);
+}
+\end{lstlisting}
 \end{itemize}
+
+\subsection{Objetivo Específico 2: Políticas de Red y Microsegmentación Zero Trust}
+El firewall lógico distribuido se declaró mediante manifiestos YAML de Kubernetes y configuraciones extendidas de eBPF sincronizadas por ArgoCD.
+
+\begin{itemize}
+    \item \textbf{Repositorio GitOps de Seguridad:} \url{https://github.com/DuwanSierra/K8s-bootstrap}
+    \item \textbf{Manifiesto de Aislamiento Base (\texttt{np-deny-all.yaml}):}
+\begin{lstlisting}[language=XML]
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all-ingress-egress
+  namespace: cni-np-test
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+\end{lstlisting}
+
+    \item \textbf{Política Granular L7 en Cilium (\texttt{cilium-l7-policy.yaml}):}
+\begin{lstlisting}[language=XML]
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: cilium-l7-http-frontend-to-backend
+  namespace: cni-np-test
+spec:
+  endpointSelector:
+    matchLabels:
+      tier: backend
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            tier: frontend
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+          rules:
+            http:
+              - method: "GET"
+              - method: "HEAD"
+\end{lstlisting}
+\end{itemize}
+
+\subsection{Objetivo Específico 3: Implementación del Algoritmo MCDA}
+El algoritmo de decisión multicriterio realiza la normalización de datos e introduce la penalización dura para garantizar la exclusión de plugins no seguros.
+
+\begin{itemize}
+    \item \textbf{Archivo Clave:} \path{cni-recommender-spa/src/data/recommendationModel.js}
+    \item \textbf{Función de Normalización y Scoring MCDA:}
+\begin{lstlisting}
+// Calculo del ranking MCDA con penalizacion no compensatoria
+export function calculateScores(profile, benchmarkPayload) {
+  const cnis = benchmarkPayload ? buildCniMetricsFromBenchmark(benchmarkPayload) : cniMetrics;
+  const securityNeed = profile?.securityNeed ?? 0;
+  const securityIsRequired = securityNeed >= 4; // Umbral de restriccion
+
+  return cnis.map((cni) => {
+    const rawTotal = Object.entries(profile.weights).reduce((sum, [metric, weight]) => {
+      const metricValue = cni.scores[metric] ?? 0;
+      return sum + metricValue * weight;
+    }, 0);
+
+    // Si requiere seguridad y el CNI no la soporta, penalizar 60%
+    const securityPenalized = securityIsRequired && cni.supportsNetworkPolicy === false;
+    const finalScore = securityPenalized ? rawTotal * 0.4 : rawTotal;
+
+    return {
+      ...cni,
+      score: Number(finalScore.toFixed(3)),
+      rawScore: Number(rawTotal.toFixed(3)),
+      securityPenalized,
+    };
+  }).sort((a, b) => b.score - a.score);
+}
+\end{lstlisting}
+\end{itemize}
+
+\subsection{Objetivo Específico 4: Prototipo Interactivo de Recomendación}
+La interfaz SPA unifica el motor lógico y el visor de asistencia al operador de red.
+
+\begin{itemize}
+    \item \textbf{Estructura del Proyecto SPA:}
+\begin{verbatim}
+cni-recommender-spa/
+|-- public/
+|   `-- cni-data.json       # Datos empiricos en formato JSON
+|-- src/
+|   |-- App.jsx             # Punto de entrada de React
+|   |-- components/
+|   |   |-- CniRecommender.jsx   # Componente contenedor de UI
+|   |   |-- ResultsEngine.jsx    # Visualizacion de rankings y graficos
+|   |   `-- GuidedProfileBuilder.jsx # Formulario de preguntas
+|   `-- data/
+|       `-- recommendationModel.js # Algoritmo MCDA y comandos
+\end{verbatim}
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Guía de Reproducción y Verificación Científica} \label{sec:apa_reproducibilidad}
+
+Para compilar, validar y reproducir el entorno y el recomendador de forma local, siga la secuencia de comandos detallada a continuación.
+
+\subsection{Paso 1: Clonación del Repositorio y Reconstrucción de Datos}
+Clonar el repositorio principal del proyecto y ejecutar el procesador automatizado de Node.js:
+\begin{lstlisting}[language=bash]
+# Clonar el proyecto
+git clone https://github.com/DuwanSierra/K8S-CNI-Results.git
+cd K8S-CNI-Results
+
+# Instalar dependencias del pipeline y procesar datos brutos
+node docs/procesador.js
+\end{lstlisting}
+Este comando procesará los datos brutos guardados bajo \path{results/cni-benchmarks/}, calculará la limpieza IQR de outliers y generará el archivo unificado en \path{results/processed/thesis_data.json}.
+
+\subsection{Paso 2: Compilación y Despliegue de la SPA Recomendadora}
+Navegar al directorio de la aplicación web, instalar dependencias de desarrollo local y levantar el servidor web:
+\begin{lstlisting}[language=bash]
+# Cambiar al directorio del recomendador web
+cd cni-recommender-spa
+
+# Instalar dependencias de React
+npm install
+
+# Lanzar el servidor de desarrollo local
+npm run dev
+\end{lstlisting}
+El servidor local se desplegará en \url{http://localhost:5173/}, permitiendo interactuar con los deslizadores y replicar los perfiles Fintech, Streaming e IoT descritos en la investigación.

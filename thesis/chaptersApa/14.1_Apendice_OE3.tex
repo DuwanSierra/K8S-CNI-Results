@@ -14,6 +14,8 @@
 \definecolor{oe3gris}    {HTML}{546E7A}   % subtítulos
 \definecolor{oe3griscl}  {HTML}{F5F5F5}  % fondo de notas
 
+\newcolumntype{Z}{>{\centering\arraybackslash}X}
+
 \chapter{Marco de Criterios y Modelo de Decisión CNI} \label{chap:apendice_oe3}
 
 \section{Introducción y el dilema de la selección de CNI} \label{sec:apb_intro}
@@ -22,28 +24,55 @@ En la arquitectura de Kubernetes, el plano de datos depende del \emph{Container 
 
 El reto principal de elegir un CNI es que no existe una única solución óptima en todas las dimensiones simultáneamente. El rendimiento base de velocidad de red (\emph{throughput}) es solo una dimensión del problema. Por ejemplo, una pasarela de transacciones bancarias exige seguridad estricta y aislamiento lógico, mientras que un clúster IoT en nodos con recursos de cómputo limitados prioriza un bajo consumo de memoria RAM y CPU.
 
-La Figura~\ref{fig:apb_tradeoffs} muestra a nivel conceptual este compromiso de rendimiento (\emph{trade-off}) cualitativo entre los plugins evaluados, sirviendo de introducción visual al dilema de selección.
+La Tabla~\ref{tab:apb_tradeoffs} muestra a nivel conceptual este compromiso de rendimiento (\emph{trade-off}) cualitativo entre los plugins evaluados, sirviendo de introducción visual al dilema de selección.
 
-\begin{figure}[h!]
-  \centering
-  \includegraphics[width=0.85\textwidth]{figures/apb_cni_tradeoffs.png}
-  \caption{Matriz comparativa cualitativa de trade-offs en CNIs.}
-  \label{fig:apb_tradeoffs}
-\end{figure}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Matriz comparativa cualitativa de compromisos (trade-offs) en CNIs.}
+\label{tab:apb_tradeoffs}
+\begin{tabularx}{\textwidth}{|Y|c|c|c|c|}
+\hline
+\textbf{Dimensión} & \textbf{Flannel} & \textbf{Calico} & \textbf{Cilium} & \textbf{Antrea} \\
+\hline
+Latencia y jitter & Medio & Excelente & Bueno & Aceptable \\
+Throughput & Bueno & Excelente & Aceptable & Bueno \\
+Consumo de CPU & Excelente & Deficiente & Aceptable & Aceptable \\
+Consumo de RAM & Excelente & Deficiente & Aceptable & Aceptable \\
+Network Policies L4 & Nulo (No soporta) & Excelente & Excelente & Excelente \\
+Network Policies L7 & Nulo (No soporta) & Nulo (No soporta) & Excelente & Nulo (No soporta) \\
+\hline
+\end{tabularx}
+\end{table}
 
 Para dar solución a este problema de forma cuantitativa, este apéndice documenta el desarrollo y validación del Objetivo Específico 3 de la tesis: un modelo formal compuesto por criterios jerárquicos, métricas normalizadas, umbrales de calidad de servicio (SLA) y ponderaciones específicas de negocio.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Definición de criterios y métricas de evaluación} \label{sec:apb_criterios}
 
-Para comparar los plugins de manera objetiva, el modelo agrupa los indicadores en tres criterios principales (C1, C2 y C3), resumidos en la Figura~\ref{fig:apb_criterios}.
+Para comparar los plugins de manera objetiva, el modelo agrupa los indicadores en tres criterios principales (C1, C2 y C3), resumidos en la Tabla~\ref{tab:apb_criterios}.
 
-\begin{figure}[h!]
-  \centering
-  \includegraphics[width=0.95\textwidth]{figures/apb_criterios_metricas.png}
-  \caption{Estructura de criterios, preguntas de control y métricas del modelo.}
-  \label{fig:apb_criterios}
-\end{figure}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Estructura de criterios, preguntas de control y métricas del modelo de selección.}
+\label{tab:apb_criterios}
+\begin{tabularx}{\textwidth}{|l|l|Y|}
+\hline
+\textbf{Criterio Principal} & \textbf{Pregunta de Control (UI)} & \textbf{Métricas y Variables Asociadas} \\
+\hline
+\textbf{C1: Rendimiento de Red (QoS)} & ¿Qué tan rápido tiene que responder? & Latencia base promedio (ms), Latencia máxima (ms) \\
+\cline{2-3}
+& ¿Qué tan estable debe ser la conexión? & Jitter (MDEV) (ms), Retransmisiones TCP (paquetes/sesión) \\
+\cline{2-3}
+& ¿Cuántos datos se van a mover al mismo tiempo? & Throughput TCP promedio (Mbps) \\
+\hline
+\textbf{C2: Eficiencia de Recursos} & ¿Los servidores donde va a funcionar son pequeños? & Consumo de CPU promedio (\% del nodo), Consumo de RAM promedio (MB) \\
+\hline
+\textbf{C3: Impacto de Seguridad} & ¿Qué tan importante es la seguridad y el control? & Soporte nativo de Network Policies, Sobrecarga (overhead) de latencia y throughput (\%) \\
+\hline
+\end{tabularx}
+\end{table}
 
 \begin{itemize}
   \item \textbf{C1 --- Rendimiento de red (QoS):} Evalúa latencia promedio/máxima, inestabilidad (\emph{jitter}), velocidad de transferencia (\emph{throughput}) y retransmisiones (pérdida de paquetes).
@@ -56,14 +85,27 @@ Para comparar los plugins de manera objetiva, el modelo agrupa los indicadores e
 
 Para alimentar el modelo matemático de decisión, se recolectaron datos cuantitativos de las pruebas experimentales del testbed. Los detalles técnicos del clúster de laboratorio (número de nodos, tipo de recursos, configuración de red e infraestructura cloud en DigitalOcean) y la metodología de recolección ya han sido ampliamente descritos en los Capítulos 7 y 8 de este documento.
 
-Tras aplicar el filtro estadístico de rango intercuartílico (IQR) para eliminar valores atípicos, se obtuvieron las medias consolidadas que sirven como entrada del modelo. La Figura~\ref{fig:apb_datos_reales} presenta estos valores cuantitativos del testbed.
+Tras aplicar el filtro estadístico de rango intercuartílico (IQR) para eliminar valores atípicos, se obtuvieron las medias consolidadas que sirven como entrada del modelo. La Tabla~\ref{tab:apb_datos_reales} presenta estos valores cuantitativos reales obtenidos del testbed.
 
-\begin{figure}[h!]
-  \centering
-  \includegraphics[width=0.9\textwidth]{figures/apb_datos_testbed.png}
-  \caption{Resultados empíricos reales del testbed con indicadores de optimización.}
-  \label{fig:apb_datos_reales}
-\end{figure}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Resultados empíricos reales del testbed con indicadores de optimización.}
+\label{tab:apb_datos_reales}
+\begin{tabularx}{\textwidth}{|Y|c|c|c|c|}
+\hline
+\textbf{Métrica de Entrada} & \textbf{Flannel} & \textbf{Calico} & \textbf{Cilium} & \textbf{Antrea} \\
+\hline
+Latencia base promedio ($\downarrow$) & 21.53 ms & 12.54 ms & 18.73 ms & 35.09 ms \\
+Latencia máxima ($\downarrow$) & 50.80 ms & 44.20 ms & 47.00 ms & 83.50 ms \\
+Jitter (MDEV) ($\downarrow$) & 7.76 ms & 7.31 ms & 8.47 ms & 17.25 ms \\
+Throughput TCP promedio ($\uparrow$) & 1452.97 Mbps & 1804.40 Mbps & 843.56 Mbps & 1588.45 Mbps \\
+Retransmisiones TCP promedio ($\downarrow$) & 11774 paq. & 68993 paq. & 15142 paq. & 42229 paq. \\
+CPU bajo estrés ($\downarrow$) & 19.45\% & 29.05\% & 25.79\% & 27.75\% \\
+RAM bajo estrés ($\downarrow$) & 1176.54 MB & 1672.83 MB & 1497.19 MB & 1429.95 MB \\
+\hline
+\end{tabularx}
+\end{table}
 
 Para facilitar la interpretación de los datos, cada métrica incluye un indicador del sentido óptimo del valor:
 \begin{itemize}
@@ -77,46 +119,88 @@ Para facilitar la interpretación de los datos, cada métrica incluye un indicad
 Definimos umbrales cuantitativos para transformar los datos en puntuaciones de 5 (Excelente), 3 (Aceptable) o 1 (Deficiente). Estos varían según tres perfiles organizativos estándar:
 
 \subsection{Caso 1: Baja latencia (URLLC / Automatización industrial)}
-Para clústeres de tiempo real estricto (robots industriales o telecirugía). Los umbrales se basan en requerimientos 5G industriales de la UIT-R en M.2410-0~\cite{ref30} y el 3GPP en TS 22.104~\cite{ref31} y TS 22.261~\cite{ref32}. Se ilustran en la Figura~\ref{fig:apb_umbrales_urllc}.
+Para clústeres de tiempo real estricto (robots industriales o telecirugía). Los umbrales se basan en requerimientos 5G industriales de la UIT-R en M.2410-0~\cite{ref30} y el 3GPP en TS 22.104~\cite{ref31} y TS 22.261~\cite{ref32}. Los criterios y resultados de evaluación para este perfil se presentan en la Tabla~\ref{tab:apb_umbrales_urllc}.
 
-\begin{figure}[h!]
-  \centering
-  \includegraphics[width=0.9\textwidth]{figures/apb_umbrales_urllc.png}
-  \caption{Umbrales normativos de puntuación para el perfil URLLC.}
-  \label{fig:apb_umbrales_urllc}
-\end{figure}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Criterios de evaluación y resultados para el perfil URLLC (Baja Latencia).}
+\label{tab:apb_umbrales_urllc}
+\begin{tabularx}{\textwidth}{|>{\hsize=1.3\hsize}Y|*{7}{>{\hsize=0.95\hsize}Z|}}
+\hline
+\textbf{Métrica} & \textbf{Excelente (5.00)} & \textbf{Aceptable (3.00)} & \textbf{Deficiente (1.00)} & \textbf{Calico} & \textbf{Cilium} & \textbf{Flannel} & \textbf{Antrea} \\
+\hline
+Latencia promedio & $<$ 15 ms & 15 -- 30 ms & $>$ 30 ms & 12.54 ms (5.00) & 18.73 ms (3.90) & 21.53 ms (3.41) & 35.09 ms (1.00) \\
+\hline
+Latencia máxima & $<$ 45 ms & 45 -- 60 ms & $>$ 60 ms & 44.20 ms (5.00) & 47.00 ms (4.52) & 50.80 ms (3.90) & 83.50 ms (1.00) \\
+\hline
+Jitter (MDEV) & $<$ 8 ms & 8 -- 15 ms & $>$ 15 ms & 7.31 ms (5.00) & 8.47 ms (4.53) & 7.76 ms (4.82) & 17.25 ms (1.00) \\
+\hline
+\end{tabularx}
+\end{table}
 
 \subsection{Caso 2: Extremo e IoT (Edge Computing / Recursos limitados)}
-Para clústeres en dispositivos de hardware limitado (como Raspberry Pi). Priorizan la huella mínima de CPU y RAM del agente de red para evitar la saturación del sistema, con base en Koukis et al.~\cite{ref8} y Kang et al.~\cite{ref7}. Los umbrales se ilustran en la Figura~\ref{fig:apb_umbrales_edge}.
+Para clústeres en dispositivos de hardware limitado (como Raspberry Pi). Priorizan la huella mínima de CPU y RAM del agente de red para evitar la saturación del sistema, con base en Koukis et al.~\cite{ref8} y Kang et al.~\cite{ref7}. Los criterios y resultados de evaluación para este perfil se presentan en la Tabla~\ref{tab:apb_umbrales_edge}.
 
-\begin{figure}[h!]
-  \centering
-  \includegraphics[width=0.9\textwidth]{figures/apb_umbrales_edge.png}
-  \caption{Umbrales normativos de puntuación para el perfil Edge / IoT.}
-  \label{fig:apb_umbrales_edge}
-\end{figure}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Criterios de evaluación y resultados para el perfil Edge / IoT.}
+\label{tab:apb_umbrales_edge}
+\begin{tabularx}{\textwidth}{|>{\hsize=1.3\hsize}Y|*{7}{>{\hsize=0.95\hsize}Z|}}
+\hline
+\textbf{Métrica} & \textbf{Excelente (5.00)} & \textbf{Aceptable (3.00)} & \textbf{Deficiente (1.00)} & \textbf{Flannel} & \textbf{Antrea} & \textbf{Cilium} & \textbf{Calico} \\
+\hline
+Consumo RAM & $<$ 1200 MB & 1200 -- 1500 MB & $>$ 1500 MB & 1176.54 MB (5.00) & 1429.95 MB (2.96) & 1497.19 MB (2.42) & 1672.83 MB (1.00) \\
+\hline
+Consumo CPU & $<$ 20\% & 20\% -- 28\% & $>$ 28\% & 19.45\% (5.00) & 27.75\% (1.54) & 25.79\% (2.36) & 29.05\% (1.00) \\
+\hline
+\end{tabularx}
+\end{table}
 
 \subsection{Caso 3: Microservicios transaccionales y Confianza Cero (Fintech / Seguridad)}
-Para banca web y pasarelas de pago. Es obligatorio implementar cortafuegos dinámicos sin degradar la latencia de procesamiento. Los umbrales de aislamiento se basan en la arquitectura Zero-Trust de la norma NIST SP 800-207~\cite{ref24}. Se presentan en la Figura~\ref{fig:apb_umbrales_microservices}.
+Para banca web y pasarelas de pago. Es obligatorio implementar cortafuegos dinámicos sin degradar la latencia de procesamiento. Los umbrales de aislamiento se basan en la arquitectura Zero-Trust de la norma NIST SP 800-207~\cite{ref24}. Se presentan en la Tabla~\ref{tab:apb_umbrales_microservices}.
 
-\begin{figure}[h!]
-  \centering
-  \includegraphics[width=0.9\textwidth]{figures/apb_umbrales_microservices.png}
-  \caption{Umbrales de puntuación para microservicios bajo Confianza Cero.}
-  \label{fig:apb_umbrales_microservices}
-\end{figure}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Criterios de evaluación y resultados para microservicios bajo Confianza Cero.}
+\label{tab:apb_umbrales_microservices}
+\begin{tabularx}{\textwidth}{|>{\hsize=1.5\hsize}Y|*{7}{>{\hsize=0.92\hsize}Z|}}
+\hline
+\textbf{Requisito de Seguridad} & \textbf{Excelente (5.00)} & \textbf{Aceptable (3.00)} & \textbf{Deficiente (1.00)} & \textbf{Cilium} & \textbf{Calico} & \textbf{Antrea} & \textbf{Flannel} \\
+\hline
+Network Policy L4 & Nativo completo & Por software/IPs & No soporta & Sí (5.00) & Sí (5.00) & Sí (5.00) & No (1.00) \\
+\hline
+Network Policy L7 & Soportado nativo & No nativo & No soporta & Sí (5.00) & No (1.00) & No (1.00) & No (1.00) \\
+\hline
+Overhead Promedio & $<$ 5\% & 5\% -- 20\% & $>$ 20\% & $-$64.76\% (5.00) & $-$1.68\% (1.00) & $-$15.77\% (1.89) & N/A (1.00) \\
+\hline
+\end{tabularx}
+\end{table}
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Factores de ponderación y restricciones no compensatorias} \label{sec:apb_ponderaciones}
 
-El modelo aplica factores de ponderación (pesos porcentuales) que suman el $100\%$ ($1,0$), asignando mayor peso a los cuellos de botella de cada caso de uso. La distribución de pesos se muestra en la Figura~\ref{fig:apb_pesos}.
+El modelo aplica factores de ponderación (pesos porcentuales) que suman el $100\%$ ($1,0$), asignando mayor peso a los cuellos de botella de cada caso de uso. La distribución de pesos reales calculados por el recomendador se muestra en la Tabla~\ref{tab:apb_pesos}.
 
-\begin{figure}[h!]
-  \centering
-  \includegraphics[width=0.9\textwidth]{figures/apb_pesos_mcda.png}
-  \caption{Matriz de factores de ponderación por perfil del modelo de decisión.}
-  \label{fig:apb_pesos}
-\end{figure}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Matriz de factores de ponderación (pesos calculados) por perfil de la tesis.}
+\label{tab:apb_pesos}
+\begin{tabularx}{\textwidth}{|Y|c|c|c|c|c|}
+\hline
+\textbf{Perfil / Caso de Uso} & \textbf{Latencia} & \textbf{Estabilidad} & \textbf{Throughput} & \textbf{Recursos} & \textbf{Seguridad} \\
+\hline
+Fintech / Seguridad crítica & 20.8\% & 24.8\% & 21.0\% & 8.1\% & 25.3\% \\
+\hline
+Streaming / Alto rendimiento & 27.7\% & 22.7\% & 25.1\% & 12.3\% & 12.3\% \\
+\hline
+IoT / Recursos limitados & 20.8\% & 19.0\% & 18.5\% & 28.0\% & 13.7\% \\
+\hline
+\end{tabularx}
+\end{table}
 
 \subsection{Restricción no compensatoria de seguridad}
 Si se define un nivel de seguridad \emph{Alto} o \emph{Muy Alto}, el modelo aplica una penalización al puntaje final de cualquier CNI que carezca de soporte nativo para Network Policies (como Flannel). Esto reduce su puntaje final al $40\%$ del valor ponderado calculado:
@@ -144,7 +228,7 @@ Para la recomendación formal del CNI, el algoritmo aplica el modelo MCDA de sum
 
 Donde $P_{\text{CNI}}$ es el puntaje del plugin para el perfil; $V_i$ es la puntuación normalizada (5, 3 o 1 punto) asignada según la métrica $i$ y sus umbrales; $W_i$ es el peso porcentual de la métrica en el perfil; y $n$ es el número de métricas evaluadas. 
 
-La escala final de los puntajes del modelo MCDA está normalizada en el rango $[0,0 ; 1,0]$, donde una puntuación de $1,0$ representa un CNI con comportamiento ideal (cumplimiento excelente de todos los requisitos prioritarios) y $0,0$ representa un cumplimiento totalmente deficiente del perfil evaluado.
+La escala final de los puntajes del modelo MCDA está normalizada en la escala de $1,0$ a $5,0$, donde una puntuación de $5,0$ representa un CNI con comportamiento ideal (cumplimiento excelente de todos los requisitos prioritarios) y $1,0$ representa un cumplimiento totalmente deficiente del perfil evaluado.
 
 El flujo de procesamiento del recomendador interactivo se resume a continuación:
 
@@ -165,42 +249,97 @@ El flujo de procesamiento del recomendador interactivo se resume a continuación
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Resultados MCDA y análisis de selección} \label{sec:apb_resultados}
 
-La Figura~\ref{fig:apb_resultados} detalla las puntuaciones finales del análisis MCDA para cada plugin. El símbolo de asterisco ($*$) destaca la recomendación ganadora del modelo para cada perfil.
+La Tabla~\ref{tab:apb_resultados} detalla las puntuaciones finales reales del análisis MCDA para cada plugin. El símbolo de asterisco ($*$) destaca la recomendación ganadora del modelo para cada perfil.
 
-\begin{figure}[h!]
-  \centering
-  \includegraphics[width=0.9\textwidth]{figures/apb_resultados_mcda.png}
-  \caption{Puntuaciones consolidadas del modelo MCDA con recomendación destacada (*).}
-  \label{fig:apb_resultados}
-\end{figure}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Puntuaciones consolidadas del modelo MCDA reales para cada perfil (escala 1--5).}
+\label{tab:apb_resultados}
+\begin{tabularx}{\textwidth}{|Y|c|c|c|c|}
+\hline
+\textbf{Perfil de Usuario} & \textbf{Flannel} & \textbf{Calico} & \textbf{Cilium} & \textbf{Antrea} \\
+\hline
+Fintech / Seguridad crítica & 1.331 & 3.168 & * \textbf{3.631} & 2.211 \\
+\hline
+Streaming / Alto rendimiento & * \textbf{3.686} & 3.567 & 3.294 & 2.256 \\
+\hline
+IoT / Recursos limitados & * \textbf{3.834} & 2.952 & 3.232 & 2.224 \\
+\hline
+\end{tabularx}
+\end{table}
 
 \subsection{Interpretación y desglose de resultados}
 
 \begin{itemize}
-  \item \textbf{Perfil Fintech / Seguridad:} Cilium obtiene la puntuación óptima con $0,834$. A pesar de que Calico ofrece un rendimiento crudo superior en latencia base, Cilium sobresale debido a sus políticas dinámicas de capa 7 basadas en eBPF~\cite{ref27} y su menor degradación del tráfico cuando el aislamiento lógico está activo.
+  \item \textbf{Perfil Fintech / Seguridad:} Cilium obtiene la puntuación óptima con $3.631$ (en la escala de 1 a 5). A pesar de que Calico ofrece un rendimiento crudo superior en latencia base, Cilium sobresale debido a sus políticas dinámicas de capa 7 basadas en eBPF~\cite{ref27} y su menor degradación del tráfico cuando el aislamiento lógico está activo.
   
-  Por el contrario, Flannel obtiene un puntaje críticamente bajo de $0,112$. Esto se debe a que carece por diseño de soporte de Network Policies. Su puntuación base ponderada original de $\approx 0,28$ (impulsada únicamente por su bajo consumo de CPU y RAM) se somete a la penalización de seguridad de la Ecuación~\eqref{eq:penalizacion_apb}, multiplicándose por $0,4$. Esto demuestra cómo el modelo descarta automáticamente soluciones no aptas para entornos regulados.
+  Por el contrario, Flannel obtiene un puntaje críticamente bajo de $1.331$. Esto se debe a que carece por diseño de soporte de Network Policies. Su puntuación base ponderada original de $3.328$ (impulsada principalmente por su bajo consumo de CPU y RAM) se somete a la penalización de seguridad de la Ecuación~\eqref{eq:penalizacion_apb}, multiplicándose por $0,4$. Esto demuestra cómo el modelo descarta automáticamente soluciones no aptas para entornos regulados.
   
-  \item \textbf{Perfil Streaming / Rendimiento:} Cilium resulta recomendado con un puntaje de $0,879$. En el testbed, Cilium demostró una estabilidad de red óptima con únicamente 15.142 retransmisiones TCP frente a las 68.993 de Calico. Dado que la tasa de retransmisión influye en la degradación de transmisión de flujos continuos, la robustez de Cilium compensa su menor ancho de banda de subida base.
+  \textbf{Réplica en el Recomendador SPA:} Para obtener exactamente este resultado de $3.631$, el usuario debe establecer en el panel de control del recomendador las siguientes prioridades en los deslizadores (sliders):
+  \begin{itemize}
+    \item Latencia: \emph{Medio} ($3/5$)
+    \item Estabilidad (Jitter): \emph{Muy Alto} ($5/5$)
+    \item Throughput: \emph{Alto} ($4/5$)
+    \item Límite de Recursos: \emph{Muy Bajo} ($1/5$)
+    \item Nivel de Seguridad: \emph{Muy Alto} ($5/5$)
+  \end{itemize}
+  Esta selección genera ponderaciones específicas (Latencia $20.8\%$, Estabilidad $24.8\%$, Throughput $21.0\%$, Recursos $8.1\%$ y Seguridad $25.3\%$). Al requerirse un nivel de seguridad crítico, se activa automáticamente la penalización del factor $\times 0,40$ sobre Flannel. La configuración y los resultados se demuestran visualmente en la Figura~\ref{fig:rec_fintech_preguntas} (configuración de entrada) y la Figura~\ref{fig:rec_fintech_resultados} (salida final del prototipo web).
+
+  \begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{figures/rec_fintech_preguntas.png}
+  \caption{Configuración de sliders para el perfil Fintech / Seguridad en el Recomendador CNI.}
+  \label{fig:rec_fintech_preguntas}
+  \end{figure}
+
+  \begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/rec_fintech.png}
+  \caption{Resultados del ranking MCDA en el prototipo interactivo para el perfil Fintech / Seguridad (Ganador: Cilium con 3.631).}
+  \label{fig:rec_fintech_resultados}
+  \end{figure}
   
-  \item \textbf{Perfil IoT / Recursos limitados:} Antrea se posiciona como el CNI recomendado con $0,628$ frente a Calico ($0,614$) y Flannel ($0,521$). Flannel es el plugin más liviano ($19,45\%$ de CPU y $1.176,54$ MB de RAM), pero su baja eficiencia de red (latencia de $21,53$ ms e inestabilidad de jitter de $7,76$ ms) le resta peso en la sumatoria. Antrea, apalancado en la conmutación acelerada de Open vSwitch (OVS)~\cite{ref11,ref22}, ofrece un comportamiento de red superior con un consumo de hardware moderado, obteniendo la mejor valoración balanceada.
+  \item \textbf{Perfil Streaming / Rendimiento:} Flannel resulta recomendado con un puntaje de $3.686$. En el testbed, Flannel demostró un rendimiento balanceado y la estabilidad de red más alta al registrar solo 11,774 retransmisiones TCP frente a las 68,993 de Calico. Dado que la tasa de reenvío influye en la estabilidad de la transmisión de flujos continuos, la robustez de Flannel sumada a su eficiencia computacional compensa el mayor throughput bruto de Calico.
+  
+  \textbf{Réplica en el Recomendador SPA:} Para replicar el puntaje de $3.686$ de Flannel y $3.567$ de Calico, el usuario debe establecer las siguientes prioridades:
+  \begin{itemize}
+    \item Latencia: \emph{Muy Alto} ($5/5$)
+    \item Estabilidad (Jitter): \emph{Alto} ($4/5$)
+    \item Throughput: \emph{Muy Alto} ($5/5$)
+    \item Límite de Recursos: \emph{Bajo} ($2/5$)
+    \item Nivel de Seguridad: \emph{Bajo} ($2/5$)
+  \end{itemize}
+  Esta configuración prioriza la QoS de red cruda (throughput y latencia con pesos del $25.1\%$ y $27.7\%$ respectivamente) sin requerir seguridad restrictiva, lo que resulta en la victoria de Flannel por estabilidad.
+  
+  \item \textbf{Perfil IoT / Recursos limitados:} Flannel se posiciona como el CNI recomendado con $3.834$ frente a Cilium ($3.232$), Calico ($2.952$) y Antrea ($2.224$). Flannel destaca como el plugin más liviano ($19.45\%$ de CPU del nodo y $1176.54$ MB de RAM), lo cual se alinea perfectamente con la prioridad de este perfil (28\% de peso a la eficiencia de recursos), lo que compensa su desempeño de red moderado.
+  
+  \textbf{Réplica en el Recomendador SPA:} Para replicar el puntaje de $3.834$ de Flannel, el usuario debe configurar los sliders con los siguientes valores:
+  \begin{itemize}
+    \item Latencia: \emph{Medio} ($3/5$)
+    \item Estabilidad (Jitter): \emph{Medio} ($3/5$)
+    \item Throughput: \emph{Medio} ($3/5$)
+    \item Límite de Recursos: \emph{Muy Alto} ($5/5$)
+    \item Nivel de Seguridad: \emph{Bajo} ($2/5$)
+  \end{itemize}
+  Esta selección asigna un $28.0\%$ de peso a la eficiencia de recursos. La Figura~\ref{fig:rec_iot_preguntas} y la Figura~\ref{fig:rec_iot_resultados} muestran respectivamente la entrada en la interfaz de usuario y el gráfico de barras resultante de la recomendación interactiva del sistema.
+
+  \begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{figures/rec_iot_preguntas.png}
+  \caption{Configuración de sliders para el perfil IoT / Recursos Limitados en el Recomendador CNI.}
+  \label{fig:rec_iot_preguntas}
+  \end{figure}
+
+  \begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/rec_iot.png}
+  \caption{Resultados del ranking MCDA en el prototipo interactivo para el perfil IoT / Recursos Limitados (Ganador: Flannel con 3.834).}
+  \label{fig:rec_iot_resultados}
+  \end{figure}
 \end{itemize}
 
-% ─────────────────────────────────────────────────────────────────────────────
 \section{Guía de reproducción y verificación científica} \label{sec:apb_reproducibilidad}
 
-Para reproducir y validar de manera independiente los resultados experimentales y las recomendaciones obtenidas por el modelo matemático:
+Para la reproducción y verificación científica paso a paso de los resultados experimentales y la compilación local del recomendador web, consulte la guía técnica detallada de comandos provista en la Sección~\ref{sec:apa_reproducibilidad} del Apéndice A.
 
-\begin{enumerate}
-  \item Clonar el repositorio del proyecto general \texttt{K8S-CNI-Results} y acceder a su directorio raíz.
-  \item Ejecutar el procesador automatizado de datos empíricos:
-    \begin{center}
-      \texttt{node docs/procesador.js}
-    \end{center}
-    Este script leerá las pruebas del testbed guardadas en formato JSON bajo \path{results/cni-benchmarks/}, calculará el filtro IQR para descartar anomalías de la nube pública y generará de forma consolidada el archivo con los promedios reales y normalizados en \path{docs/recommender/cni-data.json}.
-  \item Ejecutar la compilación del recomendador interactivo:
-    \begin{center}
-      \texttt{cd cni-recommender-spa \&\& npm run sync:data \&\& npm run build:pages}
-    \end{center}
-    Esto desplegará la interfaz de usuario interactiva (SPA) en \path{docs/recommender/index.html}, permitiendo visualizar dinámicamente las ponderaciones del modelo MCDA expuestas en este apéndice.
-\end{enumerate}
