@@ -1,0 +1,845 @@
+{
+  "_metadata": {
+    "description": "Fuente única de verdad de la tesis. Datos procesados por procesador.js y scores calculados con el algoritmo exacto de recommendationModel.js. NO editar manualmente — regenerar con: node docs/generate_thesis_data.js",
+    "generated_at": "2026-06-02T03:56:17.947Z",
+    "source_benchmark": "cni-recommender-spa/public/cni-data.json",
+    "source_algorithm": "cni-recommender-spa/src/data/recommendationModel.js (buildCniMetricsFromBenchmark + buildGuidedProfile + calculateScores)",
+    "score_scale": "1 (peor) a 5 (mejor)",
+    "score_methodology": "scoreFromRange: ratio lineal → 1 + ratio × 4. Jitter = avg(jitterScore, retransmitScore). ResourceEfficiency = avg(cpuScore, ramScore).",
+    "security_penalty": "Si securityNeed >= 4 Y el CNI no soporta NetworkPolicy (Flannel), su score final se multiplica × 0.4",
+    "iqr_filter": "Los datos brutos ya tienen IQR aplicado por procesador.js"
+  },
+  "raw_benchmark": {
+    "_description": "Datos brutos promediados con IQR. Fuente: results/cni-benchmarks/ → procesador.js → cni-data.json",
+    "_units": {
+      "latencia_ms": "ms",
+      "latencia_max_ms": "ms",
+      "jitter_ms": "ms",
+      "throughput_mbps": "Mbps",
+      "retransmits": "paquetes/sesión",
+      "cpu_usada_pct": "% del nodo",
+      "ram_usada_mb": "MB"
+    },
+    "cnis": {
+      "flannel": {
+        "name": "Flannel",
+        "datapath": "VXLAN",
+        "latencia_ms": 21.53,
+        "latencia_max_ms": 50.8,
+        "jitter_ms": 7.76,
+        "throughput_mbps": 1452.97,
+        "retransmits": 11774,
+        "cpu_usada_pct": 19.45,
+        "ram_usada_mb": 1176.54,
+        "estadistica": {
+          "metodologia": "mean-of-runs-after-iqr",
+          "latencia_ms": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "latencia_max_ms": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "jitter_ms": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "throughput_mbps": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "retransmits": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "cpu_usada_pct": {
+            "total_runs": 1,
+            "valid_runs": 1,
+            "used_runs": 1,
+            "discarded_outliers": 0
+          },
+          "ram_usada_mb": {
+            "total_runs": 1,
+            "valid_runs": 1,
+            "used_runs": 1,
+            "discarded_outliers": 0
+          }
+        }
+      },
+      "calico": {
+        "name": "Calico",
+        "datapath": "VXLAN/BGP",
+        "latencia_ms": 12.54,
+        "latencia_max_ms": 44.2,
+        "jitter_ms": 7.31,
+        "throughput_mbps": 1804.4,
+        "retransmits": 68993,
+        "cpu_usada_pct": 29.05,
+        "ram_usada_mb": 1672.83,
+        "estadistica": {
+          "metodologia": "mean-of-runs-after-iqr",
+          "latencia_ms": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "latencia_max_ms": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "jitter_ms": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "throughput_mbps": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "retransmits": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 4,
+            "discarded_outliers": 1
+          },
+          "cpu_usada_pct": {
+            "total_runs": 8,
+            "valid_runs": 8,
+            "used_runs": 8,
+            "discarded_outliers": 0
+          },
+          "ram_usada_mb": {
+            "total_runs": 8,
+            "valid_runs": 8,
+            "used_runs": 6,
+            "discarded_outliers": 2
+          }
+        }
+      },
+      "cilium": {
+        "name": "Cilium",
+        "datapath": "eBPF",
+        "latencia_ms": 18.73,
+        "latencia_max_ms": 47,
+        "jitter_ms": 8.47,
+        "throughput_mbps": 843.56,
+        "retransmits": 15142,
+        "cpu_usada_pct": 25.79,
+        "ram_usada_mb": 1497.19,
+        "estadistica": {
+          "metodologia": "mean-of-runs-after-iqr",
+          "latencia_ms": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "latencia_max_ms": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "jitter_ms": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "throughput_mbps": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 4,
+            "discarded_outliers": 1
+          },
+          "retransmits": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "cpu_usada_pct": {
+            "total_runs": 8,
+            "valid_runs": 8,
+            "used_runs": 7,
+            "discarded_outliers": 1
+          },
+          "ram_usada_mb": {
+            "total_runs": 8,
+            "valid_runs": 8,
+            "used_runs": 6,
+            "discarded_outliers": 2
+          }
+        }
+      },
+      "antrea": {
+        "name": "Antrea",
+        "datapath": "OVS",
+        "latencia_ms": 35.09,
+        "latencia_max_ms": 83.5,
+        "jitter_ms": 17.25,
+        "throughput_mbps": 1588.45,
+        "retransmits": 42229,
+        "cpu_usada_pct": 27.75,
+        "ram_usada_mb": 1429.95,
+        "estadistica": {
+          "metodologia": "mean-of-runs-after-iqr",
+          "latencia_ms": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "latencia_max_ms": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 4,
+            "discarded_outliers": 1
+          },
+          "jitter_ms": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "throughput_mbps": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "retransmits": {
+            "total_runs": 5,
+            "valid_runs": 5,
+            "used_runs": 5,
+            "discarded_outliers": 0
+          },
+          "cpu_usada_pct": {
+            "total_runs": 8,
+            "valid_runs": 8,
+            "used_runs": 7,
+            "discarded_outliers": 1
+          },
+          "ram_usada_mb": {
+            "total_runs": 8,
+            "valid_runs": 8,
+            "used_runs": 6,
+            "discarded_outliers": 2
+          }
+        }
+      }
+    }
+  },
+  "normalization_ranges": {
+    "_description": "Rangos min-max calculados entre los 4 CNIs. Base para scoreFromRange.",
+    "latency": {
+      "min": 12.54,
+      "max": 35.09,
+      "unit": "ms"
+    },
+    "jitter": {
+      "min": 7.31,
+      "max": 17.25,
+      "unit": "ms"
+    },
+    "retransmits": {
+      "min": 11774,
+      "max": 68993,
+      "unit": "paquetes/sesión"
+    },
+    "throughput": {
+      "min": 843.56,
+      "max": 1804.4,
+      "unit": "Mbps"
+    },
+    "cpuEfficiency": {
+      "min": 19.45,
+      "max": 29.05,
+      "unit": "% del nodo"
+    },
+    "ramEfficiency": {
+      "min": 1176.54,
+      "max": 1672.83,
+      "unit": "MB"
+    }
+  },
+  "base_scores": {
+    "_description": "Scores calculados con scoreFromRange. Escala 1-5. Idéntico a buildCniMetricsFromBenchmark() del Recommender.",
+    "_scale": "1 = peor CNI en ese criterio, 5 = mejor CNI en ese criterio",
+    "cnis": {
+      "flannel": {
+        "name": "Flannel",
+        "supportsNetworkPolicy": false,
+        "scores": {
+          "latency": 3.41,
+          "jitter": 4.91,
+          "throughput": 3.54,
+          "resourceEfficiency": 5,
+          "networkPolicy": 1
+        },
+        "_score_detail": {
+          "jitterScore": 4.82,
+          "retransmitScore": 5,
+          "cpuScore": 5,
+          "ramScore": 5,
+          "npOverhead": null
+        }
+      },
+      "calico": {
+        "name": "Calico",
+        "supportsNetworkPolicy": true,
+        "scores": {
+          "latency": 5,
+          "jitter": 3,
+          "throughput": 5,
+          "resourceEfficiency": 1,
+          "networkPolicy": 1
+        },
+        "_score_detail": {
+          "jitterScore": 5,
+          "retransmitScore": 1,
+          "cpuScore": 1,
+          "ramScore": 1,
+          "npOverhead": -1.675
+        }
+      },
+      "cilium": {
+        "name": "Cilium",
+        "supportsNetworkPolicy": true,
+        "scores": {
+          "latency": 3.9,
+          "jitter": 4.64,
+          "throughput": 1,
+          "resourceEfficiency": 2.39,
+          "networkPolicy": 5
+        },
+        "_score_detail": {
+          "jitterScore": 4.53,
+          "retransmitScore": 4.76,
+          "cpuScore": 2.36,
+          "ramScore": 2.42,
+          "npOverhead": -64.75666666666666
+        }
+      },
+      "antrea": {
+        "name": "Antrea",
+        "supportsNetworkPolicy": true,
+        "scores": {
+          "latency": 1,
+          "jitter": 1.94,
+          "throughput": 4.1,
+          "resourceEfficiency": 2.25,
+          "networkPolicy": 1.89
+        },
+        "_score_detail": {
+          "jitterScore": 1,
+          "retransmitScore": 2.87,
+          "cpuScore": 1.54,
+          "ramScore": 2.96,
+          "npOverhead": -15.765
+        }
+      }
+    }
+  },
+  "network_policy_overhead": {
+    "_description": "Overhead de activar NetworkPolicies por escenario. Calcula el score de seguridad del Recommender.",
+    "_note": "Flannel no tiene datos (no soporta NP) → score fijo = 1. El CNI con mejor overhead (menos impacto negativo) recibe 5.",
+    "overhead_range": {
+      "min": -64.75666666666666,
+      "max": -1.675
+    },
+    "cnis": {
+      "flannel": null,
+      "calico": {
+        "overhead_promedio": -1.675,
+        "networkPolicyScore": 1,
+        "cases": {
+          "egress_block": {
+            "latencia_ms": 9.75,
+            "throughput_mbps": 1779.86,
+            "overhead_latencia_pct": -22.25,
+            "overhead_throughput_pct": 1.36
+          },
+          "multi_tier": {
+            "latencia_ms": 16.48,
+            "throughput_mbps": 1799.97,
+            "overhead_latencia_pct": 31.45,
+            "overhead_throughput_pct": 0.25
+          },
+          "zero_trust": {
+            "latencia_ms": 9.89,
+            "throughput_mbps": 1799.8,
+            "overhead_latencia_pct": -21.11,
+            "overhead_throughput_pct": 0.25
+          }
+        }
+      },
+      "cilium": {
+        "overhead_promedio": -64.75666666666666,
+        "networkPolicyScore": 5,
+        "cases": {
+          "egress_block": {
+            "latencia_ms": 11.72,
+            "throughput_mbps": 1755,
+            "overhead_latencia_pct": -37.43,
+            "overhead_throughput_pct": -108.05
+          },
+          "multi_tier": {
+            "latencia_ms": 19.42,
+            "throughput_mbps": 1620.23,
+            "overhead_latencia_pct": 3.7,
+            "overhead_throughput_pct": -92.07
+          },
+          "zero_trust": {
+            "latencia_ms": 10.64,
+            "throughput_mbps": 1784.35,
+            "overhead_latencia_pct": -43.16,
+            "overhead_throughput_pct": -111.53
+          }
+        }
+      },
+      "antrea": {
+        "overhead_promedio": -15.765,
+        "networkPolicyScore": 1.89,
+        "cases": {
+          "egress_block": {
+            "latencia_ms": 25.56,
+            "throughput_mbps": 1519.28,
+            "overhead_latencia_pct": -27.15,
+            "overhead_throughput_pct": 4.35
+          },
+          "multi_tier": {
+            "latencia_ms": 26.26,
+            "throughput_mbps": 1802.29,
+            "overhead_latencia_pct": -25.16,
+            "overhead_throughput_pct": -13.46
+          },
+          "zero_trust": {
+            "latencia_ms": 24.99,
+            "throughput_mbps": 1658.3,
+            "overhead_latencia_pct": -28.77,
+            "overhead_throughput_pct": -4.4
+          }
+        }
+      }
+    }
+  },
+  "thesis_mcda_profiles": {
+    "_description": "Los 3 perfiles usados en la tesis para el MCDA. Scores y ganadores 100% reales.",
+    "profiles": [
+      {
+        "label": "Fintech / Seguridad crítica",
+        "sliderInputs": {
+          "latencyNeed": 4,
+          "stabilityNeed": 4,
+          "throughputNeed": 3,
+          "resourceLimit": 2,
+          "securityNeed": 5
+        },
+        "weights": {
+          "latency": 0.238,
+          "jitter": 0.219,
+          "throughput": 0.167,
+          "resourceEfficiency": 0.124,
+          "networkPolicy": 0.252,
+          "_pct": {
+            "latency": "24%",
+            "jitter": "22%",
+            "throughput": "17%",
+            "resourceEfficiency": "12%",
+            "networkPolicy": "25%"
+          }
+        },
+        "securityRequired": true,
+        "securityPenaltyApplied": true,
+        "winner": "cilium",
+        "ranking": [
+          {
+            "cni": "cilium",
+            "name": "Cilium",
+            "score": 3.668,
+            "rawScore": 3.668,
+            "securityPenalized": false
+          },
+          {
+            "cni": "calico",
+            "name": "Calico",
+            "score": 3.058,
+            "rawScore": 3.058,
+            "securityPenalized": false
+          },
+          {
+            "cni": "antrea",
+            "name": "Antrea",
+            "score": 2.103,
+            "rawScore": 2.103,
+            "securityPenalized": false
+          },
+          {
+            "cni": "flannel",
+            "name": "Flannel",
+            "score": 1.34,
+            "rawScore": 3.35,
+            "securityPenalized": true
+          }
+        ]
+      },
+      {
+        "label": "Streaming / Alto rendimiento",
+        "sliderInputs": {
+          "latencyNeed": 5,
+          "stabilityNeed": 4,
+          "throughputNeed": 5,
+          "resourceLimit": 2,
+          "securityNeed": 2
+        },
+        "weights": {
+          "latency": 0.277,
+          "jitter": 0.227,
+          "throughput": 0.251,
+          "resourceEfficiency": 0.123,
+          "networkPolicy": 0.123,
+          "_pct": {
+            "latency": "28%",
+            "jitter": "23%",
+            "throughput": "25%",
+            "resourceEfficiency": "12%",
+            "networkPolicy": "12%"
+          }
+        },
+        "securityRequired": false,
+        "securityPenaltyApplied": false,
+        "winner": "flannel",
+        "ranking": [
+          {
+            "cni": "flannel",
+            "name": "Flannel",
+            "score": 3.686,
+            "rawScore": 3.686,
+            "securityPenalized": false
+          },
+          {
+            "cni": "calico",
+            "name": "Calico",
+            "score": 3.567,
+            "rawScore": 3.567,
+            "securityPenalized": false
+          },
+          {
+            "cni": "cilium",
+            "name": "Cilium",
+            "score": 3.294,
+            "rawScore": 3.294,
+            "securityPenalized": false
+          },
+          {
+            "cni": "antrea",
+            "name": "Antrea",
+            "score": 2.256,
+            "rawScore": 2.256,
+            "securityPenalized": false
+          }
+        ]
+      },
+      {
+        "label": "IoT / Recursos limitados",
+        "sliderInputs": {
+          "latencyNeed": 2,
+          "stabilityNeed": 2,
+          "throughputNeed": 2,
+          "resourceLimit": 5,
+          "securityNeed": 1
+        },
+        "weights": {
+          "latency": 0.192,
+          "jitter": 0.172,
+          "throughput": 0.172,
+          "resourceEfficiency": 0.351,
+          "networkPolicy": 0.113,
+          "_pct": {
+            "latency": "19%",
+            "jitter": "17%",
+            "throughput": "17%",
+            "resourceEfficiency": "35%",
+            "networkPolicy": "11%"
+          }
+        },
+        "securityRequired": false,
+        "securityPenaltyApplied": false,
+        "winner": "flannel",
+        "ranking": [
+          {
+            "cni": "flannel",
+            "name": "Flannel",
+            "score": 3.976,
+            "rawScore": 3.976,
+            "securityPenalized": false
+          },
+          {
+            "cni": "cilium",
+            "name": "Cilium",
+            "score": 3.123,
+            "rawScore": 3.123,
+            "securityPenalized": false
+          },
+          {
+            "cni": "calico",
+            "name": "Calico",
+            "score": 2.8,
+            "rawScore": 2.8,
+            "securityPenalized": false
+          },
+          {
+            "cni": "antrea",
+            "name": "Antrea",
+            "score": 2.234,
+            "rawScore": 2.234,
+            "securityPenalized": false
+          }
+        ]
+      }
+    ]
+  },
+  "reference_profiles": {
+    "_description": "Perfiles de referencia para validar el Recommender en otros escenarios.",
+    "profiles": [
+      {
+        "label": "Todo mínimo",
+        "sliderInputs": {
+          "latencyNeed": 1,
+          "stabilityNeed": 1,
+          "throughputNeed": 1,
+          "resourceLimit": 1,
+          "securityNeed": 1
+        },
+        "weights": {
+          "latency": 0.216,
+          "jitter": 0.187,
+          "throughput": 0.199,
+          "resourceEfficiency": 0.199,
+          "networkPolicy": 0.199,
+          "_pct": {
+            "latency": "22%",
+            "jitter": "19%",
+            "throughput": "20%",
+            "resourceEfficiency": "20%",
+            "networkPolicy": "20%"
+          }
+        },
+        "securityRequired": false,
+        "securityPenaltyApplied": false,
+        "winner": "flannel",
+        "ranking": [
+          {
+            "cni": "flannel",
+            "name": "Flannel",
+            "score": 3.553,
+            "rawScore": 3.553,
+            "securityPenalized": false
+          },
+          {
+            "cni": "cilium",
+            "name": "Cilium",
+            "score": 3.38,
+            "rawScore": 3.38,
+            "securityPenalized": false
+          },
+          {
+            "cni": "calico",
+            "name": "Calico",
+            "score": 3.034,
+            "rawScore": 3.034,
+            "securityPenalized": false
+          },
+          {
+            "cni": "antrea",
+            "name": "Antrea",
+            "score": 2.219,
+            "rawScore": 2.219,
+            "securityPenalized": false
+          }
+        ]
+      },
+      {
+        "label": "Todo máximo",
+        "sliderInputs": {
+          "latencyNeed": 5,
+          "stabilityNeed": 5,
+          "throughputNeed": 5,
+          "resourceLimit": 5,
+          "securityNeed": 5
+        },
+        "weights": {
+          "latency": 0.22,
+          "jitter": 0.203,
+          "throughput": 0.192,
+          "resourceEfficiency": 0.192,
+          "networkPolicy": 0.192,
+          "_pct": {
+            "latency": "22%",
+            "jitter": "20%",
+            "throughput": "19%",
+            "resourceEfficiency": "19%",
+            "networkPolicy": "19%"
+          }
+        },
+        "securityRequired": true,
+        "securityPenaltyApplied": true,
+        "winner": "cilium",
+        "ranking": [
+          {
+            "cni": "cilium",
+            "name": "Cilium",
+            "score": 3.411,
+            "rawScore": 3.411,
+            "securityPenalized": false
+          },
+          {
+            "cni": "calico",
+            "name": "Calico",
+            "score": 3.053,
+            "rawScore": 3.053,
+            "securityPenalized": false
+          },
+          {
+            "cni": "antrea",
+            "name": "Antrea",
+            "score": 2.196,
+            "rawScore": 2.196,
+            "securityPenalized": false
+          },
+          {
+            "cni": "flannel",
+            "name": "Flannel",
+            "score": 1.431,
+            "rawScore": 3.579,
+            "securityPenalized": true
+          }
+        ]
+      },
+      {
+        "label": "Latencia y datos altos, resto medio",
+        "sliderInputs": {
+          "latencyNeed": 5,
+          "stabilityNeed": 3,
+          "throughputNeed": 5,
+          "resourceLimit": 3,
+          "securityNeed": 3
+        },
+        "weights": {
+          "latency": 0.257,
+          "jitter": 0.182,
+          "throughput": 0.241,
+          "resourceEfficiency": 0.159,
+          "networkPolicy": 0.159,
+          "_pct": {
+            "latency": "26%",
+            "jitter": "18%",
+            "throughput": "24%",
+            "resourceEfficiency": "16%",
+            "networkPolicy": "16%"
+          }
+        },
+        "securityRequired": false,
+        "securityPenaltyApplied": false,
+        "winner": "flannel",
+        "ranking": [
+          {
+            "cni": "flannel",
+            "name": "Flannel",
+            "score": 3.577,
+            "rawScore": 3.577,
+            "securityPenalized": false
+          },
+          {
+            "cni": "calico",
+            "name": "Calico",
+            "score": 3.354,
+            "rawScore": 3.354,
+            "securityPenalized": false
+          },
+          {
+            "cni": "cilium",
+            "name": "Cilium",
+            "score": 3.263,
+            "rawScore": 3.263,
+            "securityPenalized": false
+          },
+          {
+            "cni": "antrea",
+            "name": "Antrea",
+            "score": 2.256,
+            "rawScore": 2.256,
+            "securityPenalized": false
+          }
+        ]
+      }
+    ]
+  },
+  "winners_summary": {
+    "_description": "Tabla resumen de ganadores por perfil de la tesis.",
+    "fintech_seguridad": {
+      "winner": "cilium",
+      "score": 3.668,
+      "runner_up": "calico"
+    },
+    "streaming_rendimiento": {
+      "winner": "flannel",
+      "score": 3.686,
+      "runner_up": "calico"
+    },
+    "iot_recursos_limitados": {
+      "winner": "flannel",
+      "score": 3.976,
+      "runner_up": "cilium"
+    }
+  },
+  "quick_reference": {
+    "_description": "Tabla de referencia rápida para redacción de la tesis. Todos los números son reales.",
+    "mejor_latencia": {
+      "cni": "calico",
+      "valor": "12.54 ms"
+    },
+    "mejor_throughput": {
+      "cni": "calico",
+      "valor": "1804.4 Mbps"
+    },
+    "menos_retransmisiones": {
+      "cni": "flannel",
+      "valor": 11774
+    },
+    "menor_cpu": {
+      "cni": "flannel",
+      "valor": "19.45%"
+    },
+    "menor_ram": {
+      "cni": "flannel",
+      "valor": "1176.54 MB"
+    },
+    "unico_l7_networkpolicy": {
+      "cni": "cilium",
+      "nota": "Solo Cilium soporta NetworkPolicies L7 (HTTP path-level)"
+    },
+    "unico_sin_networkpolicy": {
+      "cni": "flannel",
+      "nota": "Flannel no implementa NetworkPolicies en su plano de datos"
+    }
+  }
+}
