@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-05-07T00:35:07.780Z",
+  "generatedAt": "2026-06-03T04:37:52.233Z",
   "source": "docs/procesador.js",
   "model": "MCDA dynamic benchmark input",
   "cnis": {
     "antrea": {
-      "latencia_ms": 34.4,
-      "latencia_max_ms": 78.6,
-      "jitter_ms": 13.88,
-      "throughput_mbps": 1519.78,
-      "retransmits": 35568,
-      "cpu_usada_pct": 24.32,
-      "ram_usada_mb": 1380.17,
+      "latencia_ms": 35.09,
+      "latencia_max_ms": 83.5,
+      "jitter_ms": 17.25,
+      "throughput_mbps": 1588.45,
+      "retransmits": 42229,
+      "cpu_usada_pct": 27.75,
+      "ram_usada_mb": 1429.95,
       "estadistica": {
         "metodologia": "mean-of-runs-after-iqr",
         "latencia_ms": {
@@ -22,8 +22,8 @@
         "latencia_max_ms": {
           "total_runs": 5,
           "valid_runs": 5,
-          "used_runs": 5,
-          "discarded_outliers": 0
+          "used_runs": 4,
+          "discarded_outliers": 1
         },
         "jitter_ms": {
           "total_runs": 5,
@@ -46,25 +46,90 @@
         "cpu_usada_pct": {
           "total_runs": 8,
           "valid_runs": 8,
-          "used_runs": 8,
-          "discarded_outliers": 0
+          "used_runs": 7,
+          "discarded_outliers": 1
         },
         "ram_usada_mb": {
           "total_runs": 8,
           "valid_runs": 8,
-          "used_runs": 7,
-          "discarded_outliers": 1
+          "used_runs": 6,
+          "discarded_outliers": 2
+        }
+      },
+      "network_policy": {
+        "egress_block": {
+          "latencia_ms": 25.56,
+          "throughput_mbps": 1519.28,
+          "overhead_latencia_pct": -27.15,
+          "overhead_throughput_pct": 4.35,
+          "estadistica": {
+            "metodologia": "mean-of-runs-after-iqr",
+            "latencia_ms": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 5,
+              "discarded_outliers": 0
+            },
+            "throughput_mbps": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 3,
+              "discarded_outliers": 2
+            }
+          }
+        },
+        "multi_tier": {
+          "latencia_ms": 26.26,
+          "throughput_mbps": 1802.29,
+          "overhead_latencia_pct": -25.16,
+          "overhead_throughput_pct": -13.46,
+          "estadistica": {
+            "metodologia": "mean-of-runs-after-iqr",
+            "latencia_ms": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 4,
+              "discarded_outliers": 1
+            },
+            "throughput_mbps": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 4,
+              "discarded_outliers": 1
+            }
+          }
+        },
+        "zero_trust": {
+          "latencia_ms": 24.99,
+          "throughput_mbps": 1658.3,
+          "overhead_latencia_pct": -28.77,
+          "overhead_throughput_pct": -4.4,
+          "estadistica": {
+            "metodologia": "mean-of-runs-after-iqr",
+            "latencia_ms": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 5,
+              "discarded_outliers": 0
+            },
+            "throughput_mbps": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 5,
+              "discarded_outliers": 0
+            }
+          }
         }
       }
     },
     "calico": {
-      "latencia_ms": 21.1,
-      "latencia_max_ms": 47.75,
-      "jitter_ms": 8.48,
-      "throughput_mbps": 1810.28,
-      "retransmits": 68825,
-      "cpu_usada_pct": 27.68,
-      "ram_usada_mb": 1573.95,
+      "latencia_ms": 12.54,
+      "latencia_max_ms": 44.2,
+      "jitter_ms": 7.31,
+      "throughput_mbps": 1804.4,
+      "retransmits": 68993,
+      "cpu_usada_pct": 29.05,
+      "ram_usada_mb": 1672.83,
       "estadistica": {
         "metodologia": "mean-of-runs-after-iqr",
         "latencia_ms": {
@@ -76,8 +141,127 @@
         "latencia_max_ms": {
           "total_runs": 5,
           "valid_runs": 5,
+          "used_runs": 5,
+          "discarded_outliers": 0
+        },
+        "jitter_ms": {
+          "total_runs": 5,
+          "valid_runs": 5,
+          "used_runs": 5,
+          "discarded_outliers": 0
+        },
+        "throughput_mbps": {
+          "total_runs": 5,
+          "valid_runs": 5,
+          "used_runs": 5,
+          "discarded_outliers": 0
+        },
+        "retransmits": {
+          "total_runs": 5,
+          "valid_runs": 5,
           "used_runs": 4,
           "discarded_outliers": 1
+        },
+        "cpu_usada_pct": {
+          "total_runs": 8,
+          "valid_runs": 8,
+          "used_runs": 8,
+          "discarded_outliers": 0
+        },
+        "ram_usada_mb": {
+          "total_runs": 8,
+          "valid_runs": 8,
+          "used_runs": 6,
+          "discarded_outliers": 2
+        }
+      },
+      "network_policy": {
+        "egress_block": {
+          "latencia_ms": 9.75,
+          "throughput_mbps": 1779.86,
+          "overhead_latencia_pct": -22.25,
+          "overhead_throughput_pct": 1.36,
+          "estadistica": {
+            "metodologia": "mean-of-runs-after-iqr",
+            "latencia_ms": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 4,
+              "discarded_outliers": 1
+            },
+            "throughput_mbps": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 5,
+              "discarded_outliers": 0
+            }
+          }
+        },
+        "multi_tier": {
+          "latencia_ms": 16.48,
+          "throughput_mbps": 1799.97,
+          "overhead_latencia_pct": 31.45,
+          "overhead_throughput_pct": 0.25,
+          "estadistica": {
+            "metodologia": "mean-of-runs-after-iqr",
+            "latencia_ms": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 4,
+              "discarded_outliers": 1
+            },
+            "throughput_mbps": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 4,
+              "discarded_outliers": 1
+            }
+          }
+        },
+        "zero_trust": {
+          "latencia_ms": 9.89,
+          "throughput_mbps": 1799.8,
+          "overhead_latencia_pct": -21.11,
+          "overhead_throughput_pct": 0.25,
+          "estadistica": {
+            "metodologia": "mean-of-runs-after-iqr",
+            "latencia_ms": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 5,
+              "discarded_outliers": 0
+            },
+            "throughput_mbps": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 5,
+              "discarded_outliers": 0
+            }
+          }
+        }
+      }
+    },
+    "cilium": {
+      "latencia_ms": 18.73,
+      "latencia_max_ms": 47,
+      "jitter_ms": 8.47,
+      "throughput_mbps": 843.56,
+      "retransmits": 15142,
+      "cpu_usada_pct": 25.79,
+      "ram_usada_mb": 1497.19,
+      "estadistica": {
+        "metodologia": "mean-of-runs-after-iqr",
+        "latencia_ms": {
+          "total_runs": 5,
+          "valid_runs": 5,
+          "used_runs": 5,
+          "discarded_outliers": 0
+        },
+        "latencia_max_ms": {
+          "total_runs": 5,
+          "valid_runs": 5,
+          "used_runs": 5,
+          "discarded_outliers": 0
         },
         "jitter_ms": {
           "total_runs": 5,
@@ -94,8 +278,8 @@
         "retransmits": {
           "total_runs": 5,
           "valid_runs": 5,
-          "used_runs": 4,
-          "discarded_outliers": 1
+          "used_runs": 5,
+          "discarded_outliers": 0
         },
         "cpu_usada_pct": {
           "total_runs": 8,
@@ -106,62 +290,73 @@
         "ram_usada_mb": {
           "total_runs": 8,
           "valid_runs": 8,
-          "used_runs": 8,
-          "discarded_outliers": 0
+          "used_runs": 6,
+          "discarded_outliers": 2
         }
-      }
-    },
-    "cilium": {
-      "latencia_ms": 29.54,
-      "latencia_max_ms": 75.8,
-      "jitter_ms": 12.83,
-      "throughput_mbps": 843.56,
-      "retransmits": 15142,
-      "cpu_usada_pct": 21.85,
-      "ram_usada_mb": 1440.24,
-      "estadistica": {
-        "metodologia": "mean-of-runs-after-iqr",
-        "latencia_ms": {
-          "total_runs": 5,
-          "valid_runs": 5,
-          "used_runs": 5,
-          "discarded_outliers": 0
+      },
+      "network_policy": {
+        "egress_block": {
+          "latencia_ms": 11.72,
+          "throughput_mbps": 1755,
+          "overhead_latencia_pct": -37.43,
+          "overhead_throughput_pct": -108.05,
+          "estadistica": {
+            "metodologia": "mean-of-runs-after-iqr",
+            "latencia_ms": {
+              "total_runs": 4,
+              "valid_runs": 4,
+              "used_runs": 4,
+              "discarded_outliers": 0
+            },
+            "throughput_mbps": {
+              "total_runs": 4,
+              "valid_runs": 4,
+              "used_runs": 3,
+              "discarded_outliers": 1
+            }
+          }
         },
-        "latencia_max_ms": {
-          "total_runs": 5,
-          "valid_runs": 5,
-          "used_runs": 5,
-          "discarded_outliers": 0
+        "multi_tier": {
+          "latencia_ms": 19.42,
+          "throughput_mbps": 1620.23,
+          "overhead_latencia_pct": 3.7,
+          "overhead_throughput_pct": -92.07,
+          "estadistica": {
+            "metodologia": "mean-of-runs-after-iqr",
+            "latencia_ms": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 5,
+              "discarded_outliers": 0
+            },
+            "throughput_mbps": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 5,
+              "discarded_outliers": 0
+            }
+          }
         },
-        "jitter_ms": {
-          "total_runs": 5,
-          "valid_runs": 5,
-          "used_runs": 5,
-          "discarded_outliers": 0
-        },
-        "throughput_mbps": {
-          "total_runs": 5,
-          "valid_runs": 5,
-          "used_runs": 4,
-          "discarded_outliers": 1
-        },
-        "retransmits": {
-          "total_runs": 5,
-          "valid_runs": 5,
-          "used_runs": 5,
-          "discarded_outliers": 0
-        },
-        "cpu_usada_pct": {
-          "total_runs": 8,
-          "valid_runs": 8,
-          "used_runs": 8,
-          "discarded_outliers": 0
-        },
-        "ram_usada_mb": {
-          "total_runs": 8,
-          "valid_runs": 8,
-          "used_runs": 8,
-          "discarded_outliers": 0
+        "zero_trust": {
+          "latencia_ms": 10.64,
+          "throughput_mbps": 1784.35,
+          "overhead_latencia_pct": -43.16,
+          "overhead_throughput_pct": -111.53,
+          "estadistica": {
+            "metodologia": "mean-of-runs-after-iqr",
+            "latencia_ms": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 5,
+              "discarded_outliers": 0
+            },
+            "throughput_mbps": {
+              "total_runs": 5,
+              "valid_runs": 5,
+              "used_runs": 4,
+              "discarded_outliers": 1
+            }
+          }
         }
       }
     },

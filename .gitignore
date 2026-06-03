@@ -8,6 +8,7 @@ cni-recommender-spa/dist/
 
 # Generated benchmark/dashboard data
 docs/datos_consolidados.js
+docs/generate_thesis_data.js
 cni-recommender-spa/public/cni-data.json
 cni-recommender-spa/dist/cni-data.json
 
