@@ -1,56 +1,392 @@
+% ─────────────────────────────────────────────────────────────────────────────
+% TikZ — bibliotecas necesarias para los diagramas de este apéndice
+% ─────────────────────────────────────────────────────────────────────────────
+\usetikzlibrary{positioning}
+
 \chapter{Anexo Técnico de Entregables y Repositorios} \label{chap:apendice_a}
 
-Para garantizar la reproducibilidad y el rigor científico de esta investigación, todos los desarrollos técnicos, configuraciones de infraestructura, scripts de pruebas y el algoritmo del modelo matemático han sido publicados bajo licencias de código abierto. Este apéndice detalla la estructura de directorios, fragmentos clave de código y las instrucciones de reproducción correspondientes a cada Objetivo Específico (OE).
+Para garantizar la reproducibilidad y el rigor científico de esta investigación,
+todos los desarrollos técnicos, configuraciones de infraestructura, scripts de
+pruebas y el algoritmo del modelo matemático han sido publicados bajo licencias
+de código abierto. Este apéndice detalla la estructura de directorios, los
+recursos aprovisionados, los parámetros exactos de medición y las instrucciones
+de reproducción correspondientes a cada Objetivo Específico (OE).
 
+% ─────────────────────────────────────────────────────────────────────────────
 \section{Repositorio Principal del Proyecto}
-El código fuente general, los conjuntos de datos consolidados y la SPA recomendadora se encuentran alojados en GitHub:
+
+El código fuente general, los conjuntos de datos consolidados y la SPA
+recomendadora se encuentran alojados en GitHub:
+
 \begin{itemize}
-    \item \textbf{URL del Repositorio Principal:} \url{https://github.com/DuwanSierra/K8S-CNI-Results}
-    \item \textbf{Sitio Web del Recomendador CNI (OE4):} \url{https://duwansierra.github.io/K8S-CNI-Results/}
+    \item \textbf{URL del Repositorio Principal:}
+          \url{https://github.com/DuwanSierra/K8S-CNI-Results}
+    \item \textbf{Sitio Web del Recomendador CNI (OE4):}
+          \url{https://duwansierra.github.io/K8S-CNI-Results/}
 \end{itemize}
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Detalle Técnico y Entregables por Objetivo Específico}
 
-\subsection{Objetivo Específico 1: Aprovisionamiento y Automatización del Testbed}
-El aprovisionamiento de la infraestructura multi-nodo y la orquestación de la rotación de los cuatro CNIs se realizaron mediante Infraestructura como Código (IaC) y automatización con Ansible.
+% ─── OE1 ─────────────────────────────────────────────────────────────────────
+\subsection{Objetivo Específico 1: Aprovisionamiento y Automatización del
+Testbed}
 
-\begin{itemize}
-    \item \textbf{Repositorio de Aprovisionamiento:} \url{https://github.com/DuwanSierra/HA-K3s-Terraform-DO}
-    \item \textbf{Estructura del Repositorio:}
+El aprovisionamiento del entorno de laboratorio multi-nodo y la orquestación
+de la rotación de los cuatro CNIs se realizaron exclusivamente mediante
+Infraestructura como Código (IaC). El diseño separa responsabilidades en
+tres repositorios especializados y un pipeline Terraform de cuatro etapas
+secuenciales con barreras de estado que garantizan la idempotencia del
+despliegue.
+
+% ── 1.1 Repositorios ─────────────────────────────────────────────────────────
+\subsubsection{Repositorios del Testbed}
+
+La Tabla~\ref{tab:apa_repos} enumera los tres repositorios que componen el
+entorno de experimentación.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Repositorios que conforman el entorno automatizado de experimentación.}
+\label{tab:apa_repos}
+\begin{tabularx}{\textwidth}{|l|Y|Y|}
+\hline
+\textbf{Repositorio} & \textbf{Responsabilidad} & \textbf{URL} \\
+\hline
+\texttt{K8s-bootstrap}
+  & Orquestador IaC: pipeline de 4 etapas que levanta el clúster,
+    instala ArgoCD y despliega las aplicaciones de benchmark y
+    políticas de red
+  & \url{https://github.com/DuwanSierra/K8s-bootstrap} \\
+\hline
+\texttt{HA-K3s-Terraform-DO}
+  & Módulo Terraform reutilizable que provisiona Droplets, VPC,
+    Load Balancer y base de datos en DigitalOcean
+  & \url{https://github.com/DuwanSierra/HA-K3s-Terraform-DO} \\
+\hline
+\texttt{K8s-Tesis-Apps}
+  & Manifiestos GitOps (Kustomize base + overlays CNI) sincronizados
+    por ArgoCD: CronJobs de benchmark y políticas de red
+  & \url{https://github.com/DuwanSierra/K8s-Tesis-Apps} \\
+\hline
+\end{tabularx}
+\end{table}
+
+% ── 1.2 Pipeline ─────────────────────────────────────────────────────────────
+\subsubsection{Pipeline de Aprovisionamiento en Cuatro Etapas}
+
+El repositorio \texttt{K8s-bootstrap} centraliza el despliegue mediante un
+único punto de entrada (\texttt{00.bootstrap/}) que compone cuatro módulos
+Terraform en cadena. Dos archivos marcadores de estado
+(\texttt{.kubeconfig\_ready} y \texttt{.argocd\_ready}) actúan como
+barreras: cada etapa posterior solo se inicializa cuando la barrera de la
+anterior existe en el sistema de archivos local, haciendo el proceso
+seguro ante interrupciones y re-ejecutable sin efectos secundarios.
+La Figura~\ref{fig:apa_pipeline} ilustra la secuencia completa.
+
 \begin{verbatim}
-HA-K3s-Terraform-DO/
-|-- agent.tf                # Definicion de Droplets Worker
-|-- server.tf               # Definicion de Droplets Control Plane
-|-- server_init.tf          # Inicializacion del Control Plane maestro
-|-- loadbalancer.tf         # Balanceador de carga para alta disponibilidad
-|-- database.tf             # Aprovisionamiento de base de datos PostgreSQL
-|-- variables.tf            # Variables de region, tamano de nodos y CNI
-`-- user_data/
-    |-- k3s_server.sh       # Script de arranque de servidores K3s
-    `-- k3s_agent.sh        # Script de arranque de agentes Worker K3s
+K8s-bootstrap/
+|-- 00.bootstrap/                # Orquestador: entrada unica (make apply)
+|   |-- main.tf                  # Composicion de los cuatro modulos
+|   |-- variables.tf             # Parametros: CNI, region, node sizes
+|   `-- scripts/
+|       `-- fetch-kubeconfig.sh  # Extrae kubeconfig via SSH con reintentos
+|-- 10.k3s-ha-do/                # Etapa 1: Cluster K3s HA
+|   `-- main.tf                  # Llama al modulo HA-K3s-Terraform-DO
+|-- 20.argo-cd-install/          # Etapa 2: ArgoCD (Helm)
+|   `-- main.tf
+|-- 30.apps-of-apps-install/     # Etapa 3: ArgoCD Applications (GitOps)
+|   `-- main.tf                  # Benchmarks + Network Policies
+`-- 40.install-secrets/          # Etapa 4: Secrets de Git en K8s
+    `-- main.tf
 \end{verbatim}
-    
-    \item \textbf{Fragmento de Terraform (Aprovisionamiento de Workers en \texttt{agent.tf}):}
-\begin{lstlisting}[language=bash]
-resource "digitalocean_droplet" "k3s_agent" {
-  count      = var.agent_count
-  name       = "k3s-agent-${var.region}-${count.index + 1}"
-  image      = var.droplet_image
-  region     = var.region
-  size       = var.agent_size
-  vpc_uuid   = digitalocean_vpc.k3s_vpc.id
-  ssh_keys   = var.ssh_key_fingerprints
-  user_data  = templatefile("${path.module}/user_data/k3s_agent.sh", {
-    k3s_channel  = var.k3s_channel
-    k3s_token    = random_password.k3s_token.result
-    k3s_lb_ip    = digitalocean_loadbalancer.k3s_lb.ip
-    cni_provider = var.cni_provider
-  })
-}
-\end{lstlisting}
 
-    \item \textbf{Procesamiento Estadístico (IQR en \path{K8S-CNI-Results/docs/procesador.js}):}
+\begin{figure}[htbp]
+\centering
+\shorthandoff{>}
+\begin{tikzpicture}[
+  mainbox/.style={
+    draw=blue!50!black, fill=blue!8, rounded corners=4pt,
+    minimum width=12cm, minimum height=0.85cm,
+    text centered, font=\small\bfseries, inner sep=5pt
+  },
+  descbox/.style={
+    draw=none, fill=gray!7, rounded corners=2pt,
+    minimum width=12cm, text width=11.6cm,
+    font=\scriptsize, inner sep=5pt, align=left
+  },
+  barrierbox/.style={
+    draw=orange!70!black, fill=orange!12, rounded corners=3pt,
+    minimum width=12cm, minimum height=0.55cm,
+    text centered, font=\scriptsize\itshape, inner sep=3pt
+  },
+  arr/.style={-latex, thick, gray!55}
+]
+
+\node[mainbox] (s0)
+  {\texttt{00.bootstrap} \textemdash{} Orquestador IaC (\texttt{make apply})};
+\node[descbox, below=0.1cm of s0] (d0)
+  {Punto de entrada unico. Compone las cuatro etapas con barreras de
+   estado para garantizar idempotencia.
+   Archivo: \texttt{00.bootstrap/main.tf}};
+
+\node[mainbox, below=0.45cm of d0] (s1)
+  {\texttt{10.k3s-ha-do} \textemdash{} Cluster K3s HA en DigitalOcean};
+\node[descbox, below=0.1cm of s1] (d1)
+  {Provisiona Droplets (control-plane y workers), VPC
+   (\texttt{10.10.10.0/24}), Load Balancer API (TLS passthrough,
+   puerto 6443), firewall y base de datos PostgreSQL 17 (datastore
+   externo K3s). Archivo: \texttt{10.k3s-ha-do/main.tf}};
+
+\node[barrierbox, below=0.35cm of d1] (b1)
+  {Barrera: \texttt{artifacts/.kubeconfig\_ready} ---
+   las Etapas 2, 3 y 4 no inician sin este marcador};
+
+\node[mainbox, below=0.35cm of b1] (s2)
+  {\texttt{20.argo-cd-install} \textemdash{} Instalacion de ArgoCD};
+\node[descbox, below=0.1cm of s2] (d2)
+  {Instala ArgoCD en el namespace \texttt{argocd} mediante Helm
+   (modulo \texttt{aigisuk/argocd/kubernetes v0.2.7}).
+   Archivo: \texttt{20.argo-cd-install/main.tf}};
+
+\node[barrierbox, below=0.35cm of d2] (b2)
+  {Barrera: \texttt{artifacts/.argocd\_ready} ---
+   las Etapas 3 y 4 no inician sin este marcador};
+
+\node[mainbox, below=0.35cm of b2] (s3)
+  {\texttt{30.apps-of-apps-install} \textemdash{} Aplicaciones GitOps};
+\node[descbox, below=0.1cm of s3] (d3)
+  {Registra en ArgoCD cuatro Applications: \texttt{apps/metrics}
+   (monitoreo), \texttt{overlays/cni/\$\{CNI\}} (benchmarks),
+   \texttt{grafana-exporter} (CPU/RAM) y
+   \texttt{network\_policies/.../\$\{use-case\}} (condicional).
+   Archivo: \texttt{30.apps-of-apps-install/main.tf}};
+
+\node[mainbox, below=0.45cm of d3] (s4)
+  {\texttt{40.install-secrets} \textemdash{} Credenciales Git como Secrets K8s};
+\node[descbox, below=0.1cm of s4] (d4)
+  {Crea el \texttt{kubernetes\_secret\_v1} con \texttt{GIT\_USER} y
+   \texttt{GIT\_TOKEN} en los namespaces \texttt{cni-test} y
+   \texttt{cni-np-test}, habilitando el push automatico de
+   resultados desde los pods.
+   Archivo: \texttt{40.install-secrets/main.tf}};
+
+\draw[arr] (d0.south) -- (s1.north);
+\draw[arr] (d1.south) -- (b1.north);
+\draw[arr] (b1.south) -- (s2.north);
+\draw[arr] (d2.south) -- (b2.north);
+\draw[arr] (b2.south) -- (s3.north);
+\draw[arr] (d3.south) -- (s4.north);
+
+\end{tikzpicture}
+\shorthandon{>}
+\caption{Pipeline de aprovisionamiento del testbed: cuatro etapas
+         Terraform con barreras de estado idempotentes
+         (\texttt{K8s-bootstrap/00.bootstrap}).}
+\label{fig:apa_pipeline}
+\end{figure}
+
+Los archivos fuente de cada etapa se encuentran en el repositorio
+\url{https://github.com/DuwanSierra/K8s-bootstrap}, bajo las rutas
+\texttt{00.bootstrap/main.tf}, \texttt{10.k3s-ha-do/main.tf},
+\texttt{20.argo-cd-install/main.tf}, \texttt{30.apps-of-apps-install/main.tf}
+y \texttt{40.install-secrets/main.tf} respectivamente.
+
+% ── 1.3 Inventario de recursos ───────────────────────────────────────────────
+\subsubsection{Inventario de Recursos Aprovisionados}
+
+La Tabla~\ref{tab:apa_infra} detalla los recursos de cómputo y red
+creados por el pipeline para cada iteración experimental (un CNI por
+corrida). El aprovisionamiento se repite íntegramente para cada uno
+de los cuatro plugins evaluados, garantizando condiciones iniciales
+idénticas entre corridas.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Inventario de recursos de infraestructura aprovisionados
+         por el testbed en cada corrida experimental.}
+\label{tab:apa_infra}
+\begin{tabularx}{\textwidth}{|l|c|Y|Y|}
+\hline
+\textbf{Recurso (DigitalOcean)} & \textbf{Cant.}
+  & \textbf{Especificación} & \textbf{Función en el testbed} \\
+\hline
+Droplet control-plane & 1
+  & \texttt{s-1vcpu-2gb}, Ubuntu 22.04, región \texttt{nyc3}
+  & K3s server: API server, scheduler, cliente del datastore \\
+\hline
+Droplet worker & 2
+  & \texttt{s-2vcpu-4gb}, Ubuntu 22.04
+  & K3s agents: ejecución de pods de benchmark; dos nodos son
+    requeridos para que el \texttt{podAntiAffinity} fuerce tráfico
+    inter-nodo \\
+\hline
+Load Balancer & 1
+  & Regional, TLS passthrough, puerto 6443
+  & Alta disponibilidad del API server K3s \\
+\hline
+Managed PostgreSQL & 1
+  & \texttt{db-s-1vcpu-1gb}, versión 17, 1 nodo,
+    pool \texttt{session} tamaño 10
+  & Datastore externo K3s (reemplaza etcd embebido para HA) \\
+\hline
+VPC & 1
+  & CIDR \texttt{10.10.10.0/24}
+  & Red privada aislada entre todos los nodos del clúster \\
+\hline
+Firewall DO & 2
+  & Intra-VPC (TCP/UDP/ICMP completo) y SSH público
+  & Perímetro cloud; las NetworkPolicy del CNI operan
+    \emph{dentro} del clúster, independientemente de este \\
+\hline
+\end{tabularx}
+\end{table}
+
+\noindent La separación entre el firewall de nube (perímetro externo)
+y las \texttt{NetworkPolicy} del CNI (firewall lógico distribuido,
+intra-clúster) es intencional: permite medir el overhead de las
+políticas de red sin interferencia de reglas del proveedor cloud.
+
+% ── 1.4 Protocolo de medición ────────────────────────────────────────────────
+\subsubsection{Protocolo de Medición}
+
+Tres CronJobs de Kubernetes, desplegados vía ArgoCD desde
+\texttt{K8s-Tesis-Apps}, ejecutan las pruebas de forma automática
+y periódica. Los horarios están escalonados deliberadamente para
+evitar solapamiento de carga entre workloads. La
+Tabla~\ref{tab:apa_benchmark} describe los parámetros exactos de
+cada prueba.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Parámetros de los workloads de benchmark automatizados.}
+\label{tab:apa_benchmark}
+\begin{tabularx}{\textwidth}{|l|Y|l|Y|}
+\hline
+\textbf{CronJob} & \textbf{Métrica medida}
+  & \textbf{Horario Cron} & \textbf{Parámetros y condiciones} \\
+\hline
+\texttt{iperf3-client}
+  & Throughput TCP: sender/receiver Mbps, retransmisiones
+  & \texttt{0,30\,*\,*\,*\,*}
+  & \texttt{iperf3 -t 300 -i 10 -J}; ventana de 5 min,
+    muestreo cada 10 s; \texttt{concurrencyPolicy: Forbid} \\
+\hline
+\texttt{latency-client}
+  & Latencia TCP connect: min/avg/max/mdev (ms), packet-loss (\%)
+  & \texttt{10,40\,*\,*\,*\,*}
+  & 30 muestras, timeout 2 s, intervalo 1 s por muestra;
+    calcula estadísticos sobre muestras exitosas \\
+\hline
+\texttt{resource-exporter}
+  & Consumo CPU (\% nodo) y RAM (MB) del agente CNI bajo estrés
+  & \texttt{25,55\,*\,*\,*\,*}
+  & Consultas PromQL a \texttt{kube-prometheus-stack}
+    durante ventana de estrés activo \\
+\hline
+\end{tabularx}
+\end{table}
+
+\noindent Los manifiestos de los tres CronJobs se encuentran en
+\url{https://github.com/DuwanSierra/K8s-Tesis-Apps} bajo las rutas
+\texttt{cni\_test\_iperf/iperf-client-cronjob.yaml},
+\texttt{cni\_test\_iperf/latency-client-cronjob.yaml} y
+\texttt{grafana-exporter/resource-usage-exporter-cronjob.yaml}.
+
+\medskip\noindent\textbf{Condiciones de validez experimental.}
+Los pods cliente usan \texttt{podAntiAffinity} preferente respecto
+al pod servidor iperf, forzando tráfico \emph{inter-nodo} para
+capturar el overhead real del plano de datos del CNI. Cada ejecución
+exporta un JSON normalizado con campos \texttt{timestamp\_utc},
+\texttt{cni\_name} y métricas resumidas; los runs más antiguos se
+eliminan automáticamente manteniendo una retención máxima de
+\textbf{5 corridas} por CNI y por tipo de prueba.
+
+% ── 1.5 Flujo de recolección de datos ────────────────────────────────────────
+\subsubsection{Flujo de Recolección y Persistencia de Datos}
+
+La Figura~\ref{fig:apa_dataflow} muestra el flujo completo desde la
+ejecución de los CronJobs hasta la generación del conjunto de datos
+procesado que alimenta el modelo MCDA.
+
+\begin{figure}[htbp]
+\centering
+\shorthandoff{>}
+\begin{tikzpicture}[
+  node distance=0.45cm,
+  job/.style={
+    draw=teal!70!black, fill=teal!10, rounded corners=3pt,
+    minimum width=3.2cm, minimum height=0.85cm, text width=2.8cm,
+    align=center, font=\tiny\bfseries, inner sep=3pt
+  },
+  store/.style={
+    draw=blue!60!black, fill=blue!7, rounded corners=3pt,
+    minimum width=9cm, text width=8.6cm,
+    font=\scriptsize, inner sep=5pt, align=center
+  },
+  proc/.style={
+    draw=gray!60, fill=gray!8, rounded corners=3pt,
+    minimum width=9cm, text width=8.6cm,
+    font=\scriptsize, inner sep=5pt, align=center
+  },
+  arr/.style={-latex, thick, gray!55}
+]
+
+\node[job] (cj1) at (-3.5, 0)
+  {\texttt{iperf3-client}\\CronJob 0,30};
+\node[job] (cj2) at (0, 0)
+  {\texttt{latency-client}\\CronJob 10,40};
+\node[job] (cj3) at (3.5, 0)
+  {\texttt{resource-exporter}\\CronJob 25,55};
+
+\coordinate (merge) at (0, -1.1);
+\draw[arr] (cj1.south) -- ++(0,-0.35) -| (merge);
+\draw[arr] (cj2.south) -- (merge);
+\draw[arr] (cj3.south) -- ++(0,-0.35) -| (merge);
+
+\node[proc, below=0.4cm of merge, anchor=north] (json)
+  {JSON normalizado por corrida\\
+   {\tiny campos: \texttt{timestamp\_utc}, \texttt{cni\_name},
+   metricas resumidas + campo \texttt{raw}}};
+\draw[arr] (merge) -- (json.north);
+
+\node[proc, below=0.3cm of json] (push)
+  {git push autenticado con Secret
+   \texttt{cni-results-git-credentials}};
+\draw[arr] (json) -- (push);
+
+\node[store, below=0.3cm of push] (repo)
+  {\texttt{K8S-CNI-Results/results/cni-benchmarks/}\\
+   \texttt{<CNI>/<test\_type>/run\_<TS>.json}\\
+   {\tiny retencion automatica: maximo 5 corridas por CNI y tipo}};
+\draw[arr] (push) -- (repo);
+
+\node[proc, below=0.3cm of repo] (procesador)
+  {\texttt{node docs/procesador.js}\\
+   {\tiny filtro IQR + unificacion cross-CNI}};
+\draw[arr] (repo) -- (procesador);
+
+\node[store, below=0.3cm of procesador] (output)
+  {\texttt{results/processed/thesis\_data.json}\\
+   {\tiny entrada del Modelo MCDA (Apendice B)}};
+\draw[arr] (procesador) -- (output);
+
+\end{tikzpicture}
+\shorthandon{>}
+\caption{Flujo de recolección y persistencia de datos experimentales:
+         desde los CronJobs de Kubernetes hasta el dataset procesado
+         que alimenta el modelo MCDA.}
+\label{fig:apa_dataflow}
+\end{figure}
+
+El siguiente fragmento muestra la función de limpieza de valores
+atípicos aplicada en
+\path{docs/procesador.js}
+(\url{https://github.com/DuwanSierra/K8S-CNI-Results}):
+
 \begin{lstlisting}
 // Limpieza de outliers mediante Rango Intercuartilico (IQR)
 function filterOutliers(data, key) {
@@ -60,78 +396,94 @@ function filterOutliers(data, key) {
   const iqr = q3 - q1;
   const lowerBound = q1 - 1.5 * iqr;
   const upperBound = q3 + 1.5 * iqr;
-  
+
   return data.filter(d => d[key] >= lowerBound && d[key] <= upperBound);
 }
 \end{lstlisting}
-\end{itemize}
 
-\subsection{Objetivo Específico 2: Políticas de Red y Microsegmentación Zero Trust}
-El firewall lógico distribuido se declaró mediante manifiestos YAML de Kubernetes y configuraciones extendidas de eBPF sincronizadas por ArgoCD.
+% ─── OE2 ─────────────────────────────────────────────────────────────────────
+\subsection{Objetivo Específico 2: Políticas de Red y Microsegmentación Zero
+Trust}
+
+El firewall lógico distribuido se implementó mediante tres casos de
+uso de políticas de red declarados como manifiestos Kustomize en
+\texttt{K8s-Tesis-Apps} y sincronizados automáticamente por ArgoCD
+desde el módulo \texttt{30.apps-of-apps-install} del orquestador.
+La variable \texttt{cni\_np\_use\_case} del pipeline selecciona el
+overlay activo; Flannel queda excluido por no implementar la API
+\texttt{networking.k8s.io/v1}.
 
 \begin{itemize}
-    \item \textbf{Repositorio GitOps de Seguridad:} \url{https://github.com/DuwanSierra/K8s-bootstrap}
-    \item \textbf{Manifiesto de Aislamiento Base (\texttt{np-deny-all.yaml}):}
-\begin{lstlisting}[language=XML]
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: deny-all-ingress-egress
-  namespace: cni-np-test
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
-    - Egress
-\end{lstlisting}
+    \item \textbf{Repositorio GitOps de Políticas de Red:}
+          \url{https://github.com/DuwanSierra/K8s-Tesis-Apps}
 
-    \item \textbf{Política Granular L7 en Cilium (\texttt{cilium-l7-policy.yaml}):}
-\begin{lstlisting}[language=XML]
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
-  name: cilium-l7-http-frontend-to-backend
-  namespace: cni-np-test
-spec:
-  endpointSelector:
-    matchLabels:
-      tier: backend
-  ingress:
-    - fromEndpoints:
-        - matchLabels:
-            tier: frontend
-      toPorts:
-        - ports:
-            - port: "80"
-              protocol: TCP
-          rules:
-            http:
-              - method: "GET"
-              - method: "HEAD"
-\end{lstlisting}
+    \item \textbf{Estructura de casos de uso (Kustomize):}
+\begin{verbatim}
+network_policies/
+|-- base/                   # Namespace, demo app 3-tier, CronJobs NP
+|-- use-case-1-zero-trust/  # deny-all (Ingress+Egress) + allow iperf
+|-- use-case-2-multi-tier/  # Segmentacion frontend -> backend -> BD
+|-- use-case-3-egress-block/# Bloqueo egress externo, DNS permitido
+`-- overlays/
+    |-- calico/             # Sin diferenciador propio
+    |-- cilium/             # multi-tier: CiliumNetworkPolicy L7 HTTP
+    `-- antrea/             # multi-tier: AntreaNetworkPolicy con Tiers
+\end{verbatim}
+
+    \item \textbf{Manifiesto de aislamiento base (Caso 1 — Zero Trust):}
+    Archivo \path{network_policies/use-case-1-zero-trust/np-deny-all.yaml}
+    — declara una \texttt{NetworkPolicy} con \texttt{podSelector: \{\}}
+    que bloquea todo ingreso y egreso por defecto en el namespace
+    \texttt{cni-np-test}, estableciendo el principio de mínimo
+    privilegio como línea base de medición.
+
+    \item \textbf{Política granular L7 en Cilium (Caso 2 — Multi-Tier):}
+    Archivo \path{network_policies/overlays/cilium/multi-tier/cilium-l7-policy.yaml}
+    — extiende el caso base con una \texttt{CiliumNetworkPolicy} que
+    restringe el tráfico HTTP entre tiers al método
+    \texttt{GET}/\texttt{HEAD} (inspección L7 habilitada por el
+    datapath eBPF de Cilium, exclusiva de este plugin).
+
+    \item \textbf{Activación mediante ArgoCD Application:}
+    El caso de uso activo se controla desde el orquestador; el path
+    de Kustomize se construye como
+    \texttt{network\_policies/overlays/\$\{cni\_provider\}/\$\{use-case\}}.
+    Ver archivo
+    \path{30.apps-of-apps-install/main.tf} en el repositorio
+    \url{https://github.com/DuwanSierra/K8s-bootstrap},
+    recurso \texttt{kubernetes\_manifest.cni\_np\_test\_app}.
 \end{itemize}
 
+% ─── OE3 ─────────────────────────────────────────────────────────────────────
 \subsection{Objetivo Específico 3: Implementación del Algoritmo MCDA}
-El algoritmo de decisión multicriterio realiza la normalización de datos e introduce la penalización dura para garantizar la exclusión de plugins no seguros.
+
+El algoritmo de decisión multicriterio realiza la normalización de
+datos e introduce la penalización dura para garantizar la exclusión
+de plugins no seguros.
 
 \begin{itemize}
-    \item \textbf{Archivo Clave:} \path{cni-recommender-spa/src/data/recommendationModel.js}
+    \item \textbf{Archivo Clave:}
+          \path{cni-recommender-spa/src/data/recommendationModel.js}
+          en \url{https://github.com/DuwanSierra/K8S-CNI-Results}
     \item \textbf{Función de Normalización y Scoring MCDA:}
 \begin{lstlisting}
 // Calculo del ranking MCDA con penalizacion no compensatoria
 export function calculateScores(profile, benchmarkPayload) {
-  const cnis = benchmarkPayload ? buildCniMetricsFromBenchmark(benchmarkPayload) : cniMetrics;
+  const cnis = benchmarkPayload
+    ? buildCniMetricsFromBenchmark(benchmarkPayload) : cniMetrics;
   const securityNeed = profile?.securityNeed ?? 0;
   const securityIsRequired = securityNeed >= 4; // Umbral de restriccion
 
   return cnis.map((cni) => {
-    const rawTotal = Object.entries(profile.weights).reduce((sum, [metric, weight]) => {
-      const metricValue = cni.scores[metric] ?? 0;
-      return sum + metricValue * weight;
-    }, 0);
+    const rawTotal = Object.entries(profile.weights).reduce(
+      (sum, [metric, weight]) => {
+        const metricValue = cni.scores[metric] ?? 0;
+        return sum + metricValue * weight;
+      }, 0);
 
     // Si requiere seguridad y el CNI no la soporta, penalizar 60%
-    const securityPenalized = securityIsRequired && cni.supportsNetworkPolicy === false;
+    const securityPenalized =
+      securityIsRequired && cni.supportsNetworkPolicy === false;
     const finalScore = securityPenalized ? rawTotal * 0.4 : rawTotal;
 
     return {
@@ -145,33 +497,243 @@ export function calculateScores(profile, benchmarkPayload) {
 \end{lstlisting}
 \end{itemize}
 
+% ─── OE4 ─────────────────────────────────────────────────────────────────────
 \subsection{Objetivo Específico 4: Prototipo Interactivo de Recomendación}
-La interfaz SPA unifica el motor lógico y el visor de asistencia al operador de red.
 
-\begin{itemize}
-    \item \textbf{Estructura del Proyecto SPA:}
-\begin{verbatim}
-cni-recommender-spa/
-|-- public/
-|   `-- cni-data.json       # Datos empiricos en formato JSON
-|-- src/
-|   |-- App.jsx             # Punto de entrada de React
-|   |-- components/
-|   |   |-- CniRecommender.jsx   # Componente contenedor de UI
-|   |   |-- ResultsEngine.jsx    # Visualizacion de rankings y graficos
-|   |   `-- GuidedProfileBuilder.jsx # Formulario de preguntas
-|   `-- data/
-|       `-- recommendationModel.js # Algoritmo MCDA y comandos
-\end{verbatim}
-\end{itemize}
+La SPA de recomendación está publicada en:
+\begin{center}
+\small\url{https://duwansierra.github.io/K8S-CNI-Results/recommender/}
+\end{center}
+El indicador en la cabecera muestra \emph{«Datos reales de laboratorio»}
+cuando el fetch de \texttt{cni-data.json} es exitoso, o
+\emph{«Datos de referencia»} cuando el JSON no está disponible y se
+activa el conjunto embebido de fallback
+(Figura~\ref{fig:oe4_inicio}).
+El motor MCDA, los criterios de ponderación y los perfiles de uso
+se documentan en el
+\hyperref[chap:apendice_oe3]{Apéndice B} de este documento.
+
+\subsubsection*{Arquitectura de componentes}
+
+La Figura~\ref{fig:oe4_arch} ilustra la estructura de tres capas:
+entrada de usuario, núcleo de procesamiento y presentación de resultados.
+
+\shorthandoff{>}
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners=4pt, fill=blue!8,
+              text width=5.8cm, align=center,
+              minimum height=1.2cm, font=\small},
+  sbox/.style={draw, rounded corners=4pt, fill=teal!8,
+               text width=2.9cm, align=center,
+               minimum height=1.2cm, font=\small},
+  arr/.style={-latex, thick, gray!55}
+]
+\node[box] (gpb) at (0,0) {
+  \textbf{GuidedProfileBuilder}\\[-2pt]
+  {\scriptsize 5 preguntas guiadas -- vector de pesos}
+};
+\node[box] (app) at (0,-2.4) {
+  \textbf{App.jsx (Orquestador)}\\[-2pt]
+  {\scriptsize fetch \texttt{cni-data.json} + \texttt{calculateScores()}}
+};
+\node[sbox] (re) at (-2,-4.6) {
+  \textbf{ResultsEngine}\\[-2pt]
+  {\scriptsize ranking y graficas}
+};
+\node[sbox] (is) at (2,-4.6) {
+  \textbf{ImplementationSteps}\\[-2pt]
+  {\scriptsize \texttt{kubectl} + YAML}
+};
+\draw[arr] (gpb.south) -- node[right, font=\scriptsize, text=gray]{perfil} (app.north);
+\draw[arr] (app.south) -- ++(0,-0.35) -| (re.north);
+\draw[arr] (app.south) -- ++(0,-0.35) -| (is.north);
+\end{tikzpicture}
+\caption{Arquitectura de tres capas del recomendador SPA.}
+\label{fig:oe4_arch}
+\end{figure}
+\shorthandon{>}
+
+La Tabla~\ref{tab:oe4_componentes} describe las responsabilidades de cada componente.
+
+\begin{table}[h]
+\centering
+\caption{Responsabilidades de los componentes del recomendador SPA.}
+\label{tab:oe4_componentes}
+\small
+\begin{tabularx}{\linewidth}{lY}
+\toprule
+\textbf{Componente} & \textbf{Responsabilidad principal} \\
+\midrule
+\texttt{App.jsx}
+  & Orquestador: gestiona estado global, fetch de datos y renderizado condicional. \\
+\texttt{GuidedProfileBuilder}
+  & Recoge el perfil del operador mediante 5 preguntas con sliders ponderados. \\
+\texttt{ResultsEngine}
+  & Muestra el ranking de plugins con puntuaciones y gráfica de barras comparativa. \\
+\texttt{ImplementationSteps}
+  & Genera el comando \texttt{kubectl apply} del plugin recomendado y la política base YAML. \\
+\texttt{recommendationModel.js}
+  & Contiene el algoritmo MCDA, los scores base y las guías de instalación. \\
+\texttt{cni-data.json}
+  & JSON con datos empíricos del laboratorio (throughput, latencia, CPU/RAM). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection*{Integración de datos de laboratorio en tiempo real}
+
+El listado~\ref{lst:fetch_spa} muestra el mecanismo de fetch con
+fallback que distingue al prototipo de un recomendador estático.
+Si el JSON no está disponible, la UI permanece funcional usando el
+conjunto de métricas embebidas; el indicador de estado informa al
+operador de la fuente activa.
+
+\begin{lstlisting}[language=Java, caption={Fetch de datos de laboratorio con fallback embebido (\texttt{App.jsx}).}, label={lst:fetch_spa}]
+useEffect(() => {
+  let isMounted = true;
+  fetch(`${import.meta.env.BASE_URL}cni-data.json`,
+        { cache: 'no-store' })
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })
+    .then((payload) => {
+      if (!isMounted) return;
+      setBenchmarkData(payload);
+      setDataStatus('Datos reales de laboratorio');
+    })
+    .catch(() => {
+      if (!isMounted) return;
+      setBenchmarkData(null);
+      setDataStatus('Datos de referencia');
+    });
+  return () => { isMounted = false; };
+}, []);
+\end{lstlisting}
+
+\subsubsection*{Salida accionable: instalación y política base}
+
+Una vez calculado el ranking, la SPA presenta al operador el comando
+de instalación del plugin recomendado y una política de red de
+denegación por defecto lista para aplicar.
+
+\begin{lstlisting}[language=Java, caption={Guías de instalación por plugin (\texttt{recommendationModel.js}).}, label={lst:impl_guides}]
+export const implementationGuides = {
+  flannel: { installCommand:
+    'kubectl apply -f https://github.com/flannel-io/flannel' +
+    '/releases/latest/download/kube-flannel.yml' },
+  calico:  { installCommand:
+    'kubectl apply -f https://raw.githubusercontent.com/' +
+    'projectcalico/calico/v3.28.0/manifests/calico.yaml' },
+  cilium:  { installCommand:
+    'kubectl apply -f https://raw.githubusercontent.com/' +
+    'cilium/cilium/v1.16/install/kubernetes/quick-install.yaml' },
+  antrea:  { installCommand:
+    'kubectl apply -f https://github.com/antrea-io/antrea' +
+    '/releases/latest/download/antrea.yml' },
+};
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Política base de denegación total generada por la SPA.}, label={lst:default_deny}]
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress-egress
+  namespace: production
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+\end{lstlisting}
+
+\subsubsection*{Capturas de pantalla del prototipo}
+
+La Figura~\ref{fig:oe4_inicio} muestra la pantalla principal con el
+\emph{GuidedProfileBuilder}; las
+Figuras~\ref{fig:oe4_inst_ft} y~\ref{fig:oe4_inst_iot} ilustran la
+salida accionable para los perfiles Fintech e IoT respectivamente.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{rec_inicio}
+\caption{Pantalla principal del recomendador SPA: \emph{GuidedProfileBuilder}
+         e indicador de fuente de datos activa.}
+\label{fig:oe4_inicio}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\begin{subfigure}[b]{0.48\linewidth}
+  \centering
+  \includegraphics[width=\linewidth]{rec_fintech_instalacion}
+  \caption{Perfil Fintech: pasos de instalación.}
+  \label{fig:oe4_inst_ft}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\linewidth}
+  \centering
+  \includegraphics[width=\linewidth]{rec_iot_instalacion}
+  \caption{Perfil IoT: pasos de instalación.}
+  \label{fig:oe4_inst_iot}
+\end{subfigure}
+\caption{Salida accionable del recomendador para dos perfiles de uso.}
+\label{fig:oe4_instalaciones}
+\end{figure}
 
 % ─────────────────────────────────────────────────────────────────────────────
-\section{Guía de Reproducción y Verificación Científica} \label{sec:apa_reproducibilidad}
+\section{Guía de Reproducción y Verificación Científica}
+\label{sec:apa_reproducibilidad}
 
-Para compilar, validar y reproducir el entorno y el recomendador de forma local, siga la secuencia de comandos detallada a continuación.
+Para compilar, validar y reproducir el entorno y el recomendador de
+forma local, siga la secuencia de comandos detallada a continuación.
 
+% ── Paso 0 ────────────────────────────────────────────────────────────────────
+\subsection{Paso 0: Aprovisionamiento del Testbed}
+
+Para reproducir el entorno de experimentación completo, clonar el
+repositorio orquestador e inicializar el pipeline Terraform. El
+parámetro \texttt{cni\_provider} acepta los valores
+\texttt{flannel}, \texttt{calico}, \texttt{cilium} o \texttt{antrea};
+cada valor produce una corrida experimental independiente.
+
+\begin{lstlisting}[language=bash]
+# Clonar el orquestador del testbed
+git clone https://github.com/DuwanSierra/K8s-bootstrap.git
+cd K8s-bootstrap/00.bootstrap
+
+# Crear terraform.tfvars con los parametros obligatorios:
+#   do_token, ssh_key_name, ssh_private_key_path,
+#   argocd_admin_password, argocd_root_repo_url,
+#   cni_provider (flannel | calico | cilium | antrea),
+#   cni_results_git_user, cni_results_git_token, agent_size
+
+# Inicializar providers de Terraform
+make init
+
+# Verificar el plan de recursos a crear
+make plan
+
+# Aprovisionamiento completo: K3s + ArgoCD + Apps + Secrets (~15 min)
+make apply
+
+# Desmontaje completo del entorno (limpia state y droplets)
+make destroy
+\end{lstlisting}
+
+\noindent Al finalizar \texttt{make apply}, los CronJobs de benchmark
+comenzarán a ejecutarse automáticamente vía sincronización GitOps de
+ArgoCD. Los resultados se publican en
+\path{K8S-CNI-Results/results/cni-benchmarks/} cada 30 minutos.
+
+% ── Paso 1 ────────────────────────────────────────────────────────────────────
 \subsection{Paso 1: Clonación del Repositorio y Reconstrucción de Datos}
-Clonar el repositorio principal del proyecto y ejecutar el procesador automatizado de Node.js:
+
+Clonar el repositorio principal del proyecto y ejecutar el procesador
+automatizado de Node.js:
+
 \begin{lstlisting}[language=bash]
 # Clonar el proyecto
 git clone https://github.com/DuwanSierra/K8S-CNI-Results.git
@@ -180,10 +742,18 @@ cd K8S-CNI-Results
 # Instalar dependencias del pipeline y procesar datos brutos
 node docs/procesador.js
 \end{lstlisting}
-Este comando procesará los datos brutos guardados bajo \path{results/cni-benchmarks/}, calculará la limpieza IQR de outliers y generará el archivo unificado en \path{results/processed/thesis_data.json}.
 
+Este comando procesará los datos brutos guardados bajo
+\path{results/cni-benchmarks/}, calculará la limpieza IQR de outliers
+y generará el archivo unificado en
+\path{results/processed/thesis_data.json}.
+
+% ── Paso 2 ────────────────────────────────────────────────────────────────────
 \subsection{Paso 2: Compilación y Despliegue de la SPA Recomendadora}
-Navegar al directorio de la aplicación web, instalar dependencias de desarrollo local y levantar el servidor web:
+
+Navegar al directorio de la aplicación web, instalar dependencias de
+desarrollo local y levantar el servidor web:
+
 \begin{lstlisting}[language=bash]
 # Cambiar al directorio del recomendador web
 cd cni-recommender-spa
@@ -194,4 +764,7 @@ npm install
 # Lanzar el servidor de desarrollo local
 npm run dev
 \end{lstlisting}
-El servidor local se desplegará en \url{http://localhost:5173/}, permitiendo interactuar con los deslizadores y replicar los perfiles Fintech, Streaming e IoT descritos en la investigación.
+
+El servidor local se desplegará en \url{http://localhost:5173/},
+permitiendo interactuar con los deslizadores y replicar los perfiles
+Fintech, Streaming e IoT descritos en la investigación.
