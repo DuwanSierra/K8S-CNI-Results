@@ -457,7 +457,7 @@ Se trazó el flujo completo de un dato específico desde su origen hasta su visu
 \hline
 OE1: Evaluar cuantitativamente el rendimiento de los 4 CNIs mediante pruebas controladas. & CUMPLIDO --- 5 corridas $\times$ 300 segundos por CNI. Datos de throughput, latencia, jitter y consumo de recursos de CPU/RAM. Outliers filtrados por IQR. \\
 \hline
-OE2: Evaluar cómo la configuración segura de las Network Policies reduce la superficie de ataque. & CUMPLIDO --- 8 casos de prueba de seguridad ejecutados en los 4 CNIs. Hallazgo crítico: Flannel no implementa Network Policies. Cilium es el único con soporte L7. Overhead medido: variación de latencia de $-43.16\%$ a $+31.45\%$ y pérdida de throughput menor al $4.35\%$. \\
+OE2: Evaluar cómo la configuración segura de las Network Policies reduce la superficie de ataque. & CUMPLIDO dentro del alcance operativo declarado (Apéndice~\ref{chap:apendice_oe2}, \S\ref{sec:apb2_alcance}). 8 casos de prueba de seguridad ejecutados en los 4 CNIs; Flannel no implementa Network Policies en su plano de datos; Cilium es el único con soporte L7. Overhead medido por escenario (Apéndice~\ref{chap:apendice_oe2}, \S\ref{sec:apb2_overhead}): variación de latencia entre $-43.16\%$ y $+31.45\%$; pérdida máxima de throughput $4.35\%$. Delimitación y comparación con marcos de referencia en \S\ref{sec:delimitacion_oe2} de la Discusión. \\
 \hline
 OE3: Desarrollar criterios y métricas para la comparación objetiva entre CNIs. & CUMPLIDO --- Algoritmo IQR validado con outlier controlado. Normalización min-max verificada. Scoring MCDA calculado para 3 perfiles. \\
 \hline

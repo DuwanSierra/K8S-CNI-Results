@@ -1,0 +1,296 @@
+% ─────────────────────────────────────────────────────────────────────────────
+% APÉNDICE B — Configuración y evaluación de las Network Policies por CNI (OE2)
+% ─────────────────────────────────────────────────────────────────────────────
+
+% ── Paleta de colores del apéndice OE2 ──────────────────────────────────────
+\definecolor{oe2azul}    {HTML}{0B3D91}   % encabezados principales
+\definecolor{oe2azulcl}  {HTML}{E6ECF6}   % filas alternas
+\definecolor{oe2verde}   {HTML}{1B5E20}   % PASA / cumplimiento positivo
+\definecolor{oe2verdecl} {HTML}{E8F5E9}
+\definecolor{oe2ambar}   {HTML}{E65100}   % requiere atención
+\definecolor{oe2ambarcl} {HTML}{FFF3E0}
+\definecolor{oe2rojo}    {HTML}{B71C1C}   % NO SOPORTA / falla
+\definecolor{oe2rojocl}  {HTML}{FFEBEE}
+\definecolor{oe2gris}    {HTML}{37474F}   % subtítulos
+\definecolor{oe2griscl}  {HTML}{ECEFF1}   % fondo de notas
+
+\chapter{Configuración y evaluación de las Network Policies por CNI} \label{chap:apendice_oe2}
+
+Este apéndice reúne la evidencia técnica que respalda el Objetivo Específico 2: \emph{Evaluar cómo la configuración segura y automatizada de las políticas de red adaptadas a cada plugin CNI reduce la superficie de ataque y la probabilidad de incidentes de seguridad en clústeres Kubernetes}. Se documentan el alcance operativo bajo el que se interpretaron los resultados, los requisitos verificables que se derivan del enunciado, la matriz extendida de casos de prueba, el detalle del overhead por escenario, los fragmentos de configuración adaptados a cada CNI y el mapeo a marcos de referencia de la industria. El objetivo es dar trazabilidad entre cada decisión de configuración y cada resultado del cuerpo principal, de manera que las conclusiones puedan contrastarse con la evidencia. Las decisiones de alcance se declaran de forma explícita para acotar lo que esa evidencia sostiene.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Alcance operativo declarado} \label{sec:apb2_alcance}
+
+El enunciado original del OE2 introduce dos términos ---\emph{superficie de ataque} y \emph{probabilidad de incidentes de seguridad}--- que pertenecen al vocabulario de la gestión de riesgos pero que no fueron medidos en este trabajo con métricas cuantitativas estándar de la industria (recuento de CVE, técnicas MITRE ATT\&CK bloqueadas, modelos formales de amenazas). Hacerlo habría exigido capacidades y herramientas fuera del alcance del laboratorio. Para sostener la evaluación con la evidencia disponible, este apéndice introduce las siguientes definiciones operativas, que se aplican a lo largo del manuscrito.
+
+\begin{itemize}
+    \item \textbf{Superficie de ataque} se define operativamente como el \emph{conjunto de flujos de red autorizados entre Pods o namespaces del clúster}. Su reducción se observa cuando el número de pares (origen, destino, puerto) permitidos por la política declarativa disminuye respecto al estado por defecto del clúster, donde toda comunicación interna está permitida. El bloqueo efectivo de un flujo no autorizado en una prueba de conectividad ---por ejemplo, el rechazo del tráfico Frontend$\rightarrow$Database en TC-SEC-04--- constituye evidencia directa de esta reducción.
+
+    \item \textbf{Probabilidad de incidentes de seguridad} se define como una \emph{aproximación cualitativa} de la capacidad del CNI para bloquear los movimientos laterales y los egresos prohibidos declarativamente en los tres casos de uso ejecutados (\texttt{zero\_trust}, \texttt{multi\_tier} y \texttt{egress\_block}). No se trata de una probabilidad estadística calculada a partir de una frecuencia base de incidentes; es una proxy observacional que permite comparar capacidades de \emph{enforcement} entre CNIs.
+
+    \item \textbf{Vulnerabilidades a reducir} se entienden como \emph{configuraciones inseguras por defecto} ---comunicación inter-Pod abierta, ausencia de \emph{default-deny}, egress externo no controlado, ausencia de segmentación entre tiers de aplicación---, no como CVE conocidos en el código del CNI o de Kubernetes.
+\end{itemize}
+
+Esta delimitación es central: el OE2 evalúa la \emph{configuración} de políticas de red, no la resistencia del clúster frente a herramientas ofensivas concretas. La distinción se retoma con mayor detalle en \S\ref{sec:apb2_limitaciones} y en la \S\ref{sec:delimitacion_oe2} de la Discusión.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Requisitos verificables derivados del OE2} \label{sec:apb2_verbos}
+
+El enunciado del OE2 puede descomponerse en cuatro requisitos verificables (R1--R4), que imponen obligaciones contrastables con evidencia, y dos efectos esperados (E1--E2), cuya validez se sostiene a partir de los resultados de esos requisitos. La Tabla~\ref{tab:apb2_verbos} resume la descomposición y señala, para cada elemento, la sección del manuscrito que aporta la evidencia correspondiente.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Descomposición del OE2 en requisitos verificables y efectos esperados.}
+\label{tab:apb2_verbos}
+\begin{tabularx}{\textwidth}{|c|l|Y|Y|}
+\hline
+\textbf{Id} & \textbf{Requisito} & \textbf{Obligación a demostrar} & \textbf{Anclaje en el manuscrito} \\
+\hline
+R1 & Configurar de forma segura y automatizada & Políticas de red declarativas, versionadas y aplicadas sin intervención manual sobre el clúster. & \S\ref{sec:apb2_adaptacion} y TC-SEC-08 (\S\ref{sec:apb2_matriz}). \\
+\hline
+R2 & Adaptar las políticas a cada plugin CNI & Uso de capacidades específicas del CNI, no solo \texttt{NetworkPolicy} estándar de Kubernetes. & \S\ref{sec:apb2_adaptacion}, fragmentos de configuración por CNI. \\
+\hline
+R3 & Evaluar la reducción de la superficie de ataque & Procedimiento que compare el antes y el después, con y sin políticas, y entre CNIs. & \S\ref{sec:apb2_matriz} y \S\ref{sec:apb2_overhead}. \\
+\hline
+R4 & Determinar la capacidad de reducir vulnerabilidades & Conclusión técnica trazable a partir de la evidencia de R3. & \S\ref{sec:apb2_mapeo} y Tabla~\ref{tab:cumplimiento-objetivos}. \\
+\hline
+E1 & Reducir la superficie de ataque & Efecto medible operativamente según \S\ref{sec:apb2_alcance}. & Evidencia: TC-SEC-04, TC-SEC-06, TC-SEC-07. \\
+\hline
+E2 & Prevenir incidentes de seguridad & Efecto medible operativamente según \S\ref{sec:apb2_alcance}. & Evidencia: \texttt{zero\_trust}, \texttt{multi\_tier}, \texttt{egress\_block}. \\
+\hline
+\end{tabularx}
+\end{table}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Matriz extendida de casos de prueba TC-SEC} \label{sec:apb2_matriz}
+
+La Tabla~\ref{tab:apb2_matriz_ext} reescribe la matriz TC-SEC del cuerpo principal (Tabla~\ref{tab:matriz-seguridad}) añadiendo, para cada caso, la amenaza modelada y el requisito del OE2 al que aporta evidencia. Con ello, cada afirmación del objetivo queda trazada hasta la prueba concreta que la respalda y hasta el criterio operativo con el que se verificó.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Matriz extendida TC-SEC: cada caso de prueba, amenaza modelada y requisito del OE2 al que aporta evidencia.}
+\label{tab:apb2_matriz_ext}
+\begin{tabularx}{\textwidth}{|l|Y|Y|c|}
+\hline
+\textbf{TC-SEC} & \textbf{Amenaza modelada} & \textbf{Verificación operativa} & \textbf{Requisito} \\
+\hline
+01 Default Deny Ingress & Comunicación entrante no autorizada hacia el namespace. & \texttt{nc -zv <pod-ip> 8080}; éxito = timeout en \(<5\) s. & R3, E1 \\
+\hline
+02 Default Deny Egress & Conexiones salientes no autorizadas desde Pods de producción. & \texttt{curl --max-time 3}; éxito = timeout. & R3, E1 \\
+\hline
+03 Frontend$\rightarrow$Backend permitido & Funcionalidad legítima preservada bajo política activa. & \texttt{nc -zv backend 8080}; éxito = \emph{Connection succeeded}. & R3 \\
+\hline
+04 Bloqueo Frontend$\rightarrow$Database & Movimiento lateral directo desde la capa de presentación a la capa de datos. & \texttt{nc -zv database 5432}; éxito = \emph{Connection refused} o timeout. & R3, E1, E2 \\
+\hline
+05 Backend$\rightarrow$Database permitido & Funcionalidad legítima preservada bajo política activa. & \texttt{nc -zv database 5432}; éxito = \emph{Connection succeeded}. & R3 \\
+\hline
+06 Database no inicia conexiones salientes & Exfiltración o comportamiento anómalo desde la capa de datos. & Egress denegado por política; éxito = bloqueo confirmado. & R3, E2 \\
+\hline
+07 Bloqueo entre namespaces & Movimiento lateral cruzando límites de namespace. & Pod de \texttt{staging} no alcanza Pods de \texttt{production}; éxito = bloqueo confirmado. & R3, E1, E2 \\
+\hline
+08 Auto-restauración ArgoCD & Persistencia del estado seguro frente a desviaciones operativas. & Borrado manual; éxito = restauración automática en \(<2\) min. & R1 \\
+\hline
+\end{tabularx}
+\end{table}
+
+La columna ``Requisito'' funciona como traza directa entre cada prueba y el enunciado del OE2. Así, el efecto de \emph{prevenir incidentes} (E2) se respalda en los casos etiquetados con E2 ---TC-SEC-04, 06 y 07---, mientras que la \emph{reducción de la superficie de ataque} (E1) se apoya en TC-SEC-01, 02, 04 y 07; el resto de requisitos se lee de forma análoga.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Adaptación específica por CNI (R2)} \label{sec:apb2_adaptacion}
+
+El requisito R2 establece que las políticas no deben ser idénticas para los cuatro CNIs, sino aprovechar las capacidades diferenciales de cada plugin cuando estén disponibles. La Tabla~\ref{tab:apb2_adaptacion} resume las decisiones de adaptación adoptadas y la capacidad concreta que explota cada una; los fragmentos de configuración que siguen materializan los casos más representativos.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Capacidades específicas por CNI explotadas en las políticas de red.}
+\label{tab:apb2_adaptacion}
+\begin{tabularx}{\textwidth}{|l|Y|Y|}
+\hline
+\textbf{CNI} & \textbf{Recurso usado} & \textbf{Capacidad diferencial explotada} \\
+\hline
+Flannel & \texttt{NetworkPolicy} estándar (intencionalmente, como control negativo). & Ninguna: Flannel no implementa \emph{enforcement} de políticas en su plano de datos. \\
+\hline
+Calico & \texttt{NetworkPolicy} estándar L3/L4 gestionada por Tigera Operator. & \emph{Enforcement} maduro de políticas L3/L4 sobre el encapsulamiento VXLAN, sin requerir CRD propios. \\
+\hline
+Cilium & \texttt{CiliumNetworkPolicy} (\textbf{L7}). & Filtrado HTTP nativo en eBPF (\texttt{GET}/\texttt{HEAD} permitidos de frontend a backend; \texttt{POST}, \texttt{PUT}, \texttt{DELETE} bloqueados) sin \emph{service mesh}. \\
+\hline
+Antrea & \texttt{ClusterNetworkPolicy} en Tier \texttt{securityops}. & Sistema jerárquico de Tiers que da prioridad a la política corporativa sobre cualquier \texttt{NetworkPolicy} de namespace, alineable a ISO~27001 y SOC~2. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Fragmento de \texttt{CiliumNetworkPolicy} (L7)} \label{subsec:apb2_yaml_cilium}
+
+El siguiente fragmento ilustra el filtrado L7 por método HTTP implementado en el caso de uso \texttt{multi\_tier} bajo Cilium. Solo se permiten los métodos \texttt{GET} y \texttt{HEAD} desde Pods etiquetados como \texttt{tier=frontend} hacia el servicio \texttt{backend}.
+
+\begin{lstlisting}
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: frontend-to-backend-l7
+  namespace: production
+spec:
+  endpointSelector:
+    matchLabels: { tier: backend }
+  ingress:
+  - fromEndpoints:
+    - matchLabels: { tier: frontend }
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+      rules:
+        http:
+        - method: "GET"
+        - method: "HEAD"
+\end{lstlisting}
+
+\subsection{Fragmento de \texttt{ClusterNetworkPolicy} de Antrea (Tier securityops)} \label{subsec:apb2_yaml_antrea}
+
+La política corporativa de Antrea opera en un Tier de mayor prioridad que las \texttt{NetworkPolicy} estándar de namespace, lo que impide que un desarrollador la sobrescriba inadvertidamente desde su namespace.
+
+\begin{lstlisting}
+apiVersion: crd.antrea.io/v1beta1
+kind: ClusterNetworkPolicy
+metadata:
+  name: corp-block-frontend-to-db
+spec:
+  tier: securityops
+  priority: 5
+  appliedTo:
+  - podSelector:
+      matchLabels: { tier: database }
+  ingress:
+  - action: Drop
+    from:
+    - podSelector:
+        matchLabels: { tier: frontend }
+\end{lstlisting}
+
+\subsection{Default Deny base} \label{subsec:apb2_yaml_deny}
+
+El punto de partida de los tres casos de uso es una política de denegación total. Sobre esta base se habilita explícitamente cada flujo permitido, materializando el principio de \emph{least privilege} de Zero Trust~\cite{ref24,ref25}.
+
+\begin{lstlisting}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: production
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+\end{lstlisting}
+
+Los manifiestos completos (incluidas las variantes \texttt{zero\_trust}, \texttt{multi\_tier} y \texttt{egress\_block} para los cuatro CNIs) se publican en \texttt{K8s-Tesis-Apps/network\_policies/} (Apéndice~\ref{chap:apendice_a}).
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Overhead por CNI y caso de uso} \label{sec:apb2_overhead}
+
+La Tabla~\ref{tab:apb2_overhead_detalle} extiende los datos de la Tabla~\ref{tab:overhead-seguridad} del cuerpo principal y los presenta junto al \emph{baseline} OE1 sin políticas. Esto permite interpretar los porcentajes en su magnitud absoluta y no solo como variaciones relativas.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Overhead detallado de Network Policies por CNI y caso de uso, contextualizado con el baseline OE1.}
+\label{tab:apb2_overhead_detalle}
+\begin{tabularx}{\textwidth}{|l|c|c|Y|Y|Y|}
+\hline
+\textbf{CNI} & \textbf{Thr base (Mbps)} & \textbf{Lat base (ms)} & \textbf{Zero Trust} & \textbf{Multi-Tier} & \textbf{Egress Block} \\
+\hline
+Calico & 1804.40 & 12.54 & Thr $-0.25\%$ / Lat $-21.11\%$ & Thr $-0.25\%$ / Lat $+31.45\%$ & Thr $-1.36\%$ / Lat $-22.25\%$ \\
+\hline
+Cilium & 843.56 & 18.73 & Thr $+111.53\%$ / Lat $-43.16\%$ & Thr $+92.07\%$ / Lat $+3.70\%$ & Thr $+108.05\%$ / Lat $-37.43\%$ \\
+\hline
+Antrea & 1588.45 & 35.09 & Thr $+4.40\%$ / Lat $-28.77\%$ & Thr $+13.46\%$ / Lat $-25.16\%$ & Thr $-4.35\%$ / Lat $-27.15\%$ \\
+\hline
+Flannel & 1452.97 & 21.53 & \multicolumn{3}{c|}{No aplica: Flannel no implementa Network Policies en el plano de datos.} \\
+\hline
+\end{tabularx}
+\end{table}
+
+En Calico y Antrea el overhead de throughput se mantiene por debajo del $5\%$ y la latencia varía dentro de un rango operativo aceptable, de modo que las Network Policies en el plano de datos no imponen un costo prohibitivo. Flannel no aparece con cifras porque no aplica políticas en su plano de datos: se trata de una exclusión estructural, no de un valor numérico desfavorable. Cilium muestra un comportamiento distinto, con incrementos de throughput de entre $+92.07\%$ y $+111.53\%$ y reducciones de latencia de hasta $-43.16\%$ al activar las políticas. Estas cifras conviene leerlas junto a su \emph{baseline} OE1 (843.56~Mbps, el más bajo de los cuatro CNIs): la activación de políticas, o algún ajuste asociado a ella, acerca a Cilium al rango del resto de plugins, lo que apunta a un baseline subóptimo en este testbed más que a una mejora atribuible a las políticas. El cuerpo principal asocia este comportamiento al bypass del kernel mediante eBPF~\cite{ref10,ref27}; confirmarlo exige replicación con otras versiones de Cilium, kernel y MTU, por lo que el dato no se generaliza.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Mapeo a marcos de referencia} \label{sec:apb2_mapeo}
+
+La Tabla~\ref{tab:apb2_mapeo} alinea los casos de prueba TC-SEC con los marcos conceptuales que sustentan la decisión de qué controles evaluar. El mapeo es \emph{conceptual} ---no se afirma cumplimiento certificado de ningún marco--- y permite contextualizar el alcance del OE2 dentro del vocabulario habitual de la industria.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Mapeo conceptual de los casos TC-SEC a controles de marcos de referencia.}
+\label{tab:apb2_mapeo}
+\begin{tabularx}{\textwidth}{|l|Y|Y|}
+\hline
+\textbf{TC-SEC} & \textbf{Principio Zero Trust (NIST SP 800-207)} & \textbf{Patrón de seguridad evaluado} \\
+\hline
+01, 02 & Verificación explícita por flujo; denegación por defecto. & Segmentación por namespace y \emph{default deny}. \\
+\hline
+03, 05 & Acceso de mínimo privilegio aplicado a comunicaciones legítimas. & Habilitación selectiva por etiqueta de aplicación. \\
+\hline
+04, 07 & Reducción de movimiento lateral mediante microsegmentación. & Aislamiento entre tiers y entre namespaces. \\
+\hline
+06 & Asumir compromiso: el componente más sensible (DB) no inicia conexiones salientes. & Egress restringido en la capa de datos. \\
+\hline
+08 & Postura de seguridad mantenida continuamente, no establecida una sola vez. & Reconciliación declarativa por GitOps. \\
+\hline
+\end{tabularx}
+\end{table}
+
+El alcance del OE2 se limita al \emph{enforcement} de red dentro del clúster. Quedan explícitamente fuera del alcance: el \emph{admission control} (validación previa al despliegue de las políticas con herramientas como OPA/Gatekeeper o Kyverno), la detección y respuesta en \emph{runtime} (Falco, Tetragon), el \emph{service mesh} con mTLS para garantizar identidad criptográfica entre servicios~\cite{ref26}, la seguridad de la cadena de suministro y la verificación de imágenes. Estas dimensiones complementarias se discuten en la \S\ref{sec:delimitacion_oe2} de la Discusión.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Limitaciones técnicas del OE2} \label{sec:apb2_limitaciones}
+
+La Tabla~\ref{tab:apb2_limitaciones} enumera las limitaciones técnicas que conviene tener presentes al interpretar los resultados del OE2. Cada una se acompaña de la justificación de alcance que delimita su efecto sobre las conclusiones, situando con precisión hasta dónde llega la evidencia y dónde comienza el trabajo futuro.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Limitaciones técnicas del OE2 y su justificación de alcance.}
+\label{tab:apb2_limitaciones}
+\begin{tabularx}{\textwidth}{|l|Y|Y|}
+\hline
+\textbf{Id} & \textbf{Limitación} & \textbf{Justificación de alcance} \\
+\hline
+L1 & La superficie de ataque no se cuantifica como métrica numérica (flujos permitidos antes/después). & Se utiliza el bloqueo efectivo de flujos como evidencia operativa, no una cuenta absoluta. Métrica cuantitativa: trabajo futuro. \\
+\hline
+L2 & La probabilidad de incidentes es una proxy cualitativa, no estadística. & No existe frecuencia base de incidentes en el laboratorio. \\
+\hline
+L3 & La automatización cubre despliegue declarativo y reconciliación, no \emph{admission control}. & OPA/Gatekeeper o Kyverno como validación previa al \emph{merge} no son parte del OE2. \\
+\hline
+L4 & Las TC-SEC son binarias (pasa/falla); no miden tiempo hasta detección ni eventos de registro. & El OE2 evalúa \emph{enforcement}; la detección y respuesta pertenecen al ámbito SIEM/runtime. \\
+\hline
+L5 & La aplicación de pruebas es una topología frontend/backend/database mínima. & Reproduce el patrón dominante de microservicios; no agota la complejidad de producción. \\
+\hline
+L6 & El egreso DNS se prueba como permitido o denegado, no por sofisticación (DNS-tunneling, DoH, NXDOMAIN). & Los ataques DNS avanzados requieren herramientas específicas fuera del alcance. \\
+\hline
+L7 & El overhead se mide bajo carga sintética de iperf3, no bajo tráfico aplicacional real. & iperf3 funciona como cota superior del costo; el tráfico real ejerce menor presión sobre el plano de datos. \\
+\hline
+L8 & El incremento de throughput de Cilium con políticas activas requiere replicación independiente. & Se interpreta junto a su baseline OE1 (\S\ref{sec:apb2_overhead}); no se usa como argumento general. \\
+\hline
+L9 & Se ejecutaron 5 corridas por escenario; los porcentajes con valores absolutos pequeños tienen incertidumbre relativa alta. & Compromiso entre rigor estadístico y costo del laboratorio cloud; outliers filtrados por IQR. \\
+\hline
+L10 & El modelo de amenazas no se formaliza con MITRE ATT\&CK ni STRIDE. & El mapeo de \S\ref{sec:apb2_mapeo} es conceptual; la formalización es trabajo futuro. \\
+\hline
+\end{tabularx}
+\end{table}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Reproducibilidad del OE2} \label{sec:apb2_reproducibilidad}
+
+Los manifiestos y \emph{overlays} de \texttt{Kustomize} que materializan las políticas evaluadas se encuentran en el repositorio \texttt{K8s-Tesis-Apps}, dentro del directorio \texttt{network\_policies/}. La estructura de directorios es la siguiente:
+
+\begin{itemize}
+    \item \texttt{network\_policies/base/}: aplicación de prueba (frontend, backend, database) y \emph{CronJobs} de medición.
+    \item \texttt{network\_policies/use-case-1-zero-trust/}: \emph{default deny} y permiso explícito al tráfico de \emph{benchmark}.
+    \item \texttt{network\_policies/use-case-2-multi-tier/}: reglas \texttt{frontend $\to$ backend $\to$ database} por etiquetas.
+    \item \texttt{network\_policies/use-case-3-egress-block/}: bloqueo de egreso externo manteniendo DNS y tráfico interno.
+    \item \texttt{network\_policies/overlays/\{calico,cilium,antrea\}/\{zero-trust,multi-tier,egress-block\}/}: especialización por CNI, incluyendo \texttt{cilium-l7-policy.yaml} y \texttt{antrea-security-tier.yaml}.
+\end{itemize}
+
+La rotación entre CNIs se realiza desde el flujo de provisionamiento descrito en el Apéndice~\ref{chap:apendice_a}; el reciclaje del clúster garantiza que las pruebas se ejecuten sobre el plano de datos correspondiente a cada plugin en su configuración nativa.
