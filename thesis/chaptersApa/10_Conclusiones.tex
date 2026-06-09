@@ -1,15 +1,15 @@
 \chapter{Conclusiones} \label{sec:Conclusiones}
 
-Los resultados del experimento permiten formular las siguientes conclusiones por objetivo específico:
+Los resultados experimentales arrojan las siguientes conclusiones por objetivo específico:
 
 \begin{itemize}
-    \item \textbf{Evaluación cuantitativa de rendimiento (OE1):} Las pruebas controladas demostraron que Calico ofrece el mayor rendimiento bruto en la red del testbed, con un throughput promedio de 1804.40 Mbps y la menor latencia de conexión (12.54 ms). Cilium y Flannel mostraron latencias y rendimientos moderados, mientras que Antrea registró la latencia más alta (35.09 ms). En términos de estabilidad de transmisión, Flannel registró la menor tasa de pérdida con 11774 retransmisiones TCP frente a las 68993 de Calico.
+    \item \textbf{OE1 (Rendimiento):} Calico entregó el mayor throughput TCP (1804.40 Mbps) y la menor latencia (12.54 ms). No obstante, Flannel demostró mayor eficiencia y estabilidad de enlace al registrar la menor cantidad de retransmisiones (11774 frente a las 68993 de Calico).
     
-    \item \textbf{Políticas de seguridad Zero Trust (OE2):} Se comprobó que Calico, Cilium y Antrea realizan el enforcement correcto de las Network Policies con un impacto controlado y moderado en el rendimiento de red. De forma crítica, se determinó que Flannel carece de soporte para Network Policies en su plano de datos, por lo que no hace efectivas las políticas aplicadas, representando un riesgo de seguridad latente y silencioso para el clúster.
+    \item \textbf{OE2 (Seguridad Zero Trust):} Calico, Cilium y Antrea aplican correctamente las Network Policies. Flannel presenta una vulnerabilidad arquitectónica al aceptar las políticas en la API de Kubernetes pero omitir su enforcement en el plano de datos, permitiendo tráfico no autorizado. Cilium fue la única solución capaz de aplicar reglas a nivel de capa 7 (HTTP).
     
-    \item \textbf{Desarrollo del modelo MCDA (OE3):} El modelo de decisión multicriterio desarrollado demostró ser una herramienta robusta para reconciliar requerimientos contrapuestos de QoS, recursos y seguridad. La normalización min-max y la limpieza estadística mediante el rango intercuartílico (IQR) permitieron evaluar con objetividad a los diferentes CNIs según el perfil empresarial (seguridad para Fintech, throughput para Streaming y bajo consumo de memoria RAM para IoT).
+    \item \textbf{OE3 (Modelo MCDA):} El algoritmo de normalización min-max y filtrado IQR resolvió las contrapartidas de rendimiento. El modelo identificó a Cilium como la opción óptima para el perfil Fintech (3.631) por su seguridad L7, y a Flannel para Streaming (3.686) e IoT (3.834) por su baja tasa de retransmisión y eficiencia de recursos.
     
-    \item \textbf{Prototipo recomendador web (OE4):} El desarrollo de la aplicación web SPA basada en React e integrada a un pipeline automatizado validó la factibilidad de exponer los resultados del modelo MCDA de forma interactiva y amigable. Las pruebas funcionales confirmaron la consistencia e integridad de los datos end-to-end sin pérdida de precisión.
+    \item \textbf{OE4 (Prototipo Recomendador):} La evaluación multicriterio se integró de forma exitosa en una SPA. La herramienta recalcula dinámicamente el ranking y provee manifiestos de instalación accionables basándose en los datos crudos del clúster sin pérdida de precisión.
 \end{itemize}
 
-Estos hallazgos confirman que la selección fundamentada de un complemento CNI ---apoyada en evidencia empírica y un modelo de decisión estructurado--- mejora simultáneamente el rendimiento técnico del clúster, reduce el riesgo de seguridad y optimiza los costos operativos. La combinación de un testbed reproducible, políticas Zero Trust automatizadas con GitOps y un modelo MCDA parametrizable por perfil constituye una metodología transferible a cualquier organización que opere Kubernetes en producción.
+La selección de un plugin CNI impacta directamente en el consumo de recursos de los nodos, la seguridad perimetral de los pods y el rendimiento de red. Una elección sustentada en datos, combinada con automatización GitOps, minimiza el sobredimensionamiento de infraestructura y el riesgo de brechas laterales.
