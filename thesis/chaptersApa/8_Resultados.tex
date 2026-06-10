@@ -19,6 +19,7 @@ Se definió un escenario de referencia con los siguientes parámetros fijos para
 \hline
 Tipo de instancia cloud & DigitalOcean Droplet --- Ubuntu 22.04 LTS, 2 vCPU, 4 GB RAM para nodos Worker \\
 \hline
+% VERIFICAR: anclar versión exacta de K3s (ej. v1.31.x+k3s1) desde los logs del clúster (kubectl version)
 Versión de Kubernetes & K3s canal stable --- la misma versión en todos los ciclos de prueba \\
 \hline
 Región del datacenter & nyc3 (Nueva York) --- mismo datacenter para todos los nodos en todas las pruebas \\
@@ -152,7 +153,7 @@ TC-SEC-06: Database NO inicia conexiones & La base de datos nunca inicia conexio
 \hline
 TC-SEC-07: Bloqueo entre namespaces & Un Pod de namespace staging no puede comunicarse con Pods de production. ÉXITO: Bloqueo confirmado. \\
 \hline
-TC-SEC-08: GitOps Auto-restauración & Si una política se elimina manualmente, ArgoCD la restaura en menos de 3 minutos. ÉXITO: Política restaurada automáticamente. \\
+TC-SEC-08: GitOps Auto-restauración & Si una política se elimina manualmente, ArgoCD la restaura en menos de 2 minutos. ÉXITO: Política restaurada automáticamente. \\
 \hline
 \end{tabularx}
 \end{table}
@@ -202,7 +203,7 @@ Se ejecutaron las pruebas de rendimiento nuevamente con las políticas de seguri
 \begin{table}[htbp]
 \centering
 \scriptsize
-\caption{Porcentaje de overhead (impacto negativo) introducido al activar Network Policies por escenario.}
+\caption{Impacto en rendimiento al activar Network Policies por escenario (signo negativo indica reducción favorable; positivo, incremento desfavorable).}
 \label{tab:overhead-seguridad}
 \begin{tabularx}{\textwidth}{|Y|c|c|c|}
 \hline
@@ -243,7 +244,7 @@ Uso de RAM promedio --- MB \newline\textit{($\downarrow$ menor es mejor)} & \tex
 \end{tabularx}
 \end{table}
 
-Los resultados de consumo revelan que Flannel es el CNI más liviano en el host, consumiendo solo un 19.45% de CPU del nodo y 1176.54 MB de memoria RAM promedio bajo estrés. Por el contrario, Calico registra la huella más pesada con un 29.05% de CPU y 1672.83 MB de RAM. Cilium y Antrea ocupan puestos intermedios, donde Cilium consume un 25.79% de CPU y 1497.19 MB de RAM, y Antrea consume un 27.75% de CPU y 1429.95 MB de RAM. Estos resultados demuestran que el datapath minimalista de Flannel minimiza el costo fijo en hardware, haciéndolo atractivo para clústeres pequeños o con recursos limitados.
+Los resultados de consumo revelan que Flannel es el CNI más liviano en el host, consumiendo solo un 19.45\% de CPU del nodo y 1176.54 MB de memoria RAM promedio bajo estrés. Por el contrario, Calico registra la huella más pesada con un 29.05\% de CPU y 1672.83 MB de RAM. Cilium y Antrea ocupan puestos intermedios, donde Cilium consume un 25.79\% de CPU y 1497.19 MB de RAM, y Antrea consume un 27.75\% de CPU y 1429.95 MB de RAM. Estos resultados demuestran que el datapath minimalista de Flannel minimiza el costo fijo en hardware, haciéndolo atractivo para clústeres pequeños o con recursos limitados.
 
 \section{Validación del Modelo Matemático MCDA --- Objetivo Específico 3}
 
@@ -330,7 +331,7 @@ IoT / Recursos limitados & $\star$ \textbf{3.834} & 2.952 & 3.232 & 2.224 \\
 \end{tabularx}
 \end{table}
 
-Los resultados son coherentes con las expectativas técnicas y el comportamiento de los perfiles. Cilium lidera el perfil Fintech debido a su alto puntaje de seguridad (5.00) y baja penalización en latencia de políticas de red. Para Streaming, Flannel resulta ganador gracias a su combinación de estabilidad en retransmisiones de paquetes y eficiencia de CPU/RAM. Para IoT, Flannel se ratifica en primer lugar con un puntaje de 3.834 gracias a su bajísima huella de memoria (1176.54 MB) y CPU (19.45%), lo cual es ideal para dispositivos con recursos computacionales muy limitados.
+Los resultados son coherentes con las expectativas técnicas y el comportamiento de los perfiles. Cilium lidera el perfil Fintech debido a su alto puntaje de seguridad (5.00) y baja penalización en latencia de políticas de red. Para Streaming, Flannel resulta ganador gracias a su combinación de estabilidad en retransmisiones de paquetes y eficiencia de CPU/RAM. Para IoT, Flannel se ratifica en primer lugar con un puntaje de 3.834 gracias a su bajísima huella de memoria (1176.54 MB) y CPU (19.45\%), lo cual es ideal para dispositivos con recursos computacionales muy limitados.
 
 \section{El Prototipo Recomendador CNI como Herramienta de Decisión y Despliegue} \label{sec:prototipo_recomendador}
 
@@ -379,6 +380,8 @@ Por ejemplo, al seleccionar a Cilium en un perfil regulado (Fintech), el recomen
 \end{figure}
 
 \subsection{Pruebas de Corrección Funcional}
+
+Para verificar que la SPA produce los rankings correctos en cada perfil predefinido y que el motor MCDA opera sin pérdida de precisión numérica a lo largo del pipeline, se ejecutaron ocho casos de prueba funcionales y una traza de extremo a extremo sobre un dato real del laboratorio.
 
 \begin{table}[htbp]
 \centering
@@ -461,10 +464,9 @@ OE1: Evaluar cuantitativamente el rendimiento de los 4 CNIs mediante pruebas con
 \hline
 OE2: Evaluar cómo la configuración segura de las Network Policies reduce la superficie de ataque. & CUMPLIDO dentro del alcance operativo declarado (Apéndice~\ref{chap:apendice_oe2}, \S\ref{sec:apb2_alcance}). 8 casos de prueba de seguridad ejecutados en los 4 CNIs; Flannel no implementa Network Policies en su plano de datos; Cilium es el único con soporte L7. Overhead medido por escenario (Apéndice~\ref{chap:apendice_oe2}, \S\ref{sec:apb2_overhead}): variación de latencia entre $-43.16\%$ y $+31.45\%$; pérdida máxima de throughput $4.35\%$. Delimitación y comparación con marcos de referencia en \S\ref{sec:delimitacion_oe2} de la Discusión. \\
 \hline
-OE3: Desarrollar criterios y métricas para la comparación objetiva entre CNIs. & CUMPLIDO --- Algoritmo IQR validado con outlier controlado. Normalización min-max verificada. Scoring MCDA calculado para 3 perfiles. \\
+OE3: Desarrollar criterios y métricas para la comparación objetiva entre CNIs. & CUMPLIDO --- Algoritmo IQR validado con outlier controlado. Normalización min-max verificada. Scoring MCDA calculado para 3 perfiles. Lista de verificación de selección de CNI elaborada (Apéndice~\ref{chap:apendice_oe3}, \S\ref{sec:apb_checklist}). \\
 \hline
 OE4: Implementar un prototipo funcional que recomiende el CNI más adecuado. & CUMPLIDO --- 8 casos de prueba funcionales, todos aprobados. Prueba de integridad de datos de extremo a extremo completada. Actualización automática validada ($<$5 min). \\
 \hline
 \end{tabularx}
 \end{table}
-end{table}

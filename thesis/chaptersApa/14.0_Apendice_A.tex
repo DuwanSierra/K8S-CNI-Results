@@ -35,14 +35,14 @@ Testbed}
 El aprovisionamiento del entorno de laboratorio multi-nodo y la orquestación
 de la rotación de los cuatro CNIs se realizaron exclusivamente mediante
 Infraestructura como Código (IaC). El diseño separa responsabilidades en
-tres repositorios especializados y un pipeline Terraform de cuatro etapas
+cuatro repositorios especializados y un pipeline Terraform de cuatro etapas
 secuenciales con barreras de estado que garantizan la idempotencia del
 despliegue.
 
 % ── 1.1 Repositorios ─────────────────────────────────────────────────────────
 \subsubsection{Repositorios del Testbed}
 
-La Tabla~\ref{tab:apa_repos} enumera los tres repositorios que componen el
+La Tabla~\ref{tab:apa_repos} enumera los cuatro repositorios que componen el
 entorno de experimentación.
 
 \begin{table}[htbp]
@@ -590,7 +590,7 @@ Si el JSON no está disponible, la UI permanece funcional usando el
 conjunto de métricas embebidas; el indicador de estado informa al
 operador de la fuente activa.
 
-\begin{lstlisting}[language=Java, caption={Fetch de datos de laboratorio con fallback embebido (\texttt{App.jsx}).}, label={lst:fetch_spa}]
+\begin{lstlisting}[caption={Fetch de datos de laboratorio con fallback embebido (\texttt{App.jsx}).}, label={lst:fetch_spa}]
 useEffect(() => {
   let isMounted = true;
   fetch(`${import.meta.env.BASE_URL}cni-data.json`,
@@ -619,7 +619,7 @@ Una vez calculado el ranking, la SPA presenta al operador el comando
 de instalación del plugin recomendado y una política de red de
 denegación por defecto lista para aplicar.
 
-\begin{lstlisting}[language=Java, caption={Guías de instalación por plugin (\texttt{recommendationModel.js}).}, label={lst:impl_guides}]
+\begin{lstlisting}[caption={Guías de instalación por plugin (\texttt{recommendationModel.js}).}, label={lst:impl_guides}]
 export const implementationGuides = {
   flannel: { installCommand:
     'kubectl apply -f https://github.com/flannel-io/flannel' +

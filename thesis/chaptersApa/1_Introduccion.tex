@@ -6,6 +6,15 @@ Los equipos deben escoger entre múltiples complementos ---Calico, Cilium, Flann
 
 La pregunta de investigación que motiva este trabajo es la siguiente: ¿cómo pueden las organizaciones comparar complementos de red y automatizar políticas de comunicación segura para optimizar recursos sin degradar el rendimiento?
 
+De esta pregunta principal se derivan cuatro sub-preguntas específicas que estructuran la evaluación empírica:
+
+\begin{enumerate}
+    \item ¿Cuáles son las diferencias en velocidad de respuesta ---throughput, latencia y retransmisiones TCP--- entre los plugins CNI evaluados bajo condiciones controladas de carga?
+    \item ¿Cómo impacta cada CNI en el consumo de recursos del nodo ---CPU y memoria RAM--- durante sesiones de red de alta intensidad?
+    \item ¿Qué tan efectivo es cada CNI para aplicar Network Policies de seguridad, y cuál es el overhead que introduce sobre el rendimiento?
+    \item ¿En qué medida la diferencia de eficiencia entre plugins permite reducir el sobredimensionamiento de infraestructura a escala de clúster?
+\end{enumerate}
+
 Esta tesis tiene como objetivo desarrollar un modelo de evaluación, selección y validación de complementos CNI en clústeres Kubernetes.
 
 La evaluación empírica de complementos de red permite fundamentar esas decisiones con datos medidos, no con suposiciones. Este trabajo proporciona esa evidencia para cuatro CNIs representativos, junto con una metodología replicable por cualquier equipo que necesite realizar la misma comparación.

@@ -13,6 +13,14 @@ agente CNI, así como el impacto de políticas de red Zero Trust.
 Los resultados alimentan un modelo MCDA parametrizable por perfil de
 uso (Fintech/seguridad, Streaming/rendimiento e IoT/recursos limitados) y un prototipo
 web que expone las recomendaciones.
+Los hallazgos principales muestran que Calico alcanzó el mayor
+throughput TCP (1804.40 Mbps) y la menor latencia de establecimiento;
+que Flannel ---CNI predeterminado de K3s--- acepta NetworkPolicies en
+la API de Kubernetes pero no las aplica en su plano de datos,
+configurando un falso positivo de seguridad; y que Cilium fue el único
+plugin capaz de aplicar políticas de capa 7 (HTTP). El modelo
+recomienda Cilium para el perfil Fintech, y Flannel para los perfiles
+Streaming e IoT por su estabilidad y menor huella de recursos.
 
 \vspace{1cm}
-\textbf{Palabras clave:} Kubernetes, CNI, QoS, iperf3, Calico, Cilium, Flannel, Antrea, NetworkPolicy, Zero Trust, MCDA, K3s, DigitalOcean, GitOps, eBPF.
+\textbf{Palabras clave:} Kubernetes, CNI, NetworkPolicy, Zero Trust, MCDA, QoS, eBPF.

@@ -137,7 +137,7 @@ Para entender por qué eBPF importa en este contexto, conviene compararlo con ip
 
 Técnicamente, un programa eBPF se compila a un bytecode que el kernel verifica antes de ejecutarlo, comprobando que no acceda a memoria no autorizada ni genere bucles infinitos. Una vez aprobado, se ejecuta directamente en el kernel mediante un compilador JIT (\emph{just-in-time}), sin necesidad de copiar datos al espacio de usuario~\cite{ref27}. Esta arquitectura elimina dos fuentes principales de latencia en el procesamiento de red tradicional: las copias de memoria entre kernel y espacio de usuario, y el recorrido lineal de las cadenas de reglas de iptables.
 
-En el contexto de los CNI evaluados en este trabajo, Cilium utiliza eBPF tanto para el reenvío de paquetes entre Pods como para la aplicación de NetworkPolicies, incluidas reglas de capa 7 sobre el protocolo HTTP. Calico también ofrece un modo eBPF opcional como alternativa a su dataplane basado en iptables~\cite{ref27}.
+En el contexto de los CNI evaluados en este trabajo, Cilium utiliza eBPF tanto para el reenvío de paquetes entre Pods como para la aplicación de NetworkPolicies, incluidas reglas de capa 7 sobre el protocolo HTTP. Calico también ofrece un modo eBPF opcional como alternativa a su dataplane basado en iptables~\cite{ref10}.
 
 \section{Arquitectura de Confianza Cero y control de red en Kubernetes}
 
@@ -151,7 +151,7 @@ Un aspecto crítico, y directamente relevante para este trabajo, es que la Netwo
 
 \section{Análisis de Decisión Multicriterio (MCDA)}
 
-El Análisis de Decisión Multicriterio (MCDA) es un conjunto de métodos formales para seleccionar entre alternativas cuando existen múltiples criterios de evaluación con distinta importancia relativa~\cite{ref9}. Es el enfoque adecuado cuando ninguna alternativa es la mejor en todas las dimensiones al mismo tiempo: en este trabajo, ningún CNI lidera simultáneamente en throughput, latencia, consumo de CPU, consumo de RAM y capacidades de seguridad. Ignorar ese compromiso y elegir únicamente por throughput equivale a comprar un automóvil mirando solo la velocidad máxima.
+El Análisis de Decisión Multicriterio (MCDA) es un conjunto de métodos formales para seleccionar entre alternativas cuando existen múltiples criterios de evaluación con distinta importancia relativa~\cite{ref34}. Es el enfoque adecuado cuando ninguna alternativa es la mejor en todas las dimensiones al mismo tiempo: en este trabajo, ningún CNI lidera simultáneamente en throughput, latencia, consumo de CPU, consumo de RAM y capacidades de seguridad. Ignorar ese compromiso y elegir únicamente por throughput equivale a comprar un automóvil mirando solo la velocidad máxima.
 
 El modelo implementado en este trabajo utiliza la \textbf{suma ponderada} como método de agregación:
 \[

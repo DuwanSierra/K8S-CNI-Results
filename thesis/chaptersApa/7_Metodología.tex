@@ -12,7 +12,7 @@ El entorno de pruebas se diseñó para que el CNI sea la única variable entre c
 
 \subsubsection{Red underlay}
 
-La red underlay constituye la infraestructura física sobre la que opera el clúster. Se optó por la nube pública de DigitalOcean en lugar de servidores físicos propios, ya que la homogeneidad del entorno elimina el ruido de hardware local ---variabilidad de NIC, temperatura, interferencias--- y garantiza que cualquier diferencia medida en throughput, latencia o CPU sea atribuible al CNI y no al sustrato \cite{ref2}. El aprovisionamiento se realizó mediante Terraform, herramienta de Infraestructura como Código (IaC): la configuración completa de los servidores queda descrita en archivos versionados, lo que permite reproducir el entorno de forma idéntica. Esta reproducibilidad es una condición necesaria para la validez del experimento, pues sin ella la comparación entre CNIs pierde valor probatorio \cite{ref7}.
+La red underlay constituye la infraestructura física sobre la que opera el clúster. Se optó por la nube pública de DigitalOcean en lugar de servidores físicos propios, ya que la homogeneidad del entorno elimina el ruido de hardware local ---variabilidad de NIC, temperatura, interferencias--- y garantiza que cualquier diferencia medida en throughput, latencia o CPU sea atribuible al CNI y no al sustrato. El aprovisionamiento se realizó mediante Terraform, herramienta de Infraestructura como Código (IaC): la configuración completa de los servidores queda descrita en archivos versionados, lo que permite reproducir el entorno de forma idéntica. Esta reproducibilidad es una condición necesaria para la validez del experimento, pues sin ella la comparación entre CNIs pierde valor probatorio \cite{ref7}.
 
 Se utilizó K3s ---distribución liviana de Kubernetes--- con un nodo Master, datastore PostgreSQL gestionado por DigitalOcean y dos nodos Worker dedicados. El menor \emph{footprint} de K3s frente a Kubernetes estándar deja una mayor proporción de CPU y RAM disponible para el CNI, lo que aumenta la sensibilidad de las mediciones; el datastore externo elimina el punto único de fallo del plano de control sin la complejidad operativa de un clúster etcd. La topología incluye una red privada VPC para el tráfico interno entre nodos, de manera que la latencia medida dependa exclusivamente de la eficiencia del CNI y no de la variabilidad de Internet público \cite{ref8}.
 
@@ -48,7 +48,7 @@ La selección de estos cuatro CNI no es arbitraria: cada uno aporta un punto de 
 
 \subsection{Sistema de Medición de Calidad de Servicio (QoS)}
 
-La Calidad de Servicio (QoS) cuantifica el comportamiento real de la red desde la perspectiva de las aplicaciones. El sistema de medición sigue los principios de la metrología de redes ---control de variables, reproducibilidad y representatividad estadística--- para que las diferencias observadas sean atribuibles al CNI y no al procedimiento de medición \cite{ref6}.
+La Calidad de Servicio (QoS) cuantifica el comportamiento real de la red desde la perspectiva de las aplicaciones. El sistema de medición sigue los principios de la metrología de redes ---control de variables, reproducibilidad y representatividad estadística--- para que las diferencias observadas sean atribuibles al CNI y no al procedimiento de medición.
 
 \subsubsection{Inyección de tráfico}
 
@@ -84,7 +84,7 @@ Costo computacional del CNI & \% CPU / MB RAM & Recursos que consume el propio C
 
 \subsection{Modelo de Decisión Multicriterio (MCDA)}
 
-Para resolver la selección objetiva del CNI se diseñó un modelo de Análisis de Decisión Multicriterio (MCDA), enfoque empleado en ingeniería y economía cuando una decisión involucra múltiples factores con distinta importancia \cite{ref9}. A diferencia de una comparación basada en un único criterio ---por ejemplo, el throughput máximo---, el MCDA captura el \emph{trade-off} entre velocidad, eficiencia de recursos y capacidades de seguridad, y produce una recomendación que refleja las prioridades de cada tipo de organización.
+Para resolver la selección objetiva del CNI se diseñó un modelo de Análisis de Decisión Multicriterio (MCDA), enfoque empleado en ingeniería y economía cuando una decisión involucra múltiples factores con distinta importancia \cite{ref34}. A diferencia de una comparación basada en un único criterio ---por ejemplo, el throughput máximo---, el MCDA captura el \emph{trade-off} entre velocidad, eficiencia de recursos y capacidades de seguridad, y produce una recomendación que refleja las prioridades de cada tipo de organización.
 
 \subsubsection{Limpieza estadística y normalización}
 
@@ -172,6 +172,7 @@ La solución se organizó en siete capas para separar responsabilidades: la \tex
 
 \node[lay, fill=blue!12] at (0,0.0)
     {\textbf{C1 --- Infraestructura underlay:} DigitalOcean Droplets, VPC privada, PostgreSQL (datastore K3s HA)};
+% VERIFICAR: anclar versión exacta de K3s también aquí cuando se recupere de los logs
 \node[lay, fill=blue!8] at (0,1.3)
     {\textbf{C2 --- Clúster Kubernetes K3s HA:} 1 nodo Control Plane + 2 Workers; canal stable};
 \node[lay, fill=green!10] at (0,2.6)
@@ -238,11 +239,11 @@ El diseño se limita a evaluar CNIs en un testbed controlado sobre Kubernetes y 
 
 \section{Implementación de la Solución}
 
-La infraestructura está codificada en Terraform, la configuración en manifiestos YAML versionados en Git y las pruebas automatizadas en CronJobs de Kubernetes ---condición necesaria para que los resultados sean reproducibles y atribuibles al CNI \cite{ref7}.
+La infraestructura está codificada en Terraform, la configuración en manifiestos YAML versionados en Git y las pruebas automatizadas en CronJobs de Kubernetes ---condición necesaria para que los resultados sean reproducibles y atribuibles al CNI.
 
 \subsection{Aprovisionamiento de Infraestructura con Terraform}
 
-El aprovisionamiento de servidores y redes se realizó mediante Terraform (IaC). Al describir la infraestructura en archivos versionados, Terraform la recrea de manera idéntica en cada ejecución y elimina la posibilidad de que variaciones manuales introduzcan diferencias entre los entornos de cada CNI \cite{ref7}.
+El aprovisionamiento de servidores y redes se realizó mediante Terraform (IaC). Al describir la infraestructura en archivos versionados, Terraform la recrea de manera idéntica en cada ejecución y elimina la posibilidad de que variaciones manuales introduzcan diferencias entre los entornos de cada CNI.
 
 \subsubsection{Estructura del Código Terraform (K8s-bootstrap/00.bootstrap)}
 
@@ -282,7 +283,7 @@ El plano de control se configuró con una base de datos PostgreSQL gestionada de
 
 \subsubsection{Instalación: clúster sin CNI para plugins externos y modo nativo para Flannel}
 
-La implementación establece una distinción metodológica deliberada: Flannel se evalúa en su modo de despliegue más habitual ---integrado nativamente en K3s con \texttt{flannel-iface: eth1}---, mientras que Calico, Cilium y Antrea se instalan como plugins externos sobre un clúster sin CNI. La asimetría refleja las condiciones reales de uso: Flannel es el CNI predeterminado de K3s y la mayoría de equipos lo adopta sin configuración adicional, en tanto que los otros tres requieren instalación explícitamente y de forma declarativa. Evaluar cada CNI en su escenario de despliegue típico aumenta la validez ecológica del experimento~\cite{ref7}; debe considerarse, no obstante, que Flannel se beneficia de la integración nativa de K3s ---gestión automática de CIDR y \emph{hooks} de kubelet--- que los plugins externos deben replicar por su cuenta.
+La implementación establece una distinción metodológica deliberada: Flannel se evalúa en su modo de despliegue más habitual ---integrado nativamente en K3s con \texttt{flannel-iface: eth1}---, mientras que Calico, Cilium y Antrea se instalan como plugins externos sobre un clúster sin CNI. La asimetría refleja las condiciones reales de uso: Flannel es el CNI predeterminado de K3s y la mayoría de equipos lo adopta sin configuración adicional, en tanto que los otros tres requieren instalación explícitamente y de forma declarativa. Evaluar cada CNI en su escenario de despliegue típico aumenta la validez ecológica del experimento; debe considerarse, no obstante, que Flannel se beneficia de la integración nativa de K3s ---gestión automática de CIDR y \emph{hooks} de kubelet--- que los plugins externos deben replicar por su cuenta.
 
 Para los CNIs externos, la configuración crítica es el parámetro \texttt{--flannel-backend=none}, que desactiva completamente el CNI integrado de K3s y evita interferencias con el plugin bajo evaluación. Adicionalmente, se configura \texttt{--disable-network-policy} para que K3s no intente implementar NetworkPolicies por sí mismo.
 
@@ -339,7 +340,7 @@ metadata:
   namespace: argocd
 spec:
   source:
-    repoURL: https://github.com/equipo/K8s-Tesis-Apps
+    repoURL: https://github.com/DuwanSierra/K8s-Tesis-Apps
     targetRevision: main
     path: apps/
   syncPolicy:
@@ -352,7 +353,7 @@ spec:
 
 Cada CNI tiene una configuración ligeramente diferente. Para gestionarlas sin duplicar código, se utilizó Kustomize con el patrón base/overlay: existe una configuración base con los parámetros comunes, y sobre esa base se aplican overlays específicas para cada CNI.
 
-Las apps gestionadas por ArgoCD include: \texttt{cni-test-iperf} (benchmarks de throughput y latencia), \texttt{cni-resource-exporter} (exportación de recursos desde Prometheus), \texttt{cni-np-test} (pruebas de Network Policies, creada solo cuando \texttt{cni\_provider != "flannel"} y el caso de uso está definido), y \texttt{metrics} (Prometheus + Grafana).
+Las apps gestionadas por ArgoCD incluyen: \texttt{cni-test-iperf} (benchmarks de throughput y latencia), \texttt{cni-resource-exporter} (exportación de recursos desde Prometheus), \texttt{cni-np-test} (pruebas de Network Policies, creada solo cuando \texttt{cni\_provider != "flannel"} y el caso de uso está definido), y \texttt{metrics} (Prometheus + Grafana).
 
 \subsection{Implementación del Stack de Observabilidad}
 
@@ -574,7 +575,7 @@ Pod externo $\rightarrow$ namespace production & BLOQUEADO --- Sin una regla exp
 
 \subsection{Estructura de Repositorios y Entregables Técnicos}
 
-La Tabla~\ref{tab:repositorios-entregables} resume la organización del proyecto en tres repositorios Git.
+La Tabla~\ref{tab:repositorios-entregables} resume la organización del proyecto en cuatro repositorios Git.
 
 \begin{table}[htbp]
 \centering

@@ -172,7 +172,7 @@ Esta restricción matemática asegura que los plugins con falencias críticas en
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Modelo matemático de decisión multicriterio (MCDA)} \label{sec:apb_mcda}
 
-Para la recomendación formal del CNI, el algoritmo aplica el modelo MCDA de sumatoria ponderada clásica~\cite{ref9}:
+Para la recomendación formal del CNI, el algoritmo aplica el modelo MCDA de sumatoria ponderada clásica~\cite{ref34}:
 
 \begin{equation}
   P_{\text{CNI}} = \sum_{i=1}^{n} V_i \times W_i
@@ -191,7 +191,7 @@ El flujo de procesamiento del recomendador interactivo se resume a continuación
     $\rightarrow$ &
     \colorbox{oe3griscl}{\small\textbf{Filtro IQR}} &
     $\rightarrow$ &
-    \colorbox{oe3griscl}{\small\textbf{Puntaje discreto}} &
+    \colorbox{oe3griscl}{\small\textbf{Norm.\ min-max}} &
     $\rightarrow$ &
     \colorbox{oe3verdecl}{\small\textbf{$\sum V_i \times W_i$}} \\[6pt]
     \multicolumn{7}{c}{$\downarrow$} \\[4pt]
@@ -225,7 +225,7 @@ IoT / Recursos limitados & * \textbf{3.834} & 2.952 & 3.232 & 2.224 \\
 \subsection{Interpretación y desglose de resultados}
 
 \begin{itemize}
-  \item \textbf{Perfil Fintech / Seguridad:} Cilium obtiene la puntuación óptima con $3.631$ (en la escala de 1 a 5). A pesar de que Calico ofrece un rendimiento crudo superior en latencia base, Cilium sobresale debido a sus políticas dinámicas de capa 7 basadas en eBPF~\cite{ref27} y su menor degradación del tráfico cuando el aislamiento lógico está activo.
+  \item \textbf{Perfil Fintech / Seguridad:} Cilium obtiene la puntuación óptima con $3.631$ (en la escala de 1 a 5). A pesar de que Calico ofrece un rendimiento crudo superior en latencia base, Cilium sobresale debido a sus políticas dinámicas de capa 7 basadas en eBPF~\cite{ref10} y su menor degradación del tráfico cuando el aislamiento lógico está activo.
   
   Por el contrario, Flannel obtiene un puntaje críticamente bajo de $1.331$. Esto se debe a que carece por diseño de soporte de Network Policies. Su puntuación base ponderada original de $3.328$ (impulsada principalmente por su bajo consumo de CPU y RAM) se somete a la penalización de seguridad de la Ecuación~\eqref{eq:penalizacion_apb}, multiplicándose por $0,4$. Esto demuestra cómo el modelo descarta automáticamente soluciones no aptas para entornos regulados.
   
@@ -291,6 +291,61 @@ IoT / Recursos limitados & * \textbf{3.834} & 2.952 & 3.232 & 2.224 \\
   \label{fig:rec_iot_resultados}
   \end{figure}
 \end{itemize}
+
+\section{Lista de verificación para la configuración del recomendador CNI} \label{sec:apb_checklist}
+
+El recomendador interactivo opera mediante cinco deslizadores de prioridad, cada uno en la escala \emph{Muy Bajo} (1) --- \emph{Bajo} (2) --- \emph{Medio} (3) --- \emph{Alto} (4) --- \emph{Muy Alto} (5). La combinación de valores genera los pesos porcentuales del modelo MCDA y, cuando la seguridad supera el nivel~4, activa la penalización no compensatoria $\times 0{,}40$ sobre plugins sin soporte de \texttt{NetworkPolicy}.
+
+Esta lista de verificación es un instrumento cualitativo: mediante preguntas orientadas al contexto operativo del equipo, guía la asignación de cada deslizador antes de acceder al recomendador. No requiere mediciones previas; basta con que el equipo responda a cuál de las descripciones de cada fila se ajusta mejor a su caso de uso.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Lista de verificación cualitativa para configurar los deslizadores del recomendador CNI.}
+\label{tab:checklist_cni}
+\begin{tabularx}{\textwidth}{|l|Y|Y|c|}
+\hline
+\textbf{Deslizador} & \textbf{Indicadores de prioridad \emph{Alta} o \emph{Muy Alta} (4--5)} & \textbf{Indicadores de prioridad \emph{Baja} o \emph{Muy Baja} (1--2)} & \textbf{Nivel elegido} \\
+\hline
+\textbf{Latencia}
+  & APIs síncronas, portales web interactivos, bases de datos transaccionales o cualquier carga donde el usuario percibe el tiempo de respuesta individualmente.
+  & Procesamiento por lotes (\emph{batch}), pipelines ETL, transferencias nocturnas o cargas donde la velocidad de respuesta por petición no es crítica.
+  & \quad\quad/5 \\
+\hline
+\textbf{Estabilidad}
+  & Transmisión de vídeo o audio en tiempo real, juegos en línea, protocolos sensibles a retransmisiones o servicios con acuerdos de nivel de servicio (SLA) de disponibilidad continua.
+  & Cargas tolerantes a reintentos, transferencias de archivos grandes sin restricción de tiempo o sistemas con lógica propia de reintento a nivel de aplicación.
+  & \quad\quad/5 \\
+\hline
+\textbf{Throughput}
+  & Ingesta masiva de datos, distribución de contenido multimedia, analítica en tiempo real o cualquier carga que mueva grandes volúmenes de datos por segundo entre pods.
+  & Microservicios de baja intensidad, chatbots, sistemas de notificaciones o cargas donde el número de bytes por transacción es reducido aunque el número de peticiones sea alto.
+  & \quad\quad/5 \\
+\hline
+\textbf{Recursos}
+  & Nodos con capacidad restringida (Raspberry Pi, dispositivos edge, instancias mínimas), clústeres de bajo costo o despliegues donde cada megabyte o millicore disponible importa para las cargas de trabajo.
+  & Nodos de propósito general con capacidad amplia, entornos cloud elásticos o clústeres donde el CNI comparte recursos sin competencia con aplicaciones críticas.
+  & \quad\quad/5 \\
+\hline
+\textbf{Seguridad}
+  & Datos financieros, información médica o de identidad, entornos regulados (PCI-DSS, HIPAA, ISO~27001), arquitecturas Zero Trust, o cualquier clúster que aloje cargas de trabajo de distintos niveles de confianza en el mismo namespace.
+  & Entornos de laboratorio, clústeres de desarrollo o pruebas aislados de internet, pipelines de CI/CD sin datos sensibles o clústeres monopropósito donde el tráfico inter-pod es homogéneo y confiable.
+  & \quad\quad/5 \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection*{Instrucciones de uso}
+
+\begin{enumerate}
+    \item Para cada deslizador, leer las dos columnas de indicadores y decidir cuál describe mejor el entorno operativo del clúster.
+    \item Anotar el nivel elegido (1--5) en la última columna. Si el contexto queda entre ambas descripciones, usar el valor intermedio (\emph{Medio}, 3/5).
+    \item Si \textbf{Seguridad} queda en nivel 4 o 5, verificar que el CNI seleccionado aplique \texttt{NetworkPolicy} en su plano de datos; de lo contrario, la penalización $\times 0{,}40$ lo descartará automáticamente.
+    \item Introducir los cinco valores en el recomendador interactivo (\url{https://duwansierra.github.io/K8S-CNI-Results/}) para obtener el ranking MCDA personalizado.
+    \item Comparar el resultado con los perfiles predefinidos de la Tabla~\ref{tab:apb_pesos}: si los valores elegidos se acercan a uno de los tres perfiles base (Fintech, Streaming, IoT), el recomendador producirá un ranking análogo al documentado en la Tabla~\ref{tab:apb_resultados}.
+\end{enumerate}
+
+\noindent\textbf{Nota sobre la penalización de seguridad.} Los perfiles predefinidos con nivel de seguridad 4 o 5 activan automáticamente la restricción no compensatoria: Flannel recibe el $40\%$ de su puntaje bruto, lo que lo sitúa por debajo de 2.0 en la escala 1--5 en contextos regulados, independientemente de su ventaja en recursos o estabilidad.
 
 \section{Guía de reproducción y verificación científica} \label{sec:apb_reproducibilidad}
 
