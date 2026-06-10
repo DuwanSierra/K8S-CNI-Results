@@ -95,7 +95,7 @@ A diferencia de los entornos locales de alto rendimiento, la red en nube VPC pri
 
 \subsection{Protocolo de Prueba de Latencia TCP}
 
-La latencia de establecimiento TCP mide el tiempo que tarda en completarse el handshake de tres vías de TCP, que ocurre cada vez que una aplicación inicia una nueva conexión. El cliente ejecuta \texttt{nc -z -w 2} al servicio iperf3-server, mide el tiempo en ms y calcula min/avg/max/mdev sobre 30 muestras por corrida. Esta métrica es especialmente relevante para arquitecturas de microservicios, donde el costo de iniciar una conexión puede dominar el tiempo total de respuesta y el throughput del enlace no captura esa penalización.
+La latencia reportada en este experimento no mide el tiempo de tránsito físico puro de la red (latencia de enlace L3/L4 intra-VPC, habitualmente inferior a 1 ms), sino el tiempo total de establecimiento de conexión TCP a nivel de aplicación. El cliente ejecuta un \emph{script} Bash iterando \texttt{nc -z -w 2} hacia el servicio \texttt{iperf3-server}, lo que captura no solo el \emph{handshake} de tres vías, sino el overhead del \emph{spawn} del proceso en el sistema operativo y la resolución DNS interna de Kubernetes en cada ciclo. Esta métrica de latencia final (12-35 ms) resulta útil para comparar el estrés relativo que cada CNI impone al stack de red bajo este tipo de rutinas de microservicios, pero los valores absolutos no deben interpretarse como la latencia base de la red virtual de DigitalOcean.
 
 \subsection{Resultados de Latencia TCP por CNI}
 
@@ -219,7 +219,7 @@ Se ejecutaron las pruebas de rendimiento nuevamente con las políticas de seguri
 \end{tabularx}
 \end{table}
 
-El impacto de habilitar políticas de seguridad varía considerablemente. Calico muestra un impacto mínimo en throughput (menos del 1.36% de pérdida) con variaciones de latencia de entre un $-22.25\%$ (reducción) y un $+31.45\%$ (incremento). Antrea registra incrementos de throughput de hasta $+13.46\%$ y reducciones de latencia de hasta $-28.77\%$. En el caso de Cilium, se observa una anomalía interesante: el rendimiento de red mejora notablemente al habilitar políticas (por ejemplo, el throughput aumenta un $+111.53\%$ respecto a su línea base debido a optimizaciones de canal y al bypass del kernel mediante eBPF en el testbed), mientras que su latencia de conexión promedio disminuye hasta un $-43.16\%$. Flannel no registra datos al no poder compilar o aplicar políticas de seguridad en su plano de datos.
+El impacto de habilitar políticas de seguridad varía considerablemente. Calico muestra un impacto mínimo en throughput (menos del 1.36\% de pérdida) con variaciones de latencia de entre un $-22.25\%$ (reducción) y un $+31.45\%$ (incremento). Antrea registra incrementos de throughput de hasta $+13.46\%$ y reducciones de latencia de hasta $-28.77\%$. En el caso de Cilium, se observa una anomalía estadística: el rendimiento de red aparente mejora notablemente al habilitar políticas (el throughput aumenta un $+111.53\%$). Sin embargo, este salto porcentual no significa que las políticas L7 aceleren la red por sí mismas, sino que evidencia un \emph{baseline} subóptimo en este testbed ---posiblemente afectado por ruido de monitoreo o el desajuste inicial de MTU derivado del encapsulamiento VXLAN y eBPF--- que se estabiliza al activar el filtrado explícito. Por consiguiente, esta mejora relativa no debe generalizarse como un comportamiento estándar en entornos de producción. Flannel no registra datos al no poder compilar o aplicar políticas de seguridad en su plano de datos.
 
 \section{Pruebas de Eficiencia Computacional --- Consumo del Agente CNI}
 
@@ -427,11 +427,11 @@ Se trazó el flujo completo de un dato específico desde su origen hasta su visu
 \hline
 ¿Cuáles son las diferencias en velocidad de respuesta entre los CNIs? & Calico tiene la menor latencia promedio (12.54 ms), un 41\% menor que Flannel (21.53 ms) y un 64\% menor que Antrea (35.09 ms). En throughput, Calico lidera con 1804.40 Mbps frente a los 843.56 Mbps de Cilium (diferencia del 113.9\%). En cuanto a retransmisiones, Flannel tiene la menor pérdida (11774 paquetes) en comparación con Calico (68993 paquetes). \\
 \hline
-¿Cómo impacta cada CNI en el consumo de recursos? & Flannel es el más eficiente en CPU (19.45\% del nodo) y en RAM (1176.54 MB). Calico es el más costoso, demandando un 29.05\% de CPU y 1672.83 MB de RAM. Para entornos Edge/IoT, Flannel ofrece la menor huella computacional fija. \\
+¿Cómo impacta cada CNI en el consumo de recursos? & Flannel generó el menor estrés relativo en CPU (19.45\% del nodo) y en RAM global del sistema bajo carga (1176.54 MB). Calico fue el más demandante, requiriendo un 29.05\% de CPU y 1672.83 MB de RAM. Aunque la métrica de RAM arrastra el ruido de los \emph{buffers} de red del host, la tendencia relativa confirma que la sencillez arquitectónica de Flannel impone el menor costo computacional global. \\
 \hline
 ¿Qué tan efectivo es cada CNI para Network Policies? & Flannel no implementa Network Policies en su plano de datos. Calico, Cilium y Antrea las implementan correctamente. Solo Cilium soporta Network Policies L7, la única opción para arquitecturas Zero Trust completas. \\
 \hline
-¿En qué medida se puede reducir el sobredimensionamiento? & La diferencia de 9.6\% de CPU promedio y 496.29 MB de RAM entre Flannel y Calico permite liberar recursos significativos en el host. A escala de 50 nodos, esto equivale a ahorrar aproximadamente 4.8 núcleos de CPU y 24.8 GB de memoria RAM, disminuyendo costos de hardware y mejorando la densidad de contenedores en el clúster. \\
+¿En qué medida se puede reducir el sobredimensionamiento? & La diferencia de 9.6\% de CPU promedio y 496.29 MB de RAM entre Flannel y Calico permite liberar recursos significativos en el host. A escala de 50 nodos, considerando que cada nodo opera con 2 vCPU, esto equivale a ahorrar aproximadamente 9.6 núcleos virtuales (vCPU) y 24.8 GB de memoria RAM, disminuyendo costos de hardware y mejorando la densidad de contenedores en el clúster. \\
 \hline
 \end{tabularx}
 \end{table}
@@ -467,3 +467,4 @@ OE4: Implementar un prototipo funcional que recomiende el CNI más adecuado. & C
 \hline
 \end{tabularx}
 \end{table}
+end{table}

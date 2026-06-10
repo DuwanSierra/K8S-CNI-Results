@@ -7,7 +7,7 @@ Los resultados experimentales arrojan las siguientes conclusiones por objetivo e
     
     \item \textbf{OE2 (Seguridad Zero Trust):} Calico, Cilium y Antrea aplican correctamente las Network Policies. Flannel presenta una vulnerabilidad arquitectónica al aceptar las políticas en la API de Kubernetes pero omitir su enforcement en el plano de datos, permitiendo tráfico no autorizado. Cilium fue la única solución capaz de aplicar reglas a nivel de capa 7 (HTTP).
     
-    \item \textbf{OE3 (Modelo MCDA):} El algoritmo de normalización min-max y filtrado IQR resolvió las contrapartidas de rendimiento. El modelo identificó a Cilium como la opción óptima para el perfil Fintech (3.631) por su seguridad L7, y a Flannel para Streaming (3.686) e IoT (3.834) por su baja tasa de retransmisión y eficiencia de recursos.
+    \item \textbf{OE3 (Modelo MCDA):} El algoritmo de normalización min-max y filtrado IQR resolvió las contrapartidas de rendimiento. El modelo identificó a Cilium como la opción óptima para el perfil Fintech (3.631) por su seguridad L7, y a Flannel para Streaming (3.686) e IoT (3.834) por su baja tasa de retransmisión y menor estrés general de CPU/RAM. Se advierte que el despliegue IoT en dispositivos ultra-restringidos demandará verificar la memoria aislada en reposo, al verse la métrica afectada por el ruido del host bajo carga.
     
     \item \textbf{OE4 (Prototipo Recomendador):} La evaluación multicriterio se integró de forma exitosa en una SPA. La herramienta recalcula dinámicamente el ranking y provee manifiestos de instalación accionables basándose en los datos crudos del clúster sin pérdida de precisión.
 \end{itemize}
