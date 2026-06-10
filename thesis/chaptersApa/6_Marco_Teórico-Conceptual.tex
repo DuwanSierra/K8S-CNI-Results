@@ -80,7 +80,7 @@ El ciclo completo del tráfico responde a la siguiente secuencia operativa:
 
 \subsection{Especificación y funciones núcleo}
 
-La especificación Container Network Interface (CNI) define el estándar mediante el cual el runtime de contenedores interactúa con diversos plugins para automatizar la configuración de red. La especificación se fundamenta en operaciones simples y encadenables como la adición (\texttt{ADD}) y la eliminación (\texttt{DEL}) de interfaces de red de los contenedores~\cite{ref18,ref20,ref21}, un proceso ilustrado esquemáticamente en la Figura~\ref{fig:workflow_cni}.
+La especificación Container Network Interface (CNI) define el estándar mediante el cual el runtime de contenedores interactúa con diversos plugins para automatizar la configuración de red. La especificación se fundamenta en operaciones simples y encadenables como la adición (\texttt{ADD}) y la eliminación (\texttt{DEL}) de interfaces de red de los contenedores~\cite{ref18,ref20,ref21,ref28}, un proceso ilustrado esquemáticamente en la Figura~\ref{fig:workflow_cni}.
 
 \begin{figure}[htbp]
     \centering
@@ -137,7 +137,7 @@ Para entender por qué eBPF importa en este contexto, conviene compararlo con ip
 
 Técnicamente, un programa eBPF se compila a un bytecode que el kernel verifica antes de ejecutarlo, comprobando que no acceda a memoria no autorizada ni genere bucles infinitos. Una vez aprobado, se ejecuta directamente en el kernel mediante un compilador JIT (\emph{just-in-time}), sin necesidad de copiar datos al espacio de usuario~\cite{ref27}. Esta arquitectura elimina dos fuentes principales de latencia en el procesamiento de red tradicional: las copias de memoria entre kernel y espacio de usuario, y el recorrido lineal de las cadenas de reglas de iptables.
 
-En el contexto de los CNI evaluados en este trabajo, Cilium utiliza eBPF tanto para el reenvío de paquetes entre Pods como para la aplicación de NetworkPolicies, incluidas reglas de capa 7 sobre el protocolo HTTP. Calico también ofrece un modo eBPF opcional como alternativa a su dataplane basado en iptables~\cite{ref11,ref27}.
+En el contexto de los CNI evaluados en este trabajo, Cilium utiliza eBPF tanto para el reenvío de paquetes entre Pods como para la aplicación de NetworkPolicies, incluidas reglas de capa 7 sobre el protocolo HTTP. Calico también ofrece un modo eBPF opcional como alternativa a su dataplane basado en iptables~\cite{ref27}.
 
 \section{Arquitectura de Confianza Cero y control de red en Kubernetes}
 
@@ -157,8 +157,12 @@ El modelo implementado en este trabajo utiliza la \textbf{suma ponderada} como m
 \[
 P_{CNI} = \sum_{i=1}^{n} (V_i \times W_i)
 \]
-donde $P_{CNI}$ es el puntaje final del complemento, $V_i$ es el valor normalizado de la métrica $i$ y $W_i$ es el peso asignado a esa métrica según el perfil de usuario evaluado, con la condición $\sum W_i = 1$.
+donde $P_{CNI}$ es el puntaje final del plugin CNI, $V_i$ es el valor normalizado de la métrica $i$ y $W_i$ es el peso asignado a esa métrica según el perfil de usuario evaluado, con la condición $\sum W_i = 1$.
 
-Para que métricas con unidades distintas (Gbps, milisegundos, millicores) sean comparables en esa fórmula, se aplica \textbf{normalización min-max}: cada valor bruto se escala al intervalo $[0,\,1]$. En métricas donde un valor mayor es mejor (throughput), la normalización es directa; en métricas donde un valor menor es mejor (latencia, CPU, RAM), la escala se invierte para que 1 siempre represente la mejor situación y 0 la peor. Así, el puntaje MCDA no depende de la magnitud numérica de cada variable sino de su posición relativa entre las alternativas disponibles.
+Para que métricas con unidades distintas (Gbps, milisegundos, millicores) sean comparables en esa fórmula, se aplica \textbf{normalización min-max} con re-escalado al intervalo $[1,\,5]$:
+\[
+V_i = 1 + 4 \cdot \frac{x - x_{\min}}{x_{\max} - x_{\min}}
+\]
+donde $x_{\min}$ y $x_{\max}$ son los valores mínimo y máximo observados entre los CNIs para esa métrica. En métricas donde un valor mayor es mejor (throughput), la normalización es directa; en métricas donde un valor menor es mejor (latencia, CPU, RAM), se invierte el cociente ---usando $x_{\max} - x$ en el numerador--- de modo que $V_i = 5$ representa siempre la mejor alternativa y $V_i = 1$ la peor. Con $\sum W_i = 1$, el puntaje $P_{CNI}$ también queda en $[1,\,5]$, lo que facilita la interpretación directa del resultado final.
 
 Los pesos $W_i$ son los parámetros que capturan las prioridades de cada organización. En este trabajo se definen tres perfiles: Fintech, que asigna mayor peso a la seguridad; Streaming, orientado al rendimiento de red; e IoT, centrado en el menor consumo de recursos por nodo. La parametrización explícita de los pesos hace que el modelo sea ajustable ante nuevos perfiles sin modificar el procedimiento de medición.

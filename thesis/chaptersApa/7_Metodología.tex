@@ -42,7 +42,7 @@ Antrea & OVS (SDN) & 2.2.0 & Open vSwitch con sistema jerárquico de Tiers (Emer
 \end{tabularx}
 \end{table}
 
-Las tecnologías base de estos CNI sustentan dataplanes diferentes. \textbf{VXLAN} crea redes virtuales sobre redes físicas existentes encapsulando los paquetes originales dentro de paquetes UDP, lo que permite transportar tráfico de capa 2 sobre redes de capa 3; el costo es un \emph{overhead} de 50 bytes por paquete, que puede reducir el throughput efectivo en transferencias de paquetes pequeños \cite{ref12}. \textbf{eBPF} permite ejecutar programas de forma segura dentro del kernel de Linux; aplicado a redes, posibilita que Cilium intercepte y redirija paquetes sin copiarlos al espacio de usuario, eliminando una fuente principal de latencia \cite{ref11}. \textbf{Open vSwitch (OVS)} es un switch virtual orientado a SDN \cite{ref22} que Antrea emplea para implementar conectividad y políticas mediante un sistema de Tiers jerárquico, capaz de expresar reglas corporativas con mayor prioridad que las NetworkPolicies estándar de Kubernetes.
+Las tecnologías base de estos CNI sustentan dataplanes diferentes. \textbf{VXLAN} crea redes virtuales sobre redes físicas existentes encapsulando los paquetes originales dentro de paquetes UDP, lo que permite transportar tráfico de capa 2~\cite{ref19} sobre redes de capa 3; el costo es un \emph{overhead} de 50 bytes por paquete, que puede reducir el throughput efectivo en transferencias de paquetes pequeños \cite{ref12}. \textbf{eBPF} permite ejecutar programas de forma segura dentro del kernel de Linux; aplicado a redes, posibilita que Cilium intercepte y redirija paquetes sin copiarlos al espacio de usuario, eliminando una fuente principal de latencia \cite{ref27}. \textbf{Open vSwitch (OVS)} es un switch virtual orientado a SDN \cite{ref22} que Antrea emplea para implementar conectividad y políticas mediante un sistema de Tiers jerárquico, capaz de expresar reglas corporativas con mayor prioridad que las NetworkPolicies estándar de Kubernetes.
 
 La selección de estos cuatro CNI no es arbitraria: cada uno aporta un punto de comparación específico y un riesgo característico a medir. Flannel actúa como línea base de conectividad sencilla, con el riesgo de carecer de \emph{enforcement} nativo de NetworkPolicies. Calico aporta madurez operativa y políticas de red en producción, con un posible costo por la evaluación de reglas. Cilium representa el uso de eBPF como mecanismo moderno de aceleración, visibilidad y políticas L7, a cambio de mayor complejidad conceptual y mayor consumo de RAM. Antrea aporta una aproximación basada en OVS y conceptos de SDN, con dependencia de componentes adicionales. En conjunto, cubren el espectro de opciones que enfrenta un equipo de operaciones real, desde la simplicidad operativa hasta las capacidades avanzadas de observabilidad y seguridad.
 
@@ -88,7 +88,7 @@ Para resolver la selección objetiva del CNI se diseñó un modelo de Análisis 
 
 \subsubsection{Limpieza estadística y normalización}
 
-Antes de aplicar el modelo, los datos recolectados pasan por una limpieza estadística mediante el Rango Intercuartílico (IQR), que elimina \emph{outliers} causados por eventos externos como mantenimientos del proveedor o picos de uso compartido. Las métricas se normalizan después con min-max a una escala común de 0 a 1, considerando el sentido de optimización de cada variable: en throughput, un valor mayor es mejor; en latencia, CPU, memoria y retransmisiones, un valor menor es preferible, por lo que la escala se invierte. Este procesamiento evita que la recomendación dependa de valores atípicos o de la magnitud numérica de una métrica, y se implementa en el archivo \texttt{docs/procesador.js}.
+Antes de aplicar el modelo, los datos recolectados pasan por una limpieza estadística mediante el Rango Intercuartílico (IQR), que elimina \emph{outliers} causados por eventos externos como mantenimientos del proveedor o picos de uso compartido. Las métricas se re-escalan después mediante la fórmula min-max al intervalo $[1,\,5]$ (véase Marco Teórico, sección~\ref{cap:marco_teorico}), considerando el sentido de optimización de cada variable: en throughput, un valor mayor es mejor; en latencia, CPU, memoria y retransmisiones, un valor menor es preferible, por lo que el cociente de normalización se invierte. Este procesamiento evita que la recomendación dependa de valores atípicos o de la magnitud numérica de una métrica, y se implementa en el archivo \texttt{docs/procesador.js}.
 
 \subsubsection{Matriz de pesos por perfil de usuario}
 
@@ -120,11 +120,7 @@ Total & 100\% & 100\% & 100\% \\
 \end{tabularx}
 \end{table}
 
-La decisión final se formaliza como una suma ponderada:
-\[
-P_{CNI}=\sum_{i=1}^{n}(V_i \times W_i)
-\]
-donde $P_{CNI}$ es el puntaje total del plugin, $V_i$ es la valoración normalizada de la métrica $i$, $W_i$ es el peso asignado y $n$ es el número de métricas evaluadas.
+La decisión final aplica la suma ponderada $P_{CNI}=\sum_{i=1}^{n}(V_i \times W_i)$ definida en el Marco Teórico (sección~\ref{cap:marco_teorico}), donde los valores $V_i$ ya están normalizados en la escala $[1,\,5]$ y los pesos $W_i$ corresponden al perfil de usuario seleccionado.
 
 \subsection{Seguridad y Micro-segmentación (Zero Trust)}
 
@@ -487,9 +483,7 @@ El pipeline descarta valores atípicos antes de calcular promedios. Dado que un 
 
 \subsubsection{Normalización y Cálculo del Score MCDA}
 
-Después de la limpieza, el pipeline aplica normalización min-max. Cada valor se escala al rango $[0, 1]$. En métricas positivas, como throughput, la normalización es directa. En métricas negativas, como latencia o CPU, la escala se invierte.
-
-Cuando la métrica penaliza, el valor más bajo recibe 1 y el más alto recibe 0. La escala común compara Gbps, milisegundos y millicores sin sesgo por magnitud numérica.
+Después de la limpieza, el pipeline aplica la normalización min-max re-escalada a $[1,\,5]$ descrita en el Marco Teórico. En métricas positivas como throughput, la normalización es directa ($V_i = 5$ al máximo). En métricas negativas como latencia o CPU, el cociente se invierte, de modo que el valor más bajo recibe $V_i = 5$ y el más alto $V_i = 1$. La escala uniforme permite comparar Gbps, milisegundos y millicores sin sesgo por magnitud numérica.
 
 \begin{lstlisting}
 // procesador.js -- Calculo del score MCDA por perfil
@@ -591,13 +585,15 @@ La Tabla~\ref{tab:repositorios-entregables} resume la organización del proyecto
 \scriptsize
 \renewcommand{\arraystretch}{1.25}
 \setlength{\tabcolsep}{4pt}
-\caption{Estructura de los tres repositorios del proyecto y su relación con los objetivos específicos.}
+\caption{Estructura de los cuatro repositorios del proyecto y su relación con los objetivos específicos.}
 \label{tab:repositorios-entregables}
 \begin{tabularx}{\textwidth}{|p{3cm}|Y|p{5.2cm}|}
 \hline
 \textbf{Repositorio} & \textbf{Contenido Principal} & \textbf{Relación con los Objetivos} \\
 \hline
-\texttt{K8s-bootstrap} & Código Terraform (\texttt{00.bootstrap}), scripts de instalación K3s HA (\texttt{10.k3s-ha-do}), manifiestos de ArgoCD (\texttt{20.argo-cd-install}) y App of Apps (\texttt{30.apps-of-apps-install}). & OE1: Provee la infraestructura controlada necesaria para las pruebas. \\
+\texttt{HA-K3s-Terraform-DO} & Módulo Terraform reutilizable que provisiona Droplets, VPC, Load Balancer y base de datos PostgreSQL en DigitalOcean. & OE1: Módulo base de infraestructura cloud invocado por \texttt{K8s-bootstrap}. \\
+\hline
+\texttt{K8s-bootstrap} & Código Terraform (\texttt{00.bootstrap}), scripts de instalación K3s HA (\texttt{10.k3s-ha-do}), manifiestos de ArgoCD (\texttt{20.argo-cd-install}) y App of Apps (\texttt{30.apps-of-apps-install}). & OE1: Orquesta el aprovisionamiento completo del testbed. \\
 \hline
 \texttt{K8s-Tesis-Apps} & Overlays Kustomize para los 4 CNIs, stack de observabilidad (\texttt{apps/metrics}), benchmarks iperf3 (\texttt{cni\_test\_iperf}), cliente de latencia, Network Policies y Grafana Exporter. & OE1, OE2 y OE3: Implementa las pruebas, la seguridad y el sistema de recolección. \\
 \hline
@@ -606,7 +602,7 @@ La Tabla~\ref{tab:repositorios-entregables} resume la organización del proyecto
 \end{tabularx}
 \end{table}
 
-La arquitectura mantiene un flujo unidireccional. \texttt{K8s-bootstrap} crea infraestructura; \texttt{K8s-Tesis-Apps} despliega aplicaciones y genera métricas. \texttt{K8S-CNI-Results} almacena, procesa y visualiza resultados.
+La arquitectura mantiene un flujo unidireccional: \texttt{HA-K3s-Terraform-DO} provee el módulo cloud; \texttt{K8s-bootstrap} orquesta la infraestructura; \texttt{K8s-Tesis-Apps} despliega las aplicaciones y genera métricas; \texttt{K8S-CNI-Results} almacena, procesa y visualiza resultados.
 
 \subsection{Desafíos de Implementación y Soluciones Adoptadas}
 
@@ -634,4 +630,4 @@ Outliers frecuentes en pruebas de madrugada: DigitalOcean mostraba throttling de
 
 \subsection{Flujo completo de ejecución}
 
-El flujo completo sigue las etapas descritas anteriormente. Terraform prepara la infraestructura; K3s y ArgoCD habilitan el plano de ejecución. Los CronJobs producen datos, \texttt{procesador.js} consolida resultados y la SPA presenta la recomendación.
+El flujo integral de cinco etapas ---generación de tráfico, captura de métricas, extracción de recursos, scoring MCDA y visualización--- se describió en la sección~\ref{sec:Metodos} e ilustra en la Figura~\ref{fig:arquitectura-capas}. En conjunto, los cuatro repositorios implementan ese flujo de forma unidireccional y reproducible.

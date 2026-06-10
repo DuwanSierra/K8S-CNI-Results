@@ -301,12 +301,14 @@ CPU promedio (\% nodo) & 19.45\% & 29.05\% & 25.79\% & 27.75\% \\
 RAM promedio (MB) & 1176.54 & 1672.83 & 1497.19 & 1429.95 \\
 Eficiencia de Recursos (1--5) & \textbf{5.00} & 1.00 & 2.39 & 2.25 \\
 \hline
-Seguridad de Red / Overhead (1--5) & 1.00 & 1.00 & \textbf{5.00} & 1.89 \\
+Soporte de NetworkPolicies L7 (1--5) & 1.00 & 1.00 & \textbf{5.00} & 1.89 \\
 \hline
 \end{tabularx}
 \end{table}
 
-La tabla de normalización muestra las seis métricas del modelo en una escala uniforme y directamente comparable (1 a 5). Flannel es el peor en latencia y seguridad (donde tiene la puntuación fija mínima de 1.00 al carecer de Network Policies nativas), pero destaca como el mejor en retransmisiones y eficiencia de recursos (5.00). Calico lidera en throughput y latencia (5.00) pero tiene el consumo más alto de recursos (1.00). Cilium destaca por su flexibilidad en seguridad (5.00) pero tiene el\subsection{Validación del Scoring MCDA por Perfil}
+La tabla de normalización muestra las seis métricas del modelo en una escala uniforme y directamente comparable (1 a 5). Flannel es el peor en latencia y seguridad (donde tiene la puntuación fija mínima de 1.00 al carecer de Network Policies nativas), pero destaca como el mejor en retransmisiones y eficiencia de recursos (5.00). Calico lidera en throughput y latencia (5.00) pero tiene el consumo más alto de recursos (1.00). Cilium destaca por su flexibilidad en seguridad (5.00) pero tiene el menor throughput normalizado (1.00), lo que refleja su costo de procesamiento eBPF bajo tráfico intenso. Antrea presenta el peor desempeño en latencia (1.00), consecuencia del overhead de conmutación OVS, pero mantiene valores intermedios en el resto de dimensiones.
+
+\subsection{Validación del Scoring MCDA por Perfil}
 
 Los puntajes que se muestran a continuación son calculados por \texttt{procesador.js} a partir de los valores de precisión completa de cada corrida tras aplicar IQR, no de los promedios redondeados de las tablas de resultados. Los datos de throughput, latencia, retransmisiones y recursos de cada corrida individual se conservan en su totalidad; el redondeo presentado en las tablas anteriores puede producir diferencias apreciables al recalcular manualmente. En la Tabla~\ref{tab:scores-mcda}, \textbf{el puntaje va de 1 a 5: cuanto mayor el valor, más adecuado es ese CNI para ese perfil}. El símbolo~$\star$ marca la recomendación del sistema para cada perfil.
 
