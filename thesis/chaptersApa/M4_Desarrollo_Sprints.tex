@@ -1,0 +1,45 @@
+\chapter{Fase de Desarrollo por Sprints} \label{cap:desarrollo}
+
+El desarrollo se ejecutó a lo largo de los diecisiete sprints planificados (\cref{tab:sprints}). Para facilitar la lectura, este capítulo agrupa los sprints en fases temáticas y cierra cada fase con una retrospectiva que sintetiza los aprendizajes ---el artefacto de mejora continua propio de Scrum---, en lugar de narrar sprint por sprint. El detalle técnico de cada componente se encuentra en los \cref{sec:Metodos,cap:herramienta}.
+
+\section{Fase de preparación del laboratorio (Sprints 0--1)}
+
+Los primeros sprints establecieron las bases del proyecto: repositorios, integración continua, tablero de tareas y el \emph{kit de laboratorio} v0.1. Se desplegó la pila de observabilidad (Prometheus y Grafana) y se construyeron los primeros \emph{scripts} de inyección de tráfico (iperf3) con su validación intra e inter-nodo.
+
+\textbf{Retrospectiva.} La automatización temprana del entorno como infraestructura como código resultó decisiva: garantizó que cada CNI se evaluara en condiciones idénticas. Se ajustó la frecuencia de \emph{scraping} de métricas para capturar los picos de las ráfagas de tráfico sin introducir carga adicional.
+
+\section{Fase de evaluación de rendimiento de los CNI (Sprints 2, 4, 7 y 10)}
+
+Cada CNI ---Flannel, Calico, Cilium y Antrea--- se evaluó en su propio sprint de \emph{baseline}: instalación, pruebas de throughput y latencia (percentiles p95/p99), Network Policies mínimas y un análisis corto. El protocolo de rotación reemplazaba por completo la infraestructura entre ciclos, partiendo siempre de nodos limpios.
+
+\textbf{Retrospectiva.} Separar cada CNI en un sprint independiente evitó la contaminación cruzada de configuraciones. El principal impedimento ---el desajuste de MTU al instalar Cilium--- se resolvió calculando la MTU efectiva y se documentó como aprendizaje reutilizable para los CNI restantes.
+
+\section{Fase de seguridad y micro-segmentación (Sprints 3, 6 y 12)}
+
+Esta fase construyó la biblioteca de Network Policies bajo el enfoque Zero Trust: casos de \emph{Default Deny}, segmentación por capas \texttt{frontend $\rightarrow$ backend $\rightarrow$ database} y reglas avanzadas (L7 en Cilium, \emph{Tiers} en Antrea). Se implementó además el pipeline de validación automatizada que verifica, para cada par de Pods, si la conexión debe permitirse o bloquearse.
+
+\textbf{Retrospectiva.} La validación automatizada confirmó que la sola declaración de una política no garantiza su \emph{enforcement}: Flannel aceptó los objetos pero no los aplicó. Este hallazgo telemático ---la diferencia entre declarar y aplicar una política--- se convirtió en una de las variables centrales del modelo de decisión.
+
+\section{Fase del modelo de decisión MCDA (Sprints 5 y 13)}
+
+Se definieron los criterios y métricas de evaluación, los factores de ponderación por perfil y la restricción no compensatoria de seguridad, consolidados en la matriz de criterios v1.0 y el \emph{checklist} de configuración. El modelo se ensayó primero con datos de prueba y luego con los datos reales del \emph{testbed}.
+
+\textbf{Retrospectiva.} Parametrizar los pesos por perfil ---en lugar de fijar una única recomendación--- hizo el modelo adaptable a distintas organizaciones. El ensayo con datos sintéticos antes de los reales permitió detectar y corregir el sesgo de magnitud entre métricas con unidades distintas.
+
+\section{Fase de la herramienta y la guía (Sprints 8 y 14)}
+
+Estos sprints produjeron la guía metodológica (de la v0.6 a la v1.0) y el empaquetado de los entregables, incluyendo el prototipo recomendador. Se redactaron los procedimientos paso a paso para instalar y probar cada CNI, base de los manuales de usuario e instalación incluidos como anexos.
+
+\textbf{Retrospectiva.} Documentar la guía en paralelo al desarrollo ---y no al final--- evitó la pérdida de conocimiento por la complejidad de las configuraciones. La estructura ``cómo se hace'' demostró ser más útil para equipos sin especialización que una descripción puramente teórica.
+
+\section{Fase de observabilidad y \emph{rightsizing} (Sprints 9 y 11)}
+
+Se ampliaron las métricas de red (L3--L7), los \emph{dashboards} y las reglas de alerta, y se desarrolló el método de \emph{rightsizing}: relacionar el consumo de CPU y memoria del agente CNI con el throughput para dimensionar la infraestructura sin márgenes precautorios excesivos.
+
+\textbf{Retrospectiva.} La correlación entre consumo de recursos y rendimiento cuantificó el costo telemático real de cada CNI, base del aporte sobre reducción de sobredimensionamiento y su impacto económico en las organizaciones.
+
+\section{Fase de integración y cierre (Sprints 15--16)}
+
+Los últimos sprints integraron todos los componentes, ejecutaron las pruebas finales y consolidaron resultados, cerrando con el control de calidad documental y de laboratorio y la entrega v1.0.
+
+\textbf{Retrospectiva.} La integración incremental a lo largo del proyecto ---y no en una única fase final--- redujo el riesgo de incompatibilidades. El control de calidad final se concentró en la consistencia entre los datos del \emph{testbed}, el modelo y el prototipo.

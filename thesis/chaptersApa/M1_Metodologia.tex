@@ -1,0 +1,93 @@
+\chapter{Metodología del Proyecto} \label{cap:metodologia}
+
+El proyecto se desarrolló bajo el marco de trabajo \textbf{Scrum}, una metodología ágil que organiza el trabajo en ciclos cortos e iterativos llamados \emph{sprints}. La elección de Scrum responde a la naturaleza del problema: al comparar cuatro plugins CNI bajo condiciones de carga, no se conoce de antemano qué métrica resultará determinante, por lo que el equipo necesita medir, analizar y reorientar el plan de forma continua. El ciclo natural de Scrum ---\emph{prueba $\rightarrow$ análisis $\rightarrow$ mejora}--- se ajusta a esta incertidumbre técnica: cada sprint entrega un incremento funcional (un \emph{script}, un \emph{benchmark} o un panel comparativo) y cierra con una evaluación de datos reales que sirve de base para planificar el siguiente.
+
+\section{Marco de trabajo Scrum}
+
+Scrum estructura el trabajo en torno a tres roles, un conjunto de ceremonias y artefactos ligeros. En este proyecto los roles se asignaron de la siguiente forma:
+
+\begin{itemize}
+\item \textbf{Product Owner:} el director del trabajo de grado, con perfil académico, responsable de priorizar el \emph{Product Backlog} y validar que cada incremento aporte valor al objetivo del proyecto.
+\item \textbf{Scrum Master:} los tutores técnicos, encargados de facilitar el proceso, remover impedimentos y velar por la aplicación de buenas prácticas.
+\item \textbf{Equipo de Desarrollo:} los dos autores, responsables de construir el producto ---infraestructura, \emph{benchmarks}, modelo de decisión y prototipo.
+\end{itemize}
+
+Dado el tamaño reducido del equipo, las ceremonias se mantuvieron breves: una reunión diaria de sincronización, una planificación al inicio de cada sprint, una revisión del incremento al final y una \emph{retrospectiva} para registrar aprendizajes. Esta cadencia permitió mantener informados a los asesores sin sobrecargar al equipo con documentación innecesaria.
+
+\section{Product Backlog y trazabilidad con los objetivos}
+
+El \emph{Product Backlog} se derivó directamente de los cuatro objetivos específicos del trabajo, de modo que cada conjunto de tareas contribuye de forma trazable a un objetivo. La \cref{tab:backlog-oe} resume esta correspondencia.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.25}
+\caption{Mapeo del Product Backlog con los objetivos específicos (OE).}
+\label{tab:backlog-oe}
+\begin{tabularx}{\textwidth}{|c|Y|}
+\hline
+\textbf{Objetivo} & \textbf{Líneas de trabajo del backlog} \\
+\hline
+OE1 & Testbed automatizado (IaC), \emph{baselines} de rendimiento de los cuatro CNI, rightsizing de recursos. \\
+\hline
+OE2 & Biblioteca de Network Policies, validación automatizada, observabilidad y alertas de red. \\
+\hline
+OE3 & Matriz de criterios y métricas, normalización, ponderaciones y modelo MCDA. \\
+\hline
+OE4 & Guía metodológica, prototipo recomendador (SPA) y empaquetado de entregables. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Planificación de Sprints (Sprint Planning)}
+
+El proyecto se planificó en \textbf{17 sprints} (Sprint 0 a Sprint 16) de dos semanas cada uno, entre el 1.\textsuperscript{o} de julio de 2025 y el 19 de febrero de 2026, según el cronograma del anteproyecto~\cite{ref29}. La \cref{tab:sprints} presenta el \emph{Sprint Planning} maestro, donde cada sprint se asocia a su entregable principal y al objetivo que atiende.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.2}
+\caption{Planificación maestra de sprints y su relación con los objetivos específicos.}
+\label{tab:sprints}
+\begin{tabularx}{\textwidth}{|c|Y|c|c|}
+\hline
+\textbf{Sprint} & \textbf{Foco / Entregable} & \textbf{Fechas} & \textbf{OE} \\
+\hline
+0  & Kickoff, entorno y tablero & 01--10/07/2025 & --- \\
+\hline
+1  & Kit de laboratorio v0.1 & 11--24/07/2025 & OE1 \\
+\hline
+2  & CNI \#1 \emph{baseline} & 25/07--07/08/2025 & OE1 \\
+\hline
+3  & Biblioteca de Network Policies v0.1 & 08--21/08/2025 & OE2 \\
+\hline
+4  & CNI \#2 \emph{baseline} & 22/08--04/09/2025 & OE1 \\
+\hline
+5  & Matriz de criterios v0.5 + checklist v0.1 & 05--18/09/2025 & OE3 \\
+\hline
+6  & Validación automatizada de Network Policies & 19/09--02/10/2025 & OE2 \\
+\hline
+7  & CNI \#3 \emph{baseline} & 03--16/10/2025 & OE1 \\
+\hline
+8  & Guía metodológica v0.6 & 17--30/10/2025 & OE3/OE4 \\
+\hline
+9  & Observabilidad y alertas de red & 31/10--13/11/2025 & OE1/OE2 \\
+\hline
+10 & CNI \#4 \emph{baseline} o variante & 14--27/11/2025 & OE1 \\
+\hline
+11 & \emph{Rightsizing} v0.1 & 28/11--11/12/2025 & OE1 \\
+\hline
+12 & Biblioteca de NP v1.0 + \emph{snippets} & 12--25/12/2025 & OE2 \\
+\hline
+13 & Matriz v1.0 + checklist v1.0 & 26/12/2025--08/01/2026 & OE3 \\
+\hline
+14 & Guía metodológica v1.0 + empaquetado & 09--22/01/2026 & OE4 \\
+\hline
+15 & Integración final y reporte & 23/01--05/02/2026 & --- \\
+\hline
+16 & Pulido final y entrega v1.0 & 06--19/02/2026 & --- \\
+\hline
+\end{tabularx}
+\end{table}
+
+El detalle del desarrollo iterativo, agrupado por fases temáticas y con las retrospectivas de cada agrupación, se documenta en el \cref{cap:desarrollo}. El diseño técnico que materializa estos sprints se presenta en los \cref{sec:Metodos,cap:herramienta}.

@@ -153,16 +153,18 @@ Un aspecto crítico, y directamente relevante para este trabajo, es que la Netwo
 
 El Análisis de Decisión Multicriterio (MCDA) es un conjunto de métodos formales para seleccionar entre alternativas cuando existen múltiples criterios de evaluación con distinta importancia relativa~\cite{ref34}. Es el enfoque adecuado cuando ninguna alternativa es la mejor en todas las dimensiones al mismo tiempo: en este trabajo, ningún CNI lidera simultáneamente en throughput, latencia, consumo de CPU, consumo de RAM y capacidades de seguridad. Ignorar ese compromiso y elegir únicamente por throughput equivale a comprar un automóvil mirando solo la velocidad máxima.
 
-El modelo implementado en este trabajo utiliza la \textbf{suma ponderada} como método de agregación:
-\[
+El modelo implementado en este trabajo utiliza el método de \textbf{suma ponderada} ---conocido en la literatura como \emph{Simple Additive Weighting} (SAW) o \emph{Weighted Sum Model} (WSM)---, formalizado por Fishburn como agregación aditiva de utilidades~\cite{ref30} y reconocido como el método MCDA más difundido por su transparencia interpretativa~\cite{ref34}. La puntuación de cada alternativa se obtiene mediante la \cref{eq:mcda-suma}:
+\begin{equation}\label{eq:mcda-suma}
 P_{CNI} = \sum_{i=1}^{n} (V_i \times W_i)
-\]
-donde $P_{CNI}$ es el puntaje final del plugin CNI, $V_i$ es el valor normalizado de la métrica $i$ y $W_i$ es el peso asignado a esa métrica según el perfil de usuario evaluado, con la condición $\sum W_i = 1$.
+\end{equation}
+donde $P_{CNI}$ es el puntaje final del plugin CNI, $V_i$ es el valor normalizado de la métrica $i$ y $W_i$ es el peso asignado a esa métrica según el perfil de usuario evaluado, con la condición $\sum_{i=1}^{n} W_i = 1$.
 
-Para que métricas con unidades distintas (Gbps, milisegundos, millicores) sean comparables en esa fórmula, se aplica \textbf{normalización min-max} con re-escalado al intervalo $[1,\,5]$:
-\[
+Para que métricas con unidades distintas (Gbps, milisegundos, millicores) sean comparables en esa fórmula, se aplica \textbf{normalización min-max}, una de las técnicas estándar de normalización en MCDA por preservar las distancias relativas entre alternativas~\cite{ref35}. En este trabajo se re-escala al intervalo $[1,\,5]$ mediante la \cref{eq:mcda-norm}:
+\begin{equation}\label{eq:mcda-norm}
 V_i = 1 + 4 \cdot \frac{x - x_{\min}}{x_{\max} - x_{\min}}
-\]
-donde $x_{\min}$ y $x_{\max}$ son los valores mínimo y máximo observados entre los CNIs para esa métrica. En métricas donde un valor mayor es mejor (throughput), la normalización es directa; en métricas donde un valor menor es mejor (latencia, CPU, RAM), se invierte el cociente ---usando $x_{\max} - x$ en el numerador--- de modo que $V_i = 5$ representa siempre la mejor alternativa y $V_i = 1$ la peor. Con $\sum W_i = 1$, el puntaje $P_{CNI}$ también queda en $[1,\,5]$, lo que facilita la interpretación directa del resultado final.
+\end{equation}
+donde $x_{\min}$ y $x_{\max}$ son los valores mínimo y máximo observados entre los CNIs para esa métrica. En métricas donde un valor mayor es mejor (throughput), la normalización es directa; en métricas donde un valor menor es mejor (latencia, CPU, RAM), se invierte el cociente ---usando $x_{\max} - x$ en el numerador--- de modo que $V_i = 5$ representa siempre la mejor alternativa y $V_i = 1$ la peor. La elección del intervalo $[1,\,5]$ ---en lugar del clásico $[0,\,1]$--- responde a una escala de utilidad acotada de cinco niveles, equivalente a una escala Likert, que facilita la lectura por parte de equipos no especializados sin alterar el ordenamiento de las alternativas~\cite{ref35}. Con $\sum_{i=1}^{n} W_i = 1$, el puntaje $P_{CNI}$ también queda en $[1,\,5]$, lo que permite interpretar el resultado final en la misma escala.
 
 Los pesos $W_i$ son los parámetros que capturan las prioridades de cada organización. En este trabajo se definen tres perfiles: Fintech, que asigna mayor peso a la seguridad; Streaming, orientado al rendimiento de red; e IoT, centrado en el menor consumo de recursos por nodo. La parametrización explícita de los pesos hace que el modelo sea ajustable ante nuevos perfiles sin modificar el procedimiento de medición.
+
+El método SAW es \emph{compensatorio}: un valor alto en una métrica puede compensar un valor bajo en otra. Para impedir que esa compensación opere sobre la seguridad ---de modo que un CNI sin soporte de NetworkPolicies obtenga un buen puntaje únicamente por su eficiencia computacional---, el modelo incorpora una \textbf{restricción no compensatoria}, en la línea de los modelos conjuntivos de decisión multiatributo~\cite{ref31}. Cuando el perfil exige un nivel de seguridad alto, todo CNI que no implemente NetworkPolicies en su plano de datos recibe una penalización multiplicativa sobre su puntaje final, lo que lo descarta como opción viable con independencia de su rendimiento. La formulación y el valor de este factor de penalización se detallan en la metodología (\cref{sec:Metodos}).

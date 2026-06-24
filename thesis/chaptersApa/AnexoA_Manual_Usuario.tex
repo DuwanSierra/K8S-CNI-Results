@@ -1,0 +1,29 @@
+\chapter{Manual de Usuario del Recomendador CNI} \label{anexo:manual_usuario}
+
+Este anexo describe cómo utilizar el prototipo recomendador ---la herramienta central del proyecto--- para obtener una recomendación de plugin CNI fundamentada en los datos del \emph{testbed}. El recomendador es una aplicación web de página única (SPA) que no requiere instalación por parte del usuario final: se accede desde un navegador a la versión publicada en GitHub Pages del repositorio de resultados (\texttt{K8S-CNI-Results}).
+
+\section{Acceso a la herramienta}
+
+La aplicación está disponible como sitio estático publicado desde la carpeta \texttt{docs/recommender} del repositorio \texttt{K8S-CNI-Results} mediante GitHub Pages. Basta con abrir la URL del sitio en cualquier navegador moderno; no se necesita usuario, contraseña ni componentes adicionales, ya que la SPA consume directamente el archivo de datos procesados \texttt{cni-data.json}.
+
+\section{Flujo de uso paso a paso}
+
+\begin{enumerate}
+\item \textbf{Seleccionar un perfil de uso.} La pantalla principal presenta tres perfiles representativos de la industria: \emph{Fintech / Seguridad crítica}, \emph{Streaming / Alto rendimiento} e \emph{IoT / Recursos limitados}. Cada perfil predefine los factores de ponderación de las métricas (seguridad, latencia, throughput, estabilidad y recursos).
+\item \textbf{Ajustar las prioridades (opcional).} El usuario puede modificar los pesos mediante los deslizadores (\emph{sliders}); la suma se normaliza automáticamente al 100\,\%. Esto permite adaptar la recomendación a una organización con prioridades distintas a las de los perfiles base.
+\item \textbf{Consultar la recomendación.} La aplicación calcula el ranking multicriterio (MCDA) para el perfil seleccionado y resalta el CNI con mayor puntaje como recomendación principal.
+\item \textbf{Revisar la justificación.} La interfaz muestra las métricas brutas promedio de cada CNI ---throughput, latencia, retransmisiones, consumo de CPU y RAM, e impacto de las Network Policies--- en gráficas comparativas, de modo que la recomendación sea explicable y no una ``caja negra''.
+\item \textbf{Obtener la orientación de despliegue.} Para el CNI recomendado, la herramienta presenta las consideraciones de configuración e instalación relevantes, que sirven de punto de partida para el despliegue documentado en el \cref{anexo:manual_instalacion}.
+\end{enumerate}
+
+\section{Interpretación de los resultados}
+
+El puntaje de cada CNI se expresa en una escala de utilidad de 1 a 5, donde 5 representa la mejor alternativa en la métrica correspondiente (\cref{eq:mcda-suma,eq:mcda-norm}). Conviene tener presente la \textbf{restricción no compensatoria de seguridad}: cuando el perfil exige un nivel de seguridad alto, un CNI que no aplique Network Policies en su plano de datos recibe una penalización que lo descarta como opción viable, con independencia de su rendimiento. Por ello, en perfiles como Fintech, un CNI muy eficiente pero sin soporte de políticas no aparecerá como recomendado.
+
+\section{Resolución de problemas frecuentes}
+
+\begin{itemize}
+\item \emph{La aplicación no muestra datos.} Verifique la conexión a Internet y que el archivo \texttt{cni-data.json} esté publicado; este se regenera con \texttt{npm run sync:data} (\cref{anexo:manual_instalacion}).
+\item \emph{Los puntajes no cambian al ajustar los pesos.} Asegúrese de que la suma de prioridades sea mayor que cero; si todos los deslizadores están en cero, el modelo no puede ponderar.
+\item \emph{Quiero evaluar un CNI nuevo o datos más recientes.} La herramienta está diseñada para mejora continua: al incorporar nuevas corridas en el repositorio de resultados y regenerar los datos, el ranking se recalcula sin modificar la aplicación.
+\end{itemize}

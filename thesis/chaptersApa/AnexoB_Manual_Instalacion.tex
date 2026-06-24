@@ -1,0 +1,92 @@
+\chapter{Manual de Instalación y del Programador} \label{anexo:manual_instalacion}
+
+Este anexo reúne los comandos necesarios para reproducir la solución de extremo a extremo: aprovisionar el \emph{testbed}, desplegar un CNI, ejecutar los \emph{benchmarks} y reconstruir y publicar el prototipo recomendador. Está dirigido a quien deba instalar, operar o extender la herramienta. El detalle técnico ampliado se encuentra en el \cref{chap:apendice_a}.
+
+\section{Requisitos previos}
+
+\begin{itemize}
+\item Cuenta en DigitalOcean con un \emph{token} de API y una base de datos PostgreSQL gestionada.
+\item Herramientas de línea de comandos: \texttt{terraform}, \texttt{kubectl}, \texttt{helm}, \texttt{git} y \texttt{node}/\texttt{npm}.
+\item Acceso a los cuatro repositorios del proyecto: \texttt{HA-K3s-Terraform-DO}, \texttt{K8s-bootstrap}, \texttt{K8s-Tesis-Apps} y \texttt{K8S-CNI-Results}.
+\end{itemize}
+
+\section{Paso 1: Aprovisionamiento del testbed con Terraform}
+
+El módulo de aprovisionamiento (\texttt{K8s-bootstrap/00.bootstrap}) crea los Droplets, la VPC privada y las reglas de \emph{firewall}, e instala K3s en alta disponibilidad con el CNI seleccionado. El CNI se elige mediante la variable \texttt{cni\_provider} en \texttt{terraform.tfvars} (valores: \texttt{flannel}, \texttt{calico}, \texttt{cilium} o \texttt{antrea}).
+
+\begin{lstlisting}[language=bash]
+cd K8s-bootstrap/00.bootstrap
+# Seleccionar el CNI a evaluar
+echo 'cni_provider = "cilium"' > terraform.tfvars
+
+terraform init
+terraform plan       # Compara el estado actual con el codigo
+terraform apply      # Crea Droplets, VPC, firewall y cluster K3s
+terraform output -raw kubeconfig > kubeconfig.yaml
+export KUBECONFIG=$PWD/kubeconfig.yaml
+kubectl get nodes    # Verificar el cluster (1 master + 2 workers)
+\end{lstlisting}
+
+Para rotar al siguiente CNI se reemplaza por completo la infraestructura, garantizando nodos limpios sin residuos de configuración:
+
+\begin{lstlisting}[language=bash]
+terraform destroy            # Elimina toda la infraestructura del CNI anterior
+# Cambiar cni_provider en terraform.tfvars y volver a aplicar
+terraform apply
+\end{lstlisting}
+
+\section{Paso 2: Despliegue de aplicaciones con GitOps (ArgoCD)}
+
+Con el clúster activo, se instala ArgoCD y se aplica el patrón \emph{App of Apps}: una única aplicación raíz que despliega los \emph{benchmarks}, el \emph{stack} de observabilidad y las Network Policies desde el repositorio \texttt{K8s-Tesis-Apps}.
+
+\begin{lstlisting}[language=bash]
+# Instalacion de ArgoCD
+kubectl apply -k K8s-bootstrap/20.argo-cd-install
+# Aplicacion raiz (App of Apps) con selfHeal y prune
+kubectl apply -f K8s-bootstrap/30.apps-of-apps-install/apps-of-apps.yaml
+# Verificar sincronizacion
+kubectl get applications -n argocd
+\end{lstlisting}
+
+ArgoCD mantiene el clúster sincronizado con Git: \texttt{selfHeal} restaura cambios manuales y \texttt{prune} elimina recursos borrados del repositorio, lo que preserva la integridad del experimento.
+
+\section{Paso 3: Ejecución de los benchmarks}
+
+Los \emph{benchmarks} se ejecutan automáticamente como CronJobs (throughput con iperf3 en los minutos 0 y 30; latencia en los minutos 10 y 40; extracción de recursos en los minutos 25 y 55). Para una ejecución manual o para inspeccionar resultados:
+
+\begin{lstlisting}[language=bash]
+# Lanzar manualmente una corrida de throughput
+kubectl create job --from=cronjob/iperf-client-cronjob iperf-manual -n cni-test
+# Revisar resultados persistidos
+kubectl logs -n cni-test job/iperf-manual
+\end{lstlisting}
+
+Los resultados crudos (JSON/CSV) se versionan en \texttt{K8S-CNI-Results/results/cni-benchmarks/\{cni\}/}.
+
+\section{Paso 4: Procesamiento de datos y modelo MCDA}
+
+El procesador transforma los datos crudos en datos consolidados (limpieza IQR, normalización min-max y \emph{scoring} MCDA), generando \texttt{cni-data.json}.
+
+\begin{lstlisting}[language=bash]
+cd K8S-CNI-Results
+node docs/procesador.js     # Genera cni-data.json a partir de results/
+\end{lstlisting}
+
+\section{Paso 5: Reconstrucción y publicación del recomendador (SPA)}
+
+El prototipo recomendador es una SPA en React~19 + Vite~7 + Tailwind CSS~3. El comando \texttt{sync:data} encadena el procesador y la inyección de datos en el \emph{bundle}; \texttt{build:pages} compila la versión de producción hacia \texttt{docs/recommender} para su publicación en GitHub Pages.
+
+\begin{lstlisting}[language=bash]
+cd K8S-CNI-Results/cni-recommender-spa
+npm install
+npm run sync:data    # Ejecuta procesador.js + export-spa-data.cjs
+npm run build:pages  # Compila a ../docs/recommender (GitHub Pages)
+# Publicar
+git add ../docs/recommender && git commit -m "Actualizar recomendador" && git push
+\end{lstlisting}
+
+Tras el \emph{push}, GitHub Pages sirve la versión actualizada de la herramienta descrita en el \cref{anexo:manual_usuario}.
+
+\section{Estructura de repositorios}
+
+La \cref{tab:repositorios-entregables} (capítulo de la herramienta) resume la responsabilidad de cada repositorio. El flujo es unidireccional: \texttt{HA-K3s-Terraform-DO} provee el módulo cloud; \texttt{K8s-bootstrap} orquesta la infraestructura; \texttt{K8s-Tesis-Apps} despliega aplicaciones y genera métricas; \texttt{K8S-CNI-Results} almacena, procesa y publica los resultados y el recomendador.

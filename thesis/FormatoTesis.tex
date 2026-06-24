@@ -5,6 +5,23 @@
 \usepackage{listings}
 \usepackage{booktabs}
 \usepackage{ragged2e}
+
+% --- Numeracion de ecuaciones por capitulo (clase book: figuras/tablas ya lo hacen) ---
+\counterwithin{equation}{chapter}
+
+% --- Referencias cruzadas uniformes (cargar despues de hyperref) ---
+\usepackage[nameinlink]{cleveref}
+\crefname{equation}{ecuación}{ecuaciones}
+\Crefname{equation}{Ecuación}{Ecuaciones}
+\crefname{figure}{figura}{figuras}
+\Crefname{figure}{Figura}{Figuras}
+\crefname{table}{tabla}{tablas}
+\Crefname{table}{Tabla}{Tablas}
+\crefname{chapter}{capítulo}{capítulos}
+\Crefname{chapter}{Capítulo}{Capítulos}
+\crefname{section}{sección}{secciones}
+\Crefname{section}{Sección}{Secciones}
+
 \lstset{
   basicstyle=\ttfamily\scriptsize,
   breaklines=true,
@@ -89,13 +106,20 @@
 \mainmatter
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% --- Parte I: Fundamentación ---
 \input{chaptersApa/1_Introduccion}
-\input{chaptersApa/2_Estado_del_arte}
 \input{chaptersApa/3_Planteamiento_del_Problema}
 \input{chaptersApa/4_Justificación}
 \input{chaptersApa/5_Objetivos}
+% --- Parte II: Marco de referencia ---
 \input{chaptersApa/6_Marco_Teórico-Conceptual}
-\input{chaptersApa/7_Metodología}
+\input{chaptersApa/2_Estado_del_arte}
+% --- Parte III: Desarrollo (Scrum) ---
+\input{chaptersApa/M1_Metodologia}
+\input{chaptersApa/M2_Diseno}
+\input{chaptersApa/M3_Herramienta}
+\input{chaptersApa/M4_Desarrollo_Sprints}
+% --- Parte IV: Validación y cierre ---
 \input{chaptersApa/8_Resultados}
 \input{chaptersApa/9_Discusión}
 \input{chaptersApa/10_Conclusiones}
@@ -115,10 +139,14 @@
 %%%%%%%%%%%%%%%%%%%%%%%% - APÉNDICE - %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \appendix
-\renewcommand{\appendixpagename}{Apéndices}
-\renewcommand{\appendixtocname}{Apéndices}
+\renewcommand{\appendixpagename}{Anexos}
+\renewcommand{\appendixtocname}{Anexos}
 \appendixpage
 
+% Manuales (entregables de la herramienta)
+\include{chaptersApa/AnexoA_Manual_Usuario}
+\include{chaptersApa/AnexoB_Manual_Instalacion}
+% Material técnico de reproducción y matrices extendidas
 \include{chaptersApa/14.0_Apendice_A}
 \include{chaptersApa/14.1_Apendice_OE2}
 \include{chaptersApa/14.2_Apendice_OE3}
