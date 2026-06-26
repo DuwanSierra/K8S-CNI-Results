@@ -196,31 +196,32 @@ El hallazgo más crítico es que Flannel no implementa Network Policies en su pl
 
 Cilium es el único CNI que soporta Network Policies de capa 7 (L7), lo que permite definir reglas a nivel de método y ruta HTTP ---por ejemplo, admitir solo solicitudes \texttt{GET} a una ruta determinada---, capacidad fundamental para arquitecturas de microservicios.
 
-\subsection{Prueba de Overhead de Seguridad}
+\subsection{Prueba de Overhead de Seguridad} \label{sec:apb2_overhead}
 
-Se ejecutaron las pruebas de rendimiento nuevamente con las políticas de seguridad activas y se compararon con los resultados base. El \textbf{overhead} es el costo adicional que introduce activar las políticas: \textbf{cuanto menor el porcentaje, mejor ($\downarrow$)}, porque significa que la seguridad se aplica sin penalizar el rendimiento de las aplicaciones. Un overhead del 5\% en latencia, por ejemplo, significa que una conexión que tardaba 0.500\,ms ahora tarda 0.525\,ms --- imperceptible para el usuario final.
+Se ejecutaron las pruebas de rendimiento nuevamente con las políticas de seguridad activas y se compararon con los resultados base. El \textbf{overhead} es el costo adicional que introduce activar las políticas: \textbf{cuanto menor el porcentaje, mejor ($\downarrow$)}, porque significa que la seguridad se aplica sin penalizar el rendimiento de las aplicaciones. La Tabla~\ref{tab:overhead-seguridad} detalla esta variación, contextualizándola con el \emph{baseline} OE1 sin políticas para poder interpretar los porcentajes en su magnitud absoluta y no solo como variaciones relativas.
 
 \begin{table}[htbp]
 \centering
 \scriptsize
-\caption{Impacto en rendimiento al activar Network Policies por escenario (signo negativo indica reducción favorable; positivo, incremento desfavorable).}
+\caption{Overhead detallado de Network Policies por CNI y caso de uso, contextualizado con el baseline OE1.}
 \label{tab:overhead-seguridad}
-\begin{tabularx}{\textwidth}{|Y|c|c|c|}
+\begin{tabularx}{\textwidth}{|l|c|c|Y|Y|Y|}
 \hline
-\textbf{CNI} & \textbf{Zero Trust (Overhead)} & \textbf{Multi-Tier (Overhead)} & \textbf{Egress Block (Overhead)} \\
+\textbf{CNI} & \textbf{Thr base (Mbps)} & \textbf{Lat base (ms)} & \textbf{Zero Trust} & \textbf{Multi-Tier} & \textbf{Egress Block} \\
 \hline
-\textbf{Calico} & Thr: $-$0.25\% / Lat: $-$21.11\% & Thr: $-$0.25\% / Lat: $+$31.45\% & Thr: $-$1.36\% / Lat: $-$22.25\% \\
+Calico & 1804.40 & 12.54 & Thr $-0.25\%$ / Lat $-21.11\%$ & Thr $-0.25\%$ / Lat $+31.45\%$ & Thr $-1.36\%$ / Lat $-22.25\%$ \\
 \hline
-\textbf{Cilium} & Thr: $+$111.53\% / Lat: $-$43.16\% & Thr: $+$92.07\% / Lat: $+$3.70\% & Thr: $+$108.05\% / Lat: $-$37.43\% \\
+Cilium & 843.56 & 18.73 & Thr $+111.53\%$ / Lat $-43.16\%$ & Thr $+92.07\%$ / Lat $+3.70\%$ & Thr $+108.05\%$ / Lat $-37.43\%$ \\
 \hline
-\textbf{Antrea} & Thr: $+$4.40\% / Lat: $-$28.77\% & Thr: $+$13.46\% / Lat: $-$25.16\% & Thr: $-$4.35\% / Lat: $-$27.15\% \\
+Antrea & 1588.45 & 35.09 & Thr $+4.40\%$ / Lat $-28.77\%$ & Thr $+13.46\%$ / Lat $-25.16\%$ & Thr $-4.35\%$ / Lat $-27.15\%$ \\
 \hline
-\textbf{Flannel} & \multicolumn{3}{c|}{No soporta Network Policies nativas (Capacidad 0/10)} \\
+Flannel & 1452.97 & 21.53 & \multicolumn{3}{c|}{No aplica: Flannel no implementa Network Policies en el plano de datos.} \\
 \hline
 \end{tabularx}
 \end{table}
 
-El impacto de habilitar políticas de seguridad varía considerablemente. Calico muestra un impacto mínimo en throughput (menos del 1.36\% de pérdida) con variaciones de latencia de entre un $-22.25\%$ (reducción) y un $+31.45\%$ (incremento). Antrea registra incrementos de throughput de hasta $+13.46\%$ y reducciones de latencia de hasta $-28.77\%$. En el caso de Cilium, se observa una anomalía estadística: el rendimiento de red aparente mejora notablemente al habilitar políticas (el throughput aumenta un $+111.53\%$). Sin embargo, este salto porcentual no significa que las políticas L7 aceleren la red por sí mismas, sino que evidencia un \emph{baseline} subóptimo en este testbed ---posiblemente afectado por ruido de monitoreo o el desajuste inicial de MTU derivado del encapsulamiento VXLAN y eBPF--- que se estabiliza al activar el filtrado explícito. Por consiguiente, esta mejora relativa no debe generalizarse como un comportamiento estándar en entornos de producción. Flannel no registra datos al no poder compilar o aplicar políticas de seguridad en su plano de datos.
+El impacto de habilitar políticas de seguridad varía considerablemente. En Calico y Antrea el overhead de throughput se mantiene por debajo del $5\%$ y la latencia varía dentro de un rango operativo aceptable, de modo que las Network Policies en el plano de datos no imponen un costo prohibitivo. Flannel no registra datos al no poder compilar o aplicar políticas de seguridad en su plano de datos: se trata de una exclusión estructural, no de un valor numérico desfavorable. Cilium muestra un comportamiento distinto, con incrementos de throughput de entre $+92.07\%$ y $+111.53\%$ y reducciones de latencia de hasta $-43.16\%$ al activar las políticas. Estas cifras conviene leerlas junto a su \emph{baseline} OE1 ($843.56$~Mbps, el más bajo de los cuatro CNIs): la activación de políticas, o algún ajuste del encapsulamiento VXLAN y eBPF, acerca a Cilium al rango del resto de plugins. Estas cifras ratifican que el baseline original de Cilium en este testbed fue subóptimo, por lo que esta variación porcentual es un artefacto de las condiciones de prueba y no una ventaja inherente de las políticas. Por ende, este dato no se generaliza a otros entornos de producción.
+
 
 \section{Pruebas de Eficiencia Computacional --- Consumo del Agente CNI}
 

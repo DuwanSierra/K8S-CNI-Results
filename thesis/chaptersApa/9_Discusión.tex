@@ -14,5 +14,42 @@ La implementación de políticas Zero Trust demostró no degradar el rendimiento
 \section{Delimitación de la evaluación de seguridad} \label{sec:delimitacion_oe2}
 El OE2 evalúa exclusivamente la configuración y enforcement de Network Policies en el plano de datos, junto con la reconciliación del estado mediante GitOps (ArgoCD). No se evalúa el control de admisión (ej. OPA/Gatekeeper, Kyverno) para detener la creación de políticas semánticamente inseguras antes del merge. Tampoco se evalúa la detección en runtime (ej. Falco, Tetragon) ni la criptografía de identidades de un Service Mesh con mTLS. Los resultados respaldan que Calico, Cilium y Antrea aplican las políticas L3/L4/L7 declaradas, pero una defensa en profundidad en producción requiere abordar las capas de admisión, observabilidad e identidad criptográfica.
 
+\section{Limitaciones técnicas de la evaluación de seguridad} \label{sec:apb2_limitaciones}
+
+La Tabla~\ref{tab:apb2_limitaciones} detalla las limitaciones técnicas consideradas al interpretar los resultados del OE2, acompañadas de la justificación de alcance que delimita su efecto sobre las conclusiones.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Limitaciones técnicas de la evaluación de seguridad y su justificación de alcance.}
+\label{tab:apb2_limitaciones}
+\begin{tabularx}{\textwidth}{|l|Y|Y|}
+\hline
+\textbf{Id} & \textbf{Limitación} & \textbf{Justificación de alcance} \\
+\hline
+L1 & La superficie de ataque no se cuantifica como métrica numérica (flujos permitidos antes/después). & Se utiliza el bloqueo efectivo de flujos como evidencia operativa, no una cuenta absoluta. Métrica cuantitativa: trabajo futuro. \\
+\hline
+L2 & La probabilidad de incidentes es una proxy cualitativa, no estadística. & No existe frecuencia base de incidentes en el laboratorio. \\
+\hline
+L3 & La automatización cubre despliegue declarativo y reconciliación, no \emph{admission control}. & OPA/Gatekeeper o Kyverno como validación previa al \emph{merge} no son parte del OE2. \\
+\hline
+L4 & Las TC-SEC son binarias (pasa/falla); no miden tiempo hasta detección ni eventos de registro. & El OE2 evalúa \emph{enforcement}; la detección y respuesta pertenecen al ámbito SIEM/runtime. \\
+\hline
+L5 & La aplicación de pruebas es una topología frontend/backend/database mínima. & Reproduce el patrón dominante de microservicios; no agota la complejidad de producción. \\
+\hline
+L6 & El egreso DNS se prueba como permitido o denegado, no por sofisticación (DNS-tunneling, DoH, NXDOMAIN). & Los ataques DNS avanzados requieren herramientas específicas fuera del alcance. \\
+\hline
+L7 & El overhead se mide bajo carga sintética de iperf3, no bajo tráfico aplicacional real. & iperf3 funciona como cota superior del costo; el tráfico real ejerce menor presión sobre el plano de datos. \\
+\hline
+L8 & El incremento de throughput de Cilium con políticas activas requiere replicación independiente. & Se interpreta junto a su baseline OE1 (\cref{sec:apb2_overhead}); no se usa como argumento general. \\
+\hline
+L9 & Se ejecutaron 5 corridas por escenario; los porcentajes con valores absolutos pequeños tienen incertidumbre relativa alta. & Compromiso entre rigor estadístico y costo del laboratorio cloud; outliers filtrados por IQR. \\
+\hline
+L10 & El modelo de amenazas no se formaliza con MITRE ATT\&CK ni STRIDE. & El mapeo de \cref{sec:apb2_mapeo} es conceptual; la formalización es trabajo futuro. \\
+\hline
+\end{tabularx}
+\end{table}
+
 \section{Limitaciones del modelo MCDA}
 El algoritmo MCDA resolvió las compensaciones técnicas entre CNIs; sin embargo, los pesos asignados a cada criterio por perfil se basan en diseño arquitectónico estándar y no en calibración empírica mediante entrevistas con equipos de ingeniería. Adicionalmente, la evaluación de soporte L7 se modeló como variable binaria sin medir el overhead computacional específico de reglas de filtrado complejas. Pruebas futuras con escalado masivo (cientos de nodos) podrían alterar la penalización en RAM y CPU del plano de control en reposo.
+

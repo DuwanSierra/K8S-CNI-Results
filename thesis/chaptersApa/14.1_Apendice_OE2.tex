@@ -18,6 +18,8 @@
 
 Este apéndice reúne la evidencia técnica que respalda el Objetivo Específico 2: \emph{Evaluar cómo la configuración segura y automatizada de las políticas de red adaptadas a cada plugin CNI reduce la superficie de ataque y la probabilidad de incidentes de seguridad en clústeres Kubernetes}. Se documentan el alcance operativo bajo el que se interpretaron los resultados, los requisitos verificables que se derivan del enunciado, la matriz extendida de casos de prueba, el detalle del overhead por escenario, los fragmentos de configuración adaptados a cada CNI y el mapeo a marcos de referencia de la industria. El objetivo es dar trazabilidad entre cada decisión de configuración y cada resultado del cuerpo principal, de manera que las conclusiones puedan contrastarse con la evidencia. Las decisiones de alcance se declaran de forma explícita para acotar lo que esa evidencia sostiene.
 
+% MUDANZA: Las secciones de Alcance Operativo, Requisitos Verificables y Matriz Extendida se trasladaron a chaptersApa/M2_Diseno.tex
+\iffalse
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Alcance operativo declarado} \label{sec:apb2_alcance}
 
@@ -98,6 +100,8 @@ La Tabla~\ref{tab:apb2_matriz_ext} reescribe la matriz TC-SEC del cuerpo princip
 La columna ``Requisito'' funciona como traza directa entre cada prueba y el enunciado del OE2. Así, el efecto de \emph{prevenir incidentes} (E2) se respalda en los casos etiquetados con E2 ---TC-SEC-04, 06 y 07---, mientras que la \emph{reducción de la superficie de ataque} (E1) se apoya en TC-SEC-01, 02, 04 y 07; el resto de requisitos se lee de forma análoga.
 
 % ─────────────────────────────────────────────────────────────────────────────
+\fi
+
 \section{Adaptación específica por CNI (R2)} \label{sec:apb2_adaptacion}
 
 El requisito R2 establece que las políticas no deben ser idénticas para los cuatro CNIs, sino aprovechar las capacidades diferenciales de cada plugin cuando estén disponibles. La Tabla~\ref{tab:apb2_adaptacion} resume las decisiones de adaptación adoptadas y la capacidad concreta que explota cada una; los fragmentos de configuración que siguen materializan los casos más representativos.
@@ -187,6 +191,8 @@ spec:
 
 Los manifiestos completos (incluidas las variantes \texttt{zero\_trust}, \texttt{multi\_tier} y \texttt{egress\_block} para los cuatro CNIs) se publican en \texttt{K8s-Tesis-Apps/network\_policies/} (Apéndice~\ref{chap:apendice_a}).
 
+% MUDANZA: La sección de Overhead por CNI y caso de uso se trasladó a chaptersApa/8_Resultados.tex
+\iffalse
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Overhead por CNI y caso de uso} \label{sec:apb2_overhead}
 
@@ -213,7 +219,11 @@ Flannel & 1452.97 & 21.53 & \multicolumn{3}{c|}{No aplica: Flannel no implementa
 \end{table}
 
 En Calico y Antrea el overhead de throughput se mantiene por debajo del $5\%$ y la latencia varía dentro de un rango operativo aceptable, de modo que las Network Policies en el plano de datos no imponen un costo prohibitivo. Flannel no aparece con cifras porque no aplica políticas en su plano de datos: se trata de una exclusión estructural, no de un valor numérico desfavorable. Cilium muestra un comportamiento distinto, con incrementos de throughput de entre $+92.07\%$ y $+111.53\%$ y reducciones de latencia de hasta $-43.16\%$ al activar las políticas. Estas cifras conviene leerlas junto a su \emph{baseline} OE1 (843.56~Mbps, el más bajo de los cuatro CNIs): la activación de políticas, o algún ajuste asociado a ella, acerca a Cilium al rango del resto de plugins. Estas cifras ratifican que el baseline original de Cilium en este testbed fue subóptimo, por lo que esta variación porcentual es un artefacto de las condiciones de prueba y no una ventaja inherente de las políticas. Por ende, este dato no se generaliza a otros entornos de producción.
+\fi
 
+
+% MUDANZA: La sección de Mapeo a marcos de referencia se trasladó a chaptersApa/M2_Diseno.tex
+\iffalse
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Mapeo a marcos de referencia} \label{sec:apb2_mapeo}
 
@@ -243,6 +253,11 @@ La Tabla~\ref{tab:apb2_mapeo} alinea los casos de prueba TC-SEC con los marcos c
 
 El alcance del OE2 se limita al \emph{enforcement} de red dentro del clúster. Quedan explícitamente fuera del alcance: el \emph{admission control} (validación previa al despliegue de las políticas con herramientas como OPA/Gatekeeper o Kyverno), la detección y respuesta en \emph{runtime} (Falco, Tetragon), el \emph{service mesh} con mTLS para garantizar identidad criptográfica entre servicios~\cite{ref26}, la seguridad de la cadena de suministro y la verificación de imágenes. Estas dimensiones complementarias se discuten en la \S\ref{sec:delimitacion_oe2} de la Discusión.
 
+% ─────────────────────────────────────────────────────────────────────────────
+\fi
+
+% MUDANZA: La sección de Limitaciones técnicas se trasladó a chaptersApa/9_Discusión.tex
+\iffalse
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Limitaciones técnicas del OE2} \label{sec:apb2_limitaciones}
 
@@ -279,6 +294,8 @@ L10 & El modelo de amenazas no se formaliza con MITRE ATT\&CK ni STRIDE. & El ma
 \hline
 \end{tabularx}
 \end{table}
+\fi
+
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Reproducibilidad del OE2} \label{sec:apb2_reproducibilidad}

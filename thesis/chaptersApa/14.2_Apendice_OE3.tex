@@ -47,6 +47,8 @@ Network Policies L7 & Nulo (No soporta) & Nulo (No soporta) & Excelente & Nulo (
 
 Para dar solución a este problema de forma cuantitativa, este apéndice documenta el desarrollo y validación del Objetivo Específico 3 de la tesis: un modelo formal compuesto por criterios jerárquicos, métricas normalizadas, umbrales de calidad de servicio (SLA) y ponderaciones específicas de negocio.
 
+% MUDANZA: La sección de Definición de criterios y métricas de evaluación se trasladó a chaptersApa/M2_Diseno.tex
+\iffalse
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Definición de criterios y métricas de evaluación} \label{sec:apb_criterios}
 
@@ -79,6 +81,8 @@ Para comparar los plugins de manera objetiva, el modelo agrupa los indicadores e
   \item \textbf{C2 --- Eficiencia de recursos:} Mide el consumo de CPU y memoria RAM que el agente CNI requiere en cada nodo worker para funcionar.
   \item \textbf{C3 --- Impacto de seguridad:} Mide la sobrecarga (\emph{overhead}) de latencia y throughput al activar Network Policies en el clúster.
 \end{itemize}
+\fi
+
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Datos experimentales consolidados del testbed} \label{sec:apb_datos}
@@ -113,6 +117,8 @@ Para facilitar la interpretación de los datos, cada métrica incluye un indicad
   \item \textbf{Sentido ascendente $(\uparrow)$:} Indica que un valor mayor representa un mejor comportamiento técnico. Se utiliza principalmente en el \emph{throughput} (ancho de banda disponible).
 \end{itemize}
 
+% MUDANZA: Las secciones de Normalización continua Min-Max, Factores de ponderación y Modelo MCDA se trasladaron a chaptersApa/M2_Diseno.tex
+\iffalse
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Normalización continua Min-Max} \label{sec:apb_umbrales}
 
@@ -198,6 +204,8 @@ El flujo de procesamiento del recomendador interactivo se resume a continuación
     \multicolumn{7}{c}{\colorbox{oe3azulcl}{\small\textbf{$P_{\text{CNI}}$: El CNI con la puntuación más alta es la recomendación del modelo}}}
   \end{tabular}
 \end{center}
+\fi
+
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Resultados MCDA y análisis de selección} \label{sec:apb_resultados}

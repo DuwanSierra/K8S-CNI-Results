@@ -1,5 +1,17 @@
 \chapter{Diseño de la Solución} \label{sec:Metodos}
 
+% ── Paleta de colores para diagramas MCDA ────────────────────────────────────
+\definecolor{oe3azul}    {HTML}{1A3F6F}   % encabezados principales
+\definecolor{oe3azulcl}  {HTML}{E8EEF7}   % filas alternas
+\definecolor{oe3verde}   {HTML}{1B5E20}   % Excelente
+\definecolor{oe3verdecl} {HTML}{E8F5E9}
+\definecolor{oe3ambar}   {HTML}{E65100}   % Aceptable
+\definecolor{oe3ambarcl} {HTML}{FFF3E0}
+\definecolor{oe3rojo}    {HTML}{B71C1C}   % Deficiente
+\definecolor{oe3rojocl}  {HTML}{FFEBEE}
+\definecolor{oe3gris}    {HTML}{546E7A}   % subtítulos
+\definecolor{oe3griscl}  {HTML}{F5F5F5}  % fondo de notas
+
 A partir de la planificación Scrum (\cref{cap:metodologia}), este capítulo presenta el diseño de la solución telemática. El diseño responde directamente a las causas del árbol de problemas y se estructura en cuatro pilares: una arquitectura de red controlada, un sistema de medición de Calidad de Servicio (QoS), un modelo de decisión multicriterio (MCDA) y una estrategia de seguridad automatizada bajo el principio de Zero Trust. El detalle de implementación y despliegue de cada componente se documenta en el \cref{cap:herramienta}.
 
 
@@ -81,23 +93,94 @@ Costo computacional del CNI & \% CPU / MB RAM & Recursos que consume el propio C
 
 \textbf{Prometheus} recolecta métricas mediante un modelo de \emph{scraping} periódico sobre cada nodo, registrando estadísticas de CPU, memoria, red y estado del CNI. El almacenamiento en series temporales permite correlacionar el consumo de recursos del agente CNI con los instantes exactos de las pruebas de throughput, verificando que las métricas de eficiencia reflejen el comportamiento bajo carga y no en reposo \cite{ref6}. \textbf{Grafana} constituye la capa de visualización: presenta en dashboards interactivos el throughput, la latencia, el consumo de CPU del agente y las retransmisiones TCP. Esta visibilidad permitió detectar anomalías durante las sesiones ---picos de CPU o reinicios inesperados del agente--- antes de que comprometieran la integridad de las corridas \cite{ref6}.
 
-\section{Modelo de Decisión Multicriterio (MCDA)}
+\section{Modelo de Decisión Multicriterio (MCDA)} \label{sec:apb_intro}
 
 Para resolver la selección objetiva del CNI se diseñó un modelo de Análisis de Decisión Multicriterio (MCDA), enfoque empleado en ingeniería y economía cuando una decisión involucra múltiples factores con distinta importancia \cite{ref34}. A diferencia de una comparación basada en un único criterio ---por ejemplo, el throughput máximo---, el MCDA captura el \emph{trade-off} entre velocidad, eficiencia de recursos y capacidades de seguridad, y produce una recomendación que refleja las prioridades de cada tipo de organización.
 
-\subsection{Limpieza estadística y normalización}
+El reto principal de elegir un CNI es que no existe una única solución óptima en todas las dimensiones simultáneamente. El rendimiento base de velocidad de red (\emph{throughput}) es solo una dimensión del problema. Por ejemplo, una pasarela de transacciones bancarias exige seguridad estricta y aislamiento lógico, mientras que un clúster IoT en nodos con recursos de cómputo limitados prioriza un bajo consumo de memoria RAM y CPU. La Tabla~\ref{tab:apb_tradeoffs} muestra a nivel conceptual este compromiso de rendimiento (\emph{trade-off}) cualitativo entre los plugins evaluados, sirviendo de introducción visual al dilema de selección.
 
-Antes de aplicar el modelo, los datos recolectados pasan por una limpieza estadística mediante el Rango Intercuartílico (IQR), que elimina \emph{outliers} causados por eventos externos como mantenimientos del proveedor o picos de uso compartido. El criterio de corte emplea las \emph{vallas} de Tukey ($Q_1 - 1{,}5\cdot\text{IQR}$, $Q_3 + 1{,}5\cdot\text{IQR}$), regla clásica del análisis exploratorio de datos para identificar valores atípicos~\cite{ref32}. Las métricas se re-escalan después mediante la fórmula min-max al intervalo $[1,\,5]$ (véase Marco Teórico, sección~\ref{cap:marco_teorico}), considerando el sentido de optimización de cada variable: en throughput, un valor mayor es mejor; en latencia, CPU, memoria y retransmisiones, un valor menor es preferible, por lo que el cociente de normalización se invierte. Este procesamiento evita que la recomendación dependa de valores atípicos o de la magnitud numérica de una métrica, y se implementa en el archivo \texttt{docs/procesador.js}.
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Matriz comparativa cualitativa de compromisos (trade-offs) en CNIs.}
+\label{tab:apb_tradeoffs}
+\begin{tabularx}{\textwidth}{|Y|c|c|c|c|}
+\hline
+\textbf{Dimensión} & \textbf{Flannel} & \textbf{Calico} & \textbf{Cilium} & \textbf{Antrea} \\
+\hline
+Latencia y jitter & Medio & Excelente & Bueno & Aceptable \\
+Throughput & Bueno & Excelente & Aceptable & Bueno \\
+Consumo de CPU & Excelente & Deficiente & Aceptable & Aceptable \\
+Consumo de RAM & Excelente & Deficiente & Aceptable & Aceptable \\
+Network Policies L4 & Nulo (No soporta) & Excelente & Excelente & Excelente \\
+Network Policies L7 & Nulo (No soporta) & Nulo (No soporta) & Excelente & Nulo (No soporta) \\
+\hline
+\end{tabularx}
+\end{table}
 
-\subsection{Matriz de ponderación dinámica y penalización de seguridad}
+\subsection{Definición de criterios y métricas de evaluación} \label{sec:apb_criterios}
 
-A diferencia de los modelos MCDA estáticos, el prototipo recomendador calcula los factores de ponderación dinámicamente mediante deslizadores (\emph{sliders}) que reflejan los requisitos del usuario y normalizan la suma al 100\%. Para la evaluación estructurada en este documento, se parametrizaron tres perfiles representativos de la industria (Fintech, Streaming e IoT). La Tabla~\ref{tab:pesos-mcda} ilustra la distribución porcentual resultante para las configuraciones predeterminadas de cada perfil calculadas por el motor.
+Para comparar los plugins de manera objetiva, el modelo agrupa los indicadores en tres criterios principales (C1, C2 y C3), resumidos en la Tabla~\ref{tab:apb_criterios}.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Estructura de criterios, preguntas de control y métricas del modelo de selección.}
+\label{tab:apb_criterios}
+\begin{tabularx}{\textwidth}{|l|l|Y|}
+\hline
+\textbf{Criterio Principal} & \textbf{Pregunta de Control (UI)} & \textbf{Métricas y Variables Asociadas} \\
+\hline
+\textbf{C1: Rendimiento de Red (QoS)} & ¿Qué tan rápido tiene que responder? & Latencia base promedio (ms), Latencia máxima (ms) \\
+\cline{2-3}
+& ¿Qué tan estable debe ser la conexión? & Jitter (MDEV) (ms), Retransmisiones TCP (paquetes/sesión) \\
+\cline{2-3}
+& ¿Cuántos datos se van a mover al mismo tiempo? & Throughput TCP promedio (Mbps) \\
+\hline
+\textbf{C2: Eficiencia de Recursos} & ¿Los servidores donde va a funcionar son pequeños? & Consumo de CPU promedio (\% del nodo), Consumo de RAM promedio (MB) \\
+\hline
+\textbf{C3: Impacto de Seguridad} & ¿Qué tan importante es la seguridad y el control? & Soporte nativo de Network Policies, Sobrecarga (overhead) de latencia y throughput (\%) \\
+\hline
+\end{tabularx}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{C1 --- Rendimiento de red (QoS):} Evalúa latencia promedio/máxima, inestabilidad (\emph{jitter}), velocidad de transferencia (\emph{throughput}) y retransmisiones (pérdida de paquetes).
+  \item \textbf{C2 --- Eficiencia de recursos:} Mide el consumo de CPU y memoria RAM que el agente CNI requiere en cada nodo worker para funcionar.
+  \item \textbf{C3 --- Impacto de seguridad:} Mide la sobrecarga (\emph{overhead}) de latencia y throughput al activar Network Policies en el clúster.
+\end{itemize}
+
+\subsection{Limpieza estadística con el Rango Intercuartílico (IQR)}
+
+Antes de aplicar el modelo, los datos recolectados pasan por una limpieza estadística mediante el Rango Intercuartílico (IQR), que elimina \emph{outliers} causados por eventos externos como mantenimientos del proveedor o picos de uso compartido. El criterio de corte emplea las \emph{vallas} de Tukey ($Q_1 - 1{,}5\cdot\text{IQR}$, $Q_3 + 1{,}5\cdot\text{IQR}$), regla clásica del análisis exploratorio de datos para identificar valores atípicos~\cite{ref32}. Este procesamiento evita que la recomendación dependa de valores atípicos o de la magnitud numérica de una métrica, y se implementa en el script \texttt{docs/procesador.js}.
+
+\subsection{Normalización continua Min-Max} \label{sec:apb_umbrales}
+
+Para estandarizar las métricas crudas y permitir la suma ponderada del modelo MCDA, el algoritmo procesador aplica una función de normalización \emph{min-max} continua que proyecta los valores a una escala uniforme de $1.00$ a $5.00$. A diferencia de los modelos basados en umbrales discretos escalonados, esta aproximación refleja proporcional y exactamente las brechas de rendimiento entre los plugins evaluados.
+
+La transformación de las métricas empíricas se realiza mediante el método de escalamiento lineal Min-Max, de acuerdo con la formulación analizada por \cite{ref35} y revisada en los surveys de técnicas de normalización en MCDA~\cite{ref36}. La Ecuación~\eqref{eq:mcda-norm} define la transformación directa para las métricas donde un mayor valor representa un mejor desempeño (ej. \emph{throughput}), mientras que la Ecuación~\eqref{eq:apb_minmax_inv} describe la transformación para aquellas dimensiones donde un menor valor es deseable (ej. latencia, retransmisiones, consumo de CPU y RAM).
+
+\begin{equation}
+  V_{norm} = 1 + \left( \frac{V_{crudo} - Min}{Max - Min} \right) \times 4
+  \label{eq:mcda-norm}
+\end{equation}
+
+\begin{equation}
+  V_{norm} = 1 + \left( \frac{Max - V_{crudo}}{Max - Min} \right) \times 4
+  \label{eq:apb_minmax_inv}
+\end{equation}
+
+Los resultados normalizados garantizan que el CNI con el mejor desempeño en una dimensión obtenga exactamente $5.00$ y el de peor desempeño obtenga exactamente $1.00$.
+
+\subsection{Factores de ponderación y restricciones no compensatorias} \label{sec:apb_ponderaciones}
+
+El modelo aplica factores de ponderación (pesos porcentuales) que suman el $100\%$ ($1,0$), asignando mayor peso a las métricas más críticas según el caso de uso. La distribución de pesos calculados dinámicamente por la herramienta para los tres perfiles base se muestra en la Tabla~\ref{tab:apb_pesos}.
 
 \begin{table}[htbp]
 \centering
 \scriptsize
 \caption{Matriz de factores de ponderación (pesos calculados) por perfil de la tesis.}
-\label{tab:pesos-mcda}
+\label{tab:apb_pesos}
 \begin{tabularx}{\textwidth}{|Y|c|c|c|c|c|}
 \hline
 \textbf{Perfil / Caso de Uso} & \textbf{Latencia} & \textbf{Estabilidad} & \textbf{Throughput} & \textbf{Recursos} & \textbf{Seguridad} \\
@@ -111,17 +194,130 @@ IoT / Recursos limitados & 20.8\% & 19.0\% & 18.5\% & 28.0\% & 13.7\% \\
 \end{tabularx}
 \end{table}
 
-La decisión base aplica la suma ponderada definida en la \cref{eq:mcda-suma} del Marco Teórico~\cite{ref30,ref34}, donde los valores $V_i$ se normalizan de forma continua en la escala $[1,\,5]$ mediante el escalado \emph{min-max} de la \cref{eq:mcda-norm}~\cite{ref35}, y los pesos $W_i$ corresponden al perfil seleccionado.
+\subsubsection{Restricción no compensatoria de seguridad}
 
-\textbf{Restricción no compensatoria:} Para evitar que un CNI inseguro gane por pura eficiencia computacional, el modelo combina el método compensatorio SAW con una restricción conjuntiva, siguiendo los modelos no compensatorios de decisión multiatributo~\cite{ref31}. Si el perfil exige un nivel de seguridad \emph{Alto} o \emph{Muy Alto} (valor $\ge 4$ en el recomendador, como ocurre en el perfil Fintech), cualquier CNI que carezca de soporte nativo para Network Policies (ej. Flannel) sufre una penalización, formalizada en la \cref{eq:mcda-penalizacion}:
-\begin{equation}\label{eq:mcda-penalizacion}
-P_{CNI}^{\,*} = \alpha \cdot P_{CNI}, \qquad \alpha = 0.40 \ \text{si el CNI no aplica NetworkPolicies y seguridad} \ge 4 .
+Para evitar que un CNI inseguro gane por pura eficiencia computacional, el modelo combina el método compensatorio SAW con una restricción conjuntiva, siguiendo los modelos no compensatorios de decisión multiatributo~\cite{ref31}. Si el perfil exige un nivel de seguridad \emph{Alto} o \emph{Muy Alto} (valor $\ge 4$ en el recomendador, como ocurre en el perfil Fintech), cualquier CNI que carezca de soporte nativo para Network Policies (como Flannel) sufre una penalización. Esto reduce su puntaje general al $40\%$ del valor ponderado calculado:
+
+\begin{equation}
+  P_{\text{final}} =
+  \begin{cases}
+    P_{\text{MCDA}} \times 0,40 & \text{si la seguridad es prioritaria y el CNI carece de políticas} \\
+    P_{\text{MCDA}}               & \text{en caso normal}
+  \end{cases}
+  \label{eq:mcda-penalizacion}
 \end{equation}
-El factor $\alpha = 0.40$ (reducción del 60\,\%) es un umbral de diseño calibrado para que la penalización sea severa ---descarta algorítmicamente al CNI en entornos regulados--- sin anular por completo su puntaje, de modo que el recomendador conserve el ordenamiento relativo del resto de dimensiones para fines de diagnóstico.
+
+Esta restricción matemática asegura que los plugins con falencias críticas en el plano de seguridad sean descartados automáticamente en entornos regulados, invalidando victorias engañosas logradas puramente mediante ventajas en la eficiencia de recursos computacionales. El factor $\alpha = 0.40$ (reducción del 60\,\%) es un umbral de diseño calibrado para que la penalización sea severa sin anular por completo el puntaje, lo que permite que el recomendador conserve el ordenamiento relativo del resto de dimensiones para fines de diagnóstico.
+
+\subsection{Modelo matemático de decisión multicriterio (MCDA)} \label{sec:apb_mcda}
+
+Para la recomendación formal del CNI, el algoritmo aplica el modelo MCDA de sumatoria ponderada clásica o SAW (Simple Additive Weighting), fundamentado en la teoría clásica de decisiones multicriterio~\cite{ref34,ref37}:
+
+\begin{equation}
+  P_{\text{CNI}} = \sum_{i=1}^{n} V_i \times W_i
+  \label{eq:mcda-suma}
+\end{equation}
+
+Donde $P_{\text{CNI}}$ es el puntaje del plugin para el perfil; $V_i$ es la puntuación normalizada asignada según la métrica $i$; $W_i$ es el peso porcentual de la métrica en el perfil; y $n$ es el número de métricas evaluadas. 
+
+La escala final de los puntajes del modelo MCDA está normalizada en la escala de $1,0$ a $5,0$, donde una puntuación de $5,0$ representa un CNI con comportamiento ideal (cumplimiento excelente de todos los requisitos prioritarios) y $1,0$ representa un cumplimiento totalmente deficiente del perfil evaluado.
+
+El flujo de procesamiento del recomendador interactivo se resume a continuación:
+
+\begin{center}
+  \begin{tabular}{ccccccc}
+    \colorbox{oe3azulcl}{\small\textbf{JSON/CSV crudos}} &
+    $\rightarrow$ &
+    \colorbox{oe3griscl}{\small\textbf{Filtro IQR}} &
+    $\rightarrow$ &
+    \colorbox{oe3griscl}{\small\textbf{Norm.\ min-max}} &
+    $\rightarrow$ &
+    \colorbox{oe3verdecl}{\small\textbf{$\sum V_i \times W_i$}} \\[6pt]
+    \multicolumn{7}{c}{$\downarrow$} \\[4pt]
+    \multicolumn{7}{c}{\colorbox{oe3azulcl}{\small\textbf{$P_{\text{CNI}}$: El CNI con la puntuación más alta es la recomendación del modelo}}}
+  \end{tabular}
+\end{center}
+
 
 \section{Seguridad y Micro-segmentación (Zero Trust)}
 
 En su configuración inicial, cualquier aplicación dentro del clúster puede comunicarse con cualquier otra. Las Network Policies permiten implementar el principio de \emph{Zero Trust}: conceder solo lo necesario y verificar explícitamente cada acceso \cite{ref24,ref25}. Esto reduce la superficie de ataque, ya que ante el compromiso de un Pod las políticas limitan el movimiento lateral a las rutas explícitamente autorizadas. La aplicación efectiva de estas políticas depende del CNI: si el plugin no las implementa en su plano de datos, la política existe como objeto declarativo sin producir efecto \cite{ref4,ref18}.
+
+\subsection{Alcance operativo declarado} \label{sec:apb2_alcance}
+
+El enunciado original del OE2 introduce dos términos ---\emph{superficie de ataque} y \emph{probabilidad de incidentes de seguridad}--- que pertenecen al vocabulario de la gestión de riesgos pero que no fueron medidos en este trabajo con métricas cuantitativas estándar de la industria (recuento de CVE, técnicas MITRE ATT\&CK bloqueadas, modelos formales de amenazas). Para sostener la evaluación con la evidencia disponible, se establecen las siguientes definiciones operativas, que se aplican a lo largo del manuscrito.
+
+\begin{itemize}
+    \item \textbf{Superficie de ataque} se define operativamente como el \emph{conjunto de flujos de red autorizados entre Pods o namespaces del clúster}. Su reducción se observa cuando el número de pares (origen, destino, puerto) permitidos por la política declarativa disminuye respecto al estado por defecto del clúster, donde toda comunicación interna está permitida. El bloqueo efectivo de un flujo no autorizado en una prueba de conectividad ---por ejemplo, el rechazo del tráfico Frontend$\rightarrow$Database en TC-SEC-04--- constituye evidencia directa de esta reducción.
+
+    \item \textbf{Probabilidad de incidentes de seguridad} se define como una \emph{aproximación cualitativa} de la capacidad del CNI para bloquear los movimientos laterales y los egresos prohibidos declarativamente en los tres casos de uso ejecutados (\texttt{zero\_trust}, \texttt{multi\_tier} y \texttt{egress\_block}). No se trata de una probabilidad estadística calculada a partir de una frecuencia base de incidentes; es una proxy observacional que permite comparar capacidades de \emph{enforcement} entre CNIs.
+
+    \item \textbf{Vulnerabilidades a reducir} se entienden como \emph{configuraciones inseguras por defecto} ---comunicación inter-Pod abierta, ausencia de \emph{default-deny}, egress externo no controlado, ausencia de segmentación entre tiers de aplicación---, no como CVE conocidos en el código del CNI o de Kubernetes.
+\end{itemize}
+
+Esta delimitación es requerida para evaluar la \emph{configuración} de políticas de red, no la resistencia del clúster frente a herramientas ofensivas concretas. La distinción se retoma con mayor detalle en la \S\ref{sec:delimitacion_oe2} de la Discusión.
+
+\subsection{Requisitos verificables derivados del OE2} \label{sec:apb2_verbos}
+
+El enunciado del OE2 se descompone en cuatro requisitos verificables (R1--R4), que imponen obligaciones contrastables con evidencia, y dos efectos esperados (E1--E2), cuya validez se sostiene a partir de los resultados de esos requisitos. La Tabla~\ref{tab:apb2_verbos} resume la descomposición y señala, para cada elemento, la sección del manuscrito que aporta la evidencia correspondiente.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Descomposición del OE2 en requisitos verificables y efectos esperados.}
+\label{tab:apb2_verbos}
+\begin{tabularx}{\textwidth}{|c|l|Y|Y|}
+\hline
+\textbf{Id} & \textbf{Requisito} & \textbf{Obligación a demostrar} & \textbf{Anclaje en el manuscrito} \\
+\hline
+R1 & Configurar de forma segura y automatizada & Políticas de red declarativas, versionadas y aplicadas sin intervención manual sobre el clúster. & \S\ref{sec:apb2_adaptacion} y TC-SEC-08 (\S\ref{sec:apb2_matriz}). \\
+\hline
+R2 & Adaptar las políticas a cada plugin CNI & Uso de capacidades específicas del CNI, no solo \texttt{NetworkPolicy} estándar de Kubernetes. & \S\ref{sec:apb2_adaptacion}, fragmentos de configuración por CNI. \\
+\hline
+R3 & Evaluar la reducción de la superficie de ataque & Procedimiento que compare el antes y el después, con y sin políticas, y entre CNIs. & \S\ref{sec:apb2_matriz} y \S\ref{sec:apb2_overhead}. \\
+\hline
+R4 & Determinar la capacidad de reducir vulnerabilidades & Conclusión técnica trazable a partir de la evidencia de R3. & \S\ref{sec:apb2_mapeo} y Tabla~\ref{tab:cumplimiento-objetivos}. \\
+\hline
+E1 & Reducir la superficie de ataque & Efecto medible operativamente según \S\ref{sec:apb2_alcance}. & Evidencia: TC-SEC-04, TC-SEC-06, TC-SEC-07. \\
+\hline
+E2 & Prevenir incidentes de seguridad & Efecto medible operativamente según \S\ref{sec:apb2_alcance}. & Evidencia: \texttt{zero\_trust}, \texttt{multi\_tier}, \texttt{egress\_block}. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Matriz extendida de casos de prueba TC-SEC} \label{sec:apb2_matriz}
+
+La Tabla~\ref{tab:apb2_matriz_ext} reescribe la matriz TC-SEC del cuerpo principal (Tabla~\ref{tab:matriz-seguridad}) añadiendo, para cada caso, la amenaza modelada y el requisito del OE2 al que aporta evidencia. Con ello, cada afirmación del objetivo queda trazada hasta la prueba concreta que la respalda y hasta el criterio operativo con el que se verificó.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Matriz extendida TC-SEC: cada caso de prueba, amenaza modelada y requisito del OE2 al que aporta evidencia.}
+\label{tab:apb2_matriz_ext}
+\begin{tabularx}{\textwidth}{|l|Y|Y|c|}
+\hline
+\textbf{TC-SEC} & \textbf{Amenaza modelada} & \textbf{Verificación operativa} & \textbf{Requisito} \\
+\hline
+01 Default Deny Ingress & Comunicación entrante no autorizada hacia el namespace. & \texttt{nc -zv <pod-ip> 8080}; éxito = timeout en \(<5\) s. & R3, E1 \\
+\hline
+02 Default Deny Egress & Conexiones salientes no autorizadas desde Pods de producción. & \texttt{curl --max-time 3}; éxito = timeout. & R3, E1 \\
+\hline
+03 Frontend$\rightarrow$Backend permitido & Funcionalidad legítima preservada bajo política activa. & \texttt{nc -zv backend 8080}; éxito = \emph{Connection succeeded}. & R3 \\
+\hline
+04 Bloqueo Frontend$\rightarrow$Database & Movimiento lateral directo desde la capa de presentación a la capa de datos. & \texttt{nc -zv database 5432}; éxito = \emph{Connection refused} o timeout. & R3, E1, E2 \\
+\hline
+05 Backend$\rightarrow$Database permitido & Funcionalidad legítima preservada bajo política activa. & \texttt{nc -zv database 5432}; éxito = \emph{Connection succeeded}. & R3 \\
+\hline
+06 Database no inicia conexiones salientes & Exfiltración o comportamiento anómalo desde la capa de datos. & Egress denegado por política; éxito = bloqueo confirmado. & R3, E2 \\
+\hline
+07 Bloqueo entre namespaces & Movimiento lateral cruzando límites de namespace. & Pod de \texttt{staging} no alcanza Pods de \texttt{production}; éxito = bloqueo confirmado. & R3, E1, E2 \\
+\hline
+08 Auto-restauración ArgoCD & Persistencia del estado seguro frente a desviaciones operativas. & Borrado manual; éxito = restauración automática en \(<2\) min. & R1 \\
+\hline
+\end{tabularx}
+\end{table}
+
+La columna ``Requisito'' funciona como traza directa entre cada prueba y el enunciado del OE2. Así, el efecto de \emph{prevenir incidentes} (E2) se respalda en los casos etiquetados con E2 ---TC-SEC-04, 06 y 07---, mientras que la \emph{reducción de la superficie de ataque} (E1) se apoya en TC-SEC-01, 02, 04 y 07; el resto de requisitos se lee de forma análoga.
 
 \subsection{Estrategia de Default Deny}
 
@@ -150,6 +346,34 @@ Dos CNI aportan diferenciadores propios. Cilium implementa filtrado HTTP nativo 
 \subsection{Automatización GitOps con ArgoCD}
 
 Para preservar la efectividad de las políticas tras cambios en el sistema, se diseñó un flujo GitOps con ArgoCD. Si una política de red se elimina del clúster, ArgoCD detecta la diferencia entre el estado actual y el definido en Git y restaura el recurso automáticamente (\texttt{selfHeal: true}); los recursos eliminados del repositorio también se eliminan del clúster (\texttt{prune: true}). Esta automatización garantiza la integridad del experimento: durante las rotaciones de CNI, las políticas se restauran a su estado esperado sin intervención manual, lo que elimina una fuente potencial de sesgo en los resultados \cite{ref25}.
+
+\subsection{Mapeo a marcos de referencia} \label{sec:apb2_mapeo}
+
+La Tabla~\ref{tab:apb2_mapeo} alinea los casos de prueba TC-SEC con los marcos conceptuales que sustentan la decisión de qué controles evaluar. El mapeo es \emph{conceptual} ---no se afirma cumplimiento certificado de ningún marco--- y permite contextualizar el alcance del OE2 dentro del vocabulario habitual de la industria.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Mapeo conceptual de los casos TC-SEC a controles de marcos de referencia.}
+\label{tab:apb2_mapeo}
+\begin{tabularx}{\textwidth}{|l|Y|Y|}
+\hline
+\textbf{TC-SEC} & \textbf{Principio Zero Trust (NIST SP 800-207)} & \textbf{Patrón de seguridad evaluado} \\
+\hline
+01, 02 & Verificación explícita por flujo; denegación por defecto. & Segmentación por namespace y \emph{default deny}. \\
+\hline
+03, 05 & Acceso de mínimo privilegio aplicado a comunicaciones legítimas. & Habilitación selectiva por etiqueta de aplicación. \\
+\hline
+04, 07 & Reducción de movimiento lateral mediante microsegmentación. & Aislamiento entre tiers y entre namespaces. \\
+\hline
+06 & Asumir compromiso: el componente más sensible (DB) no inicia conexiones salientes. & Egress restringido en la capa de datos. \\
+\hline
+08 & Postura de seguridad mantenida continuamente, no establecida una sola vez. & Reconciliación declarativa por GitOps. \\
+\hline
+\end{tabularx}
+\end{table}
+
+El alcance del OE2 se limita al \emph{enforcement} de red dentro del clúster. Quedan explícitamente fuera del alcance: el \emph{admission control} (validación previa al despliegue de las políticas con herramientas como OPA/Gatekeeper o Kyverno), la detección y respuesta en \emph{runtime} (Falco, Tetragon), el \emph{service mesh} con mTLS para garantizar identidad criptográfica entre servicios~\cite{ref26}, la seguridad de la cadena de suministro y la verificación de imágenes. Estas dimensiones complementarias se discuten en la \S\ref{sec:delimitacion_oe2} de la Discusión.
 
 \section{Flujo Integral del Sistema}
 
