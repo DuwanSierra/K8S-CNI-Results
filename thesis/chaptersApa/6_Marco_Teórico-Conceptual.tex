@@ -47,7 +47,7 @@ Para mantener actualizada la relación de destinos, Kubernetes emplea \emph{Endp
 
 El tráfico procedente de Internet no accede directamente a los Pods, sino a través de una capa de ingreso administrada. La \emph{Gateway API} formaliza los roles asociados ---infraestructura, operaciones y desarrollo--- y las reglas de capa 7 (como hostnames, rutas y terminación TLS) que determinan el enrutamiento de cada solicitud hacia el Service correspondiente~\cite{ref17}. 
 
-En despliegues de alta disponibilidad, esta capa suele estar precedida por un balanceador de carga externo de capa 3/4. Diseños avanzados de balanceo como \emph{Maglev} demuestran cómo la combinación de hash consistente y seguimiento de flujos de red optimiza la distribución de carga antes de impactar los nodos del clúster~\cite{ref5}.
+En despliegues de alta disponibilidad, esta capa suele estar precedida por un balanceador de carga externo de capa 3/4 que distribuye el tráfico antes de que alcance los nodos del clúster~\cite{ref5}.
 
 \subsection{Aislamiento lógico: Namespaces y NetworkPolicies}
 
@@ -108,7 +108,7 @@ Estudios previos muestran diferencias significativas en el desempeño según el 
 
 \subsection{Gestión de direcciones (IPAM)}
 
-La asignación eficiente de direccionamiento mediante IPAM (localizado en archivos locales por nodo con host-local o centralizado en la base de datos del clúster) es indispensable para mitigar colisiones de red, facilitar despliegues dual-stack y garantizar la escalabilidad dinámica ante la creación o destrucción masiva de réplicas de Pods~\cite{ref18,ref20}.
+La gestión de direcciones (IPAM) asigna y libera las IPs de los Pods de forma sistemática; una administración eficiente evita colisiones de red, habilita despliegues dual-stack y sostiene la escalabilidad ante la creación o destrucción masiva de réplicas~\cite{ref18,ref20}.
 
 \subsection{MTU y fragmentación en redes con encapsulación}
 
@@ -123,7 +123,7 @@ En redes superpuestas, el overhead de la encapsulación disminuye el tamaño má
 
 \subsection{Observabilidad del plano de datos}
 
-La operación confiable de microservicios requiere visibilidad sobre los flujos de red. Soluciones de monitoreo de flujos integradas en el CNI permiten agregar telemetría detallada de origen y destino correlacionándola directamente con las identidades nativas del clúster (Namespaces y etiquetas) mediante estándares como IP Flow Information Export (IPFIX)~\cite{ref6,ref23}.
+La operación confiable de microservicios exige visibilidad sobre los flujos de red. Cuando el CNI integra monitoreo de flujos, la telemetría de origen y destino se correlaciona con las identidades nativas del clúster (Namespaces y etiquetas); así, la observabilidad de red se convierte en un componente telemático de primer orden para diagnosticar la calidad de servicio y sustentar las decisiones de configuración~\cite{ref6,ref23}.
 
 \subsection{Métricas de rendimiento y sobredimensionamiento}
 
@@ -131,11 +131,11 @@ La comparación entre CNIs descansa en tres métricas principales: la latencia m
 
 \section{eBPF como mecanismo de aceleración en el kernel}
 
-El filtro de paquetes de Berkeley extendido (eBPF, \emph{extended Berkeley Packet Filter}) es una tecnología del kernel de Linux que permite ejecutar programas en espacio privilegiado de forma segura, sin modificar el código fuente del kernel ni cargar módulos adicionales~\cite{ref27}. Originalmente concebido para el filtrado eficiente de paquetes de red, evolucionó en un entorno de ejecución de propósito general que hoy sustenta funcionalidades de red, seguridad y observabilidad dentro del sistema operativo.
+El filtro de paquetes de Berkeley extendido (eBPF, \emph{extended Berkeley Packet Filter}) es una tecnología del kernel de Linux que permite ejecutar programas de forma segura dentro del propio kernel, sin modificar su código fuente ni cargar módulos adicionales~\cite{ref27}. Concebido para el filtrado de paquetes, hoy sustenta funcionalidades de red, seguridad y observabilidad dentro del sistema operativo.
 
 Para entender por qué eBPF importa en este contexto, conviene compararlo con iptables, el mecanismo tradicional de filtrado de paquetes en Linux. iptables funciona como una lista de reglas que el kernel revisa una por una cada vez que llega un paquete: cuantas más reglas haya ---producto de más servicios y más políticas de red---, mayor es el tiempo que tarda cada decisión de enrutamiento. eBPF reemplaza ese mecanismo por tablas hash donde la respuesta se obtiene en tiempo constante, sin importar cuántas reglas existan. En un clúster con cientos de servicios y políticas de seguridad, esta diferencia se traduce en latencias medibles.
 
-Técnicamente, un programa eBPF se compila a un bytecode que el kernel verifica antes de ejecutarlo, comprobando que no acceda a memoria no autorizada ni genere bucles infinitos. Una vez aprobado, se ejecuta directamente en el kernel mediante un compilador JIT (\emph{just-in-time}), sin necesidad de copiar datos al espacio de usuario~\cite{ref27}. Esta arquitectura elimina dos fuentes principales de latencia en el procesamiento de red tradicional: las copias de memoria entre kernel y espacio de usuario, y el recorrido lineal de las cadenas de reglas de iptables.
+Antes de ejecutarse, cada programa eBPF es verificado por el kernel para garantizar que no comprometa su estabilidad, lo que permite extender el procesamiento de red directamente en el kernel sin los riesgos ni el sobrecosto de un módulo tradicional~\cite{ref27}.
 
 En el contexto de los CNI evaluados en este trabajo, Cilium utiliza eBPF tanto para el reenvío de paquetes entre Pods como para la aplicación de NetworkPolicies, incluidas reglas de capa 7 sobre el protocolo HTTP. Calico también ofrece un modo eBPF opcional como alternativa a su dataplane basado en iptables~\cite{ref10}.
 

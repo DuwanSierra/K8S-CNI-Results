@@ -18,32 +18,11 @@
 
 \chapter{Marco de Criterios y Modelo de Decisión CNI} \label{chap:apendice_oe3}
 
-\section{Introducción y el dilema de la selección de CNI} \label{sec:apb_intro}
+\section{Introducción y el dilema de la selección de CNI} \label{sec:apb_oe3_intro}
 
 En la arquitectura de Kubernetes, el plano de datos depende del \emph{Container Network Interface} (CNI). Al no existir un plugin de red por defecto, la elección recae sobre los ingenieros de infraestructura, quienes a menudo deciden por popularidad o guías rápidas, omitiendo un análisis cuantitativo sistemático de rendimiento.
 
-El reto principal de elegir un CNI es que no existe una única solución óptima en todas las dimensiones simultáneamente. El rendimiento base de velocidad de red (\emph{throughput}) es solo una dimensión del problema. Por ejemplo, una pasarela de transacciones bancarias exige seguridad estricta y aislamiento lógico, mientras que un clúster IoT en nodos con recursos de cómputo limitados prioriza un bajo consumo de memoria RAM y CPU.
-
-La Tabla~\ref{tab:apb_tradeoffs} muestra a nivel conceptual este compromiso de rendimiento (\emph{trade-off}) cualitativo entre los plugins evaluados, sirviendo de introducción visual al dilema de selección.
-
-\begin{table}[htbp]
-\centering
-\scriptsize
-\caption{Matriz comparativa cualitativa de compromisos (trade-offs) en CNIs.}
-\label{tab:apb_tradeoffs}
-\begin{tabularx}{\textwidth}{|Y|c|c|c|c|}
-\hline
-\textbf{Dimensión} & \textbf{Flannel} & \textbf{Calico} & \textbf{Cilium} & \textbf{Antrea} \\
-\hline
-Latencia y jitter & Medio & Excelente & Bueno & Aceptable \\
-Throughput & Bueno & Excelente & Aceptable & Bueno \\
-Consumo de CPU & Excelente & Deficiente & Aceptable & Aceptable \\
-Consumo de RAM & Excelente & Deficiente & Aceptable & Aceptable \\
-Network Policies L4 & Nulo (No soporta) & Excelente & Excelente & Excelente \\
-Network Policies L7 & Nulo (No soporta) & Nulo (No soporta) & Excelente & Nulo (No soporta) \\
-\hline
-\end{tabularx}
-\end{table}
+El reto principal de elegir un CNI es que no existe una única solución óptima en todas las dimensiones simultáneamente. El rendimiento base de velocidad de red (\emph{throughput}) es solo una dimensión del problema. Por ejemplo, una pasarela de transacciones bancarias exige seguridad estricta y aislamiento lógico, mientras que un clúster IoT en nodos con recursos de cómputo limitados prioriza un bajo consumo de memoria RAM y CPU. El compromiso (\emph{trade-off}) cualitativo entre los plugins evaluados se presentó en el \cref{tab:apb_tradeoffs} del capítulo de Diseño de la Solución.
 
 Para dar solución a este problema de forma cuantitativa, este apéndice documenta el desarrollo y validación del Objetivo Específico 3 de la tesis: un modelo formal compuesto por criterios jerárquicos, métricas normalizadas, umbrales de calidad de servicio (SLA) y ponderaciones específicas de negocio.
 
@@ -235,7 +214,7 @@ IoT / Recursos limitados & * \textbf{3.834} & 2.952 & 3.232 & 2.224 \\
 \begin{itemize}
   \item \textbf{Perfil Fintech / Seguridad:} Cilium obtiene la puntuación óptima con $3.631$ (en la escala de 1 a 5). A pesar de que Calico ofrece un rendimiento crudo superior en latencia base, Cilium sobresale debido a sus políticas dinámicas de capa 7 basadas en eBPF~\cite{ref10} y su menor degradación del tráfico cuando el aislamiento lógico está activo.
   
-  Por el contrario, Flannel obtiene un puntaje críticamente bajo de $1.331$. Esto se debe a que carece por diseño de soporte de Network Policies. Su puntuación base ponderada original de $3.328$ (impulsada principalmente por su bajo consumo de CPU y RAM) se somete a la penalización de seguridad de la Ecuación~\eqref{eq:penalizacion_apb}, multiplicándose por $0,4$. Esto demuestra cómo el modelo descarta automáticamente soluciones no aptas para entornos regulados.
+  Por el contrario, Flannel obtiene un puntaje críticamente bajo de $1.331$. Esto se debe a que carece por diseño de soporte de Network Policies. Su puntuación base ponderada original de $3.328$ (impulsada principalmente por su bajo consumo de CPU y RAM) se somete a la penalización de seguridad de la Ecuación~\eqref{eq:mcda-penalizacion}, multiplicándose por $0,4$. Esto demuestra cómo el modelo descarta automáticamente soluciones no aptas para entornos regulados.
   
   \textbf{Réplica en el Recomendador SPA:} Para obtener exactamente este resultado de $3.631$, el usuario debe establecer en el panel de control del recomendador las siguientes prioridades en los deslizadores (sliders):
   \begin{itemize}

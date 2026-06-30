@@ -158,11 +158,11 @@ Antes de aplicar el modelo, los datos recolectados pasan por una limpieza estad�
 
 Para estandarizar las métricas crudas y permitir la suma ponderada del modelo MCDA, el algoritmo procesador aplica una función de normalización \emph{min-max} continua que proyecta los valores a una escala uniforme de $1.00$ a $5.00$. A diferencia de los modelos basados en umbrales discretos escalonados, esta aproximación refleja proporcional y exactamente las brechas de rendimiento entre los plugins evaluados.
 
-La transformación de las métricas empíricas se realiza mediante el método de escalamiento lineal Min-Max, de acuerdo con la formulación analizada por \cite{ref35} y revisada en los surveys de técnicas de normalización en MCDA~\cite{ref36}. La Ecuación~\eqref{eq:mcda-norm} define la transformación directa para las métricas donde un mayor valor representa un mejor desempeño (ej. \emph{throughput}), mientras que la Ecuación~\eqref{eq:apb_minmax_inv} describe la transformación para aquellas dimensiones donde un menor valor es deseable (ej. latencia, retransmisiones, consumo de CPU y RAM).
+La transformación de las métricas empíricas se realiza mediante el método de escalamiento lineal Min-Max, de acuerdo con la formulación analizada por \cite{ref35} y revisada en los surveys de técnicas de normalización en MCDA~\cite{ref36}. La Ecuación~\eqref{eq:mcda-norm-app} define la transformación directa para las métricas donde un mayor valor representa un mejor desempeño (ej. \emph{throughput}), mientras que la Ecuación~\eqref{eq:apb_minmax_inv} describe la transformación para aquellas dimensiones donde un menor valor es deseable (ej. latencia, retransmisiones, consumo de CPU y RAM).
 
 \begin{equation}
   V_{norm} = 1 + \left( \frac{V_{crudo} - Min}{Max - Min} \right) \times 4
-  \label{eq:mcda-norm}
+  \label{eq:mcda-norm-app}
 \end{equation}
 
 \begin{equation}
@@ -215,7 +215,7 @@ Para la recomendación formal del CNI, el algoritmo aplica el modelo MCDA de sum
 
 \begin{equation}
   P_{\text{CNI}} = \sum_{i=1}^{n} V_i \times W_i
-  \label{eq:mcda-suma}
+  \label{eq:mcda-suma-app}
 \end{equation}
 
 Donde $P_{\text{CNI}}$ es el puntaje del plugin para el perfil; $V_i$ es la puntuación normalizada asignada según la métrica $i$; $W_i$ es el peso porcentual de la métrica en el perfil; y $n$ es el número de métricas evaluadas. 

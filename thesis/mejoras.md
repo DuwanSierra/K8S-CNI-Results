@@ -29,7 +29,20 @@
 - [x] Anexos: **A Manual de Usuario**, **B Manual de Instalación/Programador** (con comandos); los técnicos 14.0/14.1/14.2 pasan a Anexos C/D/E. Sección renombrada "Anexos".
 - [x] Cap. 11 retitulado "Resultados y Verificación de Objetivos".
 
-**Pendiente (mejora fina, opcional):** aligerar redacción de Marco Teórico e Introducción (recortar Maglev/IPFIX/IPAM); reforzar hilo telemático e impacto organizacional en cada capítulo; revisar floats que el autor quiera mover.
+**Aligerado de redacción (Marco Teórico) — aplicado (compila: 115 págs, sin refs múltiples ni indefinidas):**
+- [x] Maglev: reducido a una frase (balanceador L4 externo), conservando `ref5`.
+- [x] eBPF: condensada la definición y eliminado el párrafo de mecánica interna (bytecode/JIT/verificador/copias de memoria); se conserva el "por qué importa" (iptables vs. tablas hash) y el uso por Cilium/Calico.
+- [x] IPAM: subsección condensada (se quita el detalle host-local/base de datos que repetía "funciones núcleo").
+- [x] Observabilidad/IPFIX: quitada la profundidad del estándar; reformulado para reforzar el hilo telemático (observabilidad de red ↔ QoS y decisiones de configuración).
+- [x] Introducción: ya nombraba explícitamente la herramienta (testbed + SPA); sin cambios necesarios.
+
+**Impacto organizacional cuantificado — aplicado (compila: 117 págs, sin refs múltiples ni indefinidas):**
+- [x] Justificación: ya tenía sección "Impacto en las organizaciones" con los tres ejes (decisiones por datos, reducción de costos, seguridad verificable); sin cambios.
+- [x] Resultados: nueva subsección "Implicaciones organizacionales" que eleva el dato de ahorro (9.6 vCPU y 24.8 GB RAM a 50 nodos), la seguridad sin penalización (4.35\% throughput) y la reproducibilidad.
+- [x] Conclusiones: cierre escueto expandido con síntesis de impacto organizacional cuantificada, cerrando el hilo telemático (QoS, micro-segmentación, evidencia sobre el plano de datos).
+- Cifras reutilizadas de las tablas existentes (respuestas a preguntas / cumplimiento OE); no se inventaron datos.
+
+**Pendiente (opcional):** hilo telemático en los capítulos de desarrollo (M2--M4); revisar floats que el autor quiera mover. Decisión de sprints (punto 2) aún por confirmar con el director.
 
 ---
 

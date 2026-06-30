@@ -450,6 +450,10 @@ Se trazó el flujo completo de un dato específico desde su origen hasta su visu
 
 \textbf{El overhead de las Network Policies es bajo.} La activación de las políticas introdujo un impacto controlado en la latencia promedio, registrándose reducciones significativas (de hasta $-43.16\%$ en Cilium) y un incremento máximo moderado ($+31.45\%$ en Calico). Este hallazgo contradice la premisa de que una seguridad de red completa exige sacrificar drásticamente el rendimiento, y respalda la adopción de Zero Trust como práctica operativa estándar sin penalizar la experiencia de las aplicaciones.
 
+\subsection{Implicaciones organizacionales}
+
+Más allá de la comparación técnica, los resultados habilitan decisiones de negocio cuantificables. En primer lugar, el \emph{dimensionamiento basado en evidencia}: la brecha de $9.6\%$ de CPU y $496.29$ MB de RAM por nodo entre el CNI más liviano (Flannel) y el más demandante (Calico) se proyecta, en un clúster de 50 nodos, en aproximadamente $9.6$ vCPU y $24.8$ GB de RAM liberados ---capacidad que de otro modo se adquiriría de forma preventiva, con su costo asociado de infraestructura y energía. En segundo lugar, la \emph{seguridad sin penalización}: el overhead acotado de las Network Policies (pérdida máxima de throughput del $4.35\%$) muestra que adoptar micro-segmentación Zero Trust no obliga a sacrificar la calidad de servicio. En tercer lugar, la \emph{reproducibilidad}: al estar disponibles el testbed y el recomendador como código, cualquier organización puede repetir esta medición sobre su propia infraestructura y ajustar la recomendación a su perfil de uso, en lugar de heredar el CNI configurado por defecto.
+
 \section{Tabla Resumen de Cumplimiento de Objetivos}
 
 \begin{table}[htbp]
