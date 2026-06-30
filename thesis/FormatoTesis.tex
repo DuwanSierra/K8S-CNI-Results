@@ -22,6 +22,21 @@
 \crefname{section}{sección}{secciones}
 \Crefname{section}{Sección}{Secciones}
 
+% --- Conjunciones de cleveref en español (rangos y listas) ---
+% Sin esto, cleveref usa el inglés por defecto (" to ", " and "):
+%   "Capítulos 8 to 10" en vez de "Capítulos 8 a 10".
+% Con babel, cleveref define estas conjunciones en \AtBeginDocument,
+% por lo que deben redefinirse también ahí (no en el preámbulo directo).
+\AtBeginDocument{%
+  \renewcommand{\crefrangeconjunction}{ a~}%
+  \renewcommand{\crefpairconjunction}{ y }%
+  \renewcommand{\crefmiddleconjunction}{, }%
+  \renewcommand{\creflastconjunction}{ y }%
+  \renewcommand{\crefpairgroupconjunction}{ y }%
+  \renewcommand{\crefmiddlegroupconjunction}{, }%
+  \renewcommand{\creflastgroupconjunction}{ y }%
+}
+
 \lstset{
   basicstyle=\ttfamily\scriptsize,
   breaklines=true,
