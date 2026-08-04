@@ -45,6 +45,17 @@
   backgroundcolor=\color{gray!8}
 }
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+% Profundidad del indice: numerar hasta subsubseccion (secnumdepth=3) pero
+% listar en la Tabla de Contenido solo hasta subseccion, para no sobrecargarla.
+% Nota: el paquete sectsty (v2.0.2) redefine los comandos de seccion e ignora
+% tocdepth, por lo que este contador solo limita los marcadores del PDF. Para
+% que la Tabla de Contenido impresa se detenga en subseccion se neutraliza el
+% formateador de subsubseccion en el indice.
+\setcounter{tocdepth}{2}
+\makeatletter
+\renewcommand{\l@subsubsection}[2]{}
+\makeatother
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -122,18 +133,17 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % --- Parte I: Fundamentación ---
+% Nota: Planteamiento del problema, Justificación y Objetivos se integraron
+% como secciones dentro de 1_Introduccion (archivos 3/4/5 conservados sin incluir).
 \input{chaptersApa/1_Introduccion}
-\input{chaptersApa/3_Planteamiento_del_Problema}
-\input{chaptersApa/4_Justificación}
-\input{chaptersApa/5_Objetivos}
 % --- Parte II: Marco de referencia ---
 \input{chaptersApa/6_Marco_Teórico-Conceptual}
 \input{chaptersApa/2_Estado_del_arte}
 % --- Parte III: Desarrollo (Scrum) ---
+% Nota: M4_Desarrollo_Sprints se integró como sección dentro de M1_Metodologia.
 \input{chaptersApa/M1_Metodologia}
 \input{chaptersApa/M2_Diseno}
 \input{chaptersApa/M3_Herramienta}
-\input{chaptersApa/M4_Desarrollo_Sprints}
 % --- Parte IV: Validación y cierre ---
 \input{chaptersApa/8_Resultados}
 \input{chaptersApa/9_Discusión}

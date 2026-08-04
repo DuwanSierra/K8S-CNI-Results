@@ -475,3 +475,28 @@ OE4: Implementar un prototipo funcional que recomiende el CNI más adecuado. & C
 \hline
 \end{tabularx}
 \end{table}
+
+\subsection{Matriz de Trazabilidad de Objetivos}
+
+La \cref{tab:trazabilidad-objetivos} traza cada objetivo específico ---enunciado íntegramente en \cref{sec:Objetivos}--- hasta su evidencia documental y su evidencia en el repositorio o el aplicativo, junto con el estado alcanzado y las limitaciones que acotan su interpretación. La matriz permite verificar el cumplimiento contra fuentes reproducibles y no solo contra la narrativa del documento.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.2}
+\caption{Matriz de trazabilidad de los objetivos específicos con evidencia documental y del repositorio.}
+\label{tab:trazabilidad-objetivos}
+\begin{tabularx}{\textwidth}{|p{0.9cm}|Y|Y|p{1.6cm}|Y|}
+\hline
+\textbf{OE} & \textbf{Evidencia en el documento} & \textbf{Evidencia en el repositorio / aplicativo} & \textbf{Estado} & \textbf{Observación o limitación} \\
+\hline
+OE1 & Tablas de throughput, latencia y consumo de recursos (\cref{sec:Resultados}); protocolos de prueba con iperf3. & \path{results/cni-benchmarks/*/throughput_tcp}, \path{latency_tcp_connect} y \path{resource_usage_nodes} para los cuatro CNI. & CUMPLIDO & La métrica de RAM arrastra el ruido de los \emph{buffers} de red del host; la tendencia relativa se mantiene válida. \\
+\hline
+OE2 & Pruebas de seguridad con Network Policies (\cref{sec:Resultados}); Apéndice~\ref{chap:apendice_oe2}. & \path{K8s-Tesis-Apps/network_policies}: casos \path{use-case-1-zero-trust}, \path{use-case-2-multi-tier} y \path{use-case-3-egress-block}. & CUMPLIDO dentro del alcance operativo. & Flannel no implementa \emph{enforcement} de Network Policies en su plano de datos; el mapeo a marcos de referencia es conceptual. \\
+\hline
+OE3 & Criterios, umbrales y modelo MCDA (\cref{sec:apb_criterios,sec:apb_mcda}); Apéndice~\ref{chap:apendice_oe3}. & \path{docs/procesador.js} (IQR, min-max, scoring) y \path{results/processed/thesis_data.json}. & CUMPLIDO & Los umbrales de normalización min-max dependen del rango observado en el testbed; recalculan al incorporar nuevas corridas. \\
+\hline
+OE4 & Validación del prototipo y pruebas PF-01 a PF-08 (\cref{sec:prototipo_recomendador}); manuales (Anexos~\ref{anexo:manual_usuario} y~\ref{anexo:manual_instalacion}). & \path{cni-recommender-spa/src/data/recommendationModel.js}, \path{docs/recommender/cni-data.json} y la SPA publicada. & CUMPLIDO & La recomendación se validó en entorno de prueba; no constituye certificación para producción. \\
+\hline
+\end{tabularx}
+\end{table}

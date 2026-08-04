@@ -126,11 +126,17 @@
 \usepackage{tabularx}
 \pgfplotsset{compat=1.18}
 \setcounter{secnumdepth}{3}
-\setcounter{tocdepth}{3}
+% tocdepth=2: el indice numera hasta subsubseccion en el cuerpo (secnumdepth=3),
+% pero la Tabla de Contenido solo lista hasta seccion para no sobrecargarla.
+\setcounter{tocdepth}{2}
 \usepackage{fancyhdr}
 
-% quitar el 0.
-\renewcommand\thesection{\arabic{section}}
+% Numeracion jerarquica de secciones dependiente del capitulo (formato book).
+% Antes: \renewcommand\thesection{\arabic{section}} eliminaba el numero de
+% capitulo y producia secciones "1, 2, 3" sin contexto entre capitulos.
+\renewcommand\thesection{\thechapter.\arabic{section}}
+\renewcommand\thesubsection{\thesection.\arabic{subsection}}
+\renewcommand\thesubsubsection{\thesubsection.\arabic{subsubsection}}
 %\renewcommand*{\bibfont}{\footnotesize}
 
 % tabla de contenidos como seccion

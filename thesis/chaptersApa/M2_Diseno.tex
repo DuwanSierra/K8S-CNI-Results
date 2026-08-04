@@ -458,7 +458,27 @@ De este planteamiento se derivan cinco requisitos de diseño. La \textbf{reprodu
 
 \section{Prototipo Recomendador}
 
-El prototipo recomendador es la capa de interacción entre el modelo matemático y el usuario final. Su salida comprende tres niveles: la recomendación directa (qué CNI se sugiere), la justificación (qué métricas la explican) y la orientación de configuración (qué consideraciones debe atender el usuario al desplegar ese CNI), estructura que responde al objetivo específico 4 del anteproyecto \cite{ref29}. Se implementó como SPA con React~19, Vite~7 y Tailwind CSS~3; el \emph{build} de producción se despliega en GitHub Pages, y la actualización de datos encadena \texttt{procesador.js} ---que genera \texttt{cni-data.json}--- con la inyección de esos datos en el \emph{bundle}.
+El prototipo recomendador es la capa de interacción entre el modelo matemático y el usuario final. Traduce el modelo MCDA (\cref{sec:apb_mcda}) en una herramienta operativa que responde al objetivo específico~4 del anteproyecto~\cite{ref29}. Esta sección describe su diseño ---propósito, entradas, datos, motor de decisión, salida y componentes---; su validación funcional se documenta en los resultados (\cref{sec:prototipo_recomendador}) y el detalle técnico completo en el \cref{chap:apendice_a}.
+
+\subsection{Propósito y entradas}
+
+El propósito del recomendador es convertir un perfil de uso organizacional en una recomendación de CNI justificada y accionable, sin exigir al operador conocimiento previo del modelo matemático. La entrada es el perfil del usuario, capturado por el componente \texttt{GuidedProfileBuilder} mediante cinco preguntas guiadas que ponderan las prioridades del despliegue (rendimiento, latencia, eficiencia de recursos y seguridad). Las respuestas se transforman en un vector de pesos normalizado que suma la unidad, coherente con los factores de ponderación definidos en el modelo (\cref{sec:apb_ponderaciones}). Como alternativa, el componente \texttt{ProfileSelector} permite elegir uno de los perfiles base predefinidos.
+
+\subsection{Datos consumidos}
+
+El recomendador consume \texttt{cni-data.json}, el archivo generado por \texttt{procesador.js} tras aplicar la limpieza IQR, la normalización min-max y el cálculo de puntajes sobre las métricas del testbed (throughput, latencia, jitter, retransmisiones, consumo de CPU y RAM, y overhead de las Network Policies). La aplicación obtiene ese archivo en tiempo de ejecución mediante \emph{fetch}; si el archivo no está disponible, recurre a un conjunto de métricas embebidas de referencia. Un indicador en la cabecera informa al operador de la fuente activa de datos, lo que preserva la trazabilidad de la evidencia exigida al diseño.
+
+\subsection{Motor de decisión}
+
+El motor de decisión reside en \texttt{recommendationModel.js} y reproduce el modelo MCDA del diseño. Para cada CNI, cada métrica se normaliza a una escala común según sea de beneficio o de costo, se pondera con el vector de pesos del perfil y se agrega en un puntaje único que ordena el ranking. El diseño incorpora la restricción no compensatoria de seguridad (\cref{sec:apb_ponderaciones}): un CNI que no aplica Network Policies en su plano de datos no puede compensar esa carencia con un buen rendimiento, lo que penaliza su puntaje de seguridad. De este modo, la lógica de la interfaz no introduce criterios nuevos: aplica exactamente el mismo procedimiento formalizado en \cref{sec:apb_criterios,sec:apb_mcda}.
+
+\subsection{Salida accionable}
+
+La salida comprende tres niveles: la recomendación directa (qué CNI se sugiere para el perfil), la justificación (qué métricas explican la posición de cada CNI, presentada como ranking y gráfica comparativa por el componente \texttt{ResultsEngine}) y la orientación de configuración (el comando de instalación del plugin recomendado y una política base de denegación por defecto, generados por el componente \texttt{ImplementationSteps}). Con ello, el diseño cierra el ciclo desde la medición del plano de datos hasta una decisión de despliegue verificable.
+
+\subsection{Arquitectura por componentes}
+
+El prototipo se implementó como aplicación web de página única (SPA) con React~19, Vite~7 y Tailwind CSS~3; el \emph{build} de producción se despliega en GitHub Pages, y la actualización de datos encadena \texttt{procesador.js} ---que genera \texttt{cni-data.json}--- con la inyección de esos datos en el \emph{bundle}. La aplicación se organiza en tres capas ---entrada de perfil, núcleo de procesamiento y presentación de resultados---, coherente con la arquitectura general por capas del sistema (\cref{fig:arquitectura-capas}). El componente \texttt{App.jsx} actúa como orquestador: gestiona el estado, resuelve el \emph{fetch} de datos e invoca el cálculo de puntajes. El diagrama de componentes y la tabla de responsabilidades detallada se presentan en el \cref{chap:apendice_a} (Figura~\ref{fig:oe4_arch} y Tabla~\ref{tab:oe4_componentes}).
 
 \section{Alcance y Límites del Diseño}
 
