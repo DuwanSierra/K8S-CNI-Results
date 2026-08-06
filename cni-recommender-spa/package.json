@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "sync:data": "node ../docs/procesador.js && node scripts/export-spa-data.cjs",
-    "build": "vite build",
-    "build:pages": "vite build --base ./ --outDir ../docs/recommender --emptyOutDir true",
+    "build": "npm run sync:data && vite build",
+    "build:pages": "npm run sync:data && vite build --base ./ --outDir ../docs/recommender --emptyOutDir true",
     "preview": "vite preview"
   },
   "dependencies": {

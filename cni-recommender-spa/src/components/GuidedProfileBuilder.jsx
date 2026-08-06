@@ -131,15 +131,19 @@ export default function GuidedProfileBuilder({ answers, generatedProfile, onChan
             ))}
           </div>
 
-          {/* Aviso si la seguridad es alta */}
-          {answers.securityNeed >= 4 && (
+          {/* Aviso desde el nivel en que la penalizacion de seguridad ya opera */}
+          {answers.securityNeed >= 2 && (
             <div className="mt-5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-3">
               <p className="text-xs font-semibold text-amber-300">
-                ⚠ Seguridad obligatoria activa
+                {answers.securityNeed >= 4
+                  ? '⚠ Seguridad obligatoria activa'
+                  : '⚠ Penalizacion de seguridad activa'}
               </p>
               <p className="mt-1 text-xs leading-5 text-amber-200/80">
-                Los plugins que no soportan control de acceso entre servicios
-                seran penalizados en el ranking.
+                Los plugins que no aplican control de acceso entre servicios
+                {answers.securityNeed >= 4
+                  ? ' quedan descartados del ranking.'
+                  : ' pierden puntaje en el ranking, de forma proporcional al nivel elegido.'}
               </p>
             </div>
           )}

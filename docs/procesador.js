@@ -112,6 +112,48 @@ function summarizeJSONRuns(dirPath, metricKeyPath) {
     return summarizeRuns(runValues, files.length);
 }
 
+function summarizeJSONRunsDerived(dirPath, deriveValue) {
+    if (!fs.existsSync(dirPath)) {
+        return summarizeRuns([], 0);
+    }
+
+    const files = fs.readdirSync(dirPath)
+        .filter(fileName => fileName.endsWith('.json'))
+        .sort();
+
+    const runValues = [];
+
+    for (const fileName of files) {
+        try {
+            const data = JSON.parse(fs.readFileSync(path.join(dirPath, fileName), 'utf8'));
+            const value = deriveValue(data);
+            if (isFiniteNumber(value)) {
+                runValues.push(value);
+            }
+        } catch (_error) {}
+    }
+
+    return summarizeRuns(runValues, files.length);
+}
+
+/**
+ * Retransmisiones por gigabyte enviado.
+ * El conteo absoluto no es comparable entre CNIs: con la misma ventana de 300 s,
+ * un plugin que alcanza mayor throughput mueve mas datos y acumula mas
+ * retransmisiones solo por ese motivo. Normalizar por volumen transferido aisla
+ * la estabilidad del enlace del caudal alcanzado.
+ */
+function getRetransmitsPerGB(data) {
+    const retransmits = getMetricValue(data, 'summary.retransmits');
+    const bytes = getMetricValue(data, 'raw.end.sum_sent.bytes');
+
+    if (!isFiniteNumber(retransmits) || !isFiniteNumber(bytes) || bytes <= 0) {
+        return null;
+    }
+
+    return retransmits / (bytes / (1000 * 1000 * 1000));
+}
+
 function summarizeCSVRuns(dirPath, filename) {
     if (!fs.existsSync(dirPath)) {
         return summarizeRuns([], 0);
@@ -193,6 +235,7 @@ cnis.forEach(cni => {
     const jitterSummary = summarizeJSONRuns(path.join(cniDir, 'latency_tcp_connect'), 'tcp_connect_mdev_ms');
     const throughputSummary = summarizeJSONRuns(path.join(cniDir, 'throughput_tcp'), 'summary.receiver_bits_per_second');
     const retransmitsSummary = summarizeJSONRuns(path.join(cniDir, 'throughput_tcp'), 'summary.retransmits');
+    const retransmitsPerGBSummary = summarizeJSONRunsDerived(path.join(cniDir, 'throughput_tcp'), getRetransmitsPerGB);
     const cpuSummary = summarizeCSVRuns(path.join(cniDir, 'resource_usage_nodes'), 'cpu_pct.csv');
     const memSummary = summarizeCSVRuns(path.join(cniDir, 'resource_usage_nodes'), 'mem_used_bytes.csv');
 
@@ -202,6 +245,7 @@ cnis.forEach(cni => {
         jitter_ms: formatSummary(jitterSummary, value => getRoundedValue(value, 2)),
         throughput_mbps: formatSummary(throughputSummary, value => getRoundedValue(value / 1000000, 2)),
         retransmits: formatSummary(retransmitsSummary, value => Math.round(value)),
+        retransmits_por_gb: formatSummary(retransmitsPerGBSummary, value => getRoundedValue(value, 1)),
         cpu_usada_pct: formatSummary(cpuSummary, value => getRoundedValue(value, 2)),
         ram_usada_mb: formatSummary(memSummary, value => getRoundedValue(value / (1024 * 1024), 2)),
         estadistica: {
@@ -211,6 +255,7 @@ cnis.forEach(cni => {
             jitter_ms: buildMetricStats(jitterSummary),
             throughput_mbps: buildMetricStats(throughputSummary),
             retransmits: buildMetricStats(retransmitsSummary),
+            retransmits_por_gb: buildMetricStats(retransmitsPerGBSummary),
             cpu_usada_pct: buildMetricStats(cpuSummary),
             ram_usada_mb: buildMetricStats(memSummary)
         }

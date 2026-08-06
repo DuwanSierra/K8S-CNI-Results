@@ -149,7 +149,11 @@ const cniMetadata = Object.fromEntries(
 const metricDefinitions = {
   latency: { key: 'latencia_ms', higherIsBetter: false },
   jitter: { key: 'jitter_ms', higherIsBetter: false },
-  retransmits: { key: 'retransmits', higherIsBetter: false },
+  // Tasa por GB enviado, no conteo absoluto: con ventanas de medicion iguales,
+  // el conteo bruto crece con el caudal alcanzado y penalizaria al CNI mas
+  // rapido por serlo. Se conserva 'retransmits' como respaldo para payloads
+  // generados antes de la normalizacion.
+  retransmits: { key: 'retransmits_por_gb', fallbackKey: 'retransmits', higherIsBetter: false },
   throughput: { key: 'throughput_mbps', higherIsBetter: true },
   cpuEfficiency: { key: 'cpu_usada_pct', higherIsBetter: false },
   ramEfficiency: { key: 'ram_usada_mb', higherIsBetter: false },
@@ -220,10 +224,17 @@ function scoreFromRange(value, min, max, higherIsBetter) {
   return Number((1 + clamp(ratio, 0, 1) * 4).toFixed(2));
 }
 
-function getMetricRange(entries, metric) {
+function readMetric(data, metric) {
   const definition = metricDefinitions[metric];
+  const primary = Number(data?.[definition.key]);
+  if (Number.isFinite(primary)) return primary;
+  const fallback = definition.fallbackKey ? Number(data?.[definition.fallbackKey]) : NaN;
+  return Number.isFinite(fallback) ? fallback : NaN;
+}
+
+function getMetricRange(entries, metric) {
   const values = entries
-    .map(([, data]) => Number(data?.[definition.key]))
+    .map(([, data]) => readMetric(data, metric))
     .filter((value) => Number.isFinite(value));
   if (!values.length) return { min: 0, max: 0 };
   return { min: Math.min(...values), max: Math.max(...values) };
@@ -260,7 +271,7 @@ export function buildCniMetricsFromBenchmark(benchmarkPayload) {
     const meta = cniMetadata[id];
     const latencyScore = scoreFromRange(data.latencia_ms, ranges.latency.min, ranges.latency.max, false);
     const jitterScore = scoreFromRange(data.jitter_ms, ranges.jitter.min, ranges.jitter.max, false);
-    const retransmitScore = scoreFromRange(data.retransmits, ranges.retransmits.min, ranges.retransmits.max, false);
+    const retransmitScore = scoreFromRange(readMetric(data, 'retransmits'), ranges.retransmits.min, ranges.retransmits.max, false);
     const throughputScore = scoreFromRange(data.throughput_mbps, ranges.throughput.min, ranges.throughput.max, true);
     const cpuScore = scoreFromRange(data.cpu_usada_pct, ranges.cpuEfficiency.min, ranges.cpuEfficiency.max, false);
     const ramScore = scoreFromRange(data.ram_usada_mb, ranges.ramEfficiency.min, ranges.ramEfficiency.max, false);
@@ -340,21 +351,45 @@ export function buildGuidedProfile(answers = guidedQuestionDefaults) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Motor de cálculo MCDA con restricción de seguridad no compensatoria
+// Penalización no compensatoria de seguridad — graduada por nivel declarado
 //
-// REGLA: Si el usuario marcó seguridad >= 4 (importante o superior) y el CNI
-// NO soporta Network Policies (supportsNetworkPolicy = false), ese CNI recibe
-// una penalización del 60% en su puntaje final. Esto garantiza que no pueda
-// ganar aunque sea muy eficiente en otros criterios.
+// Un CNI sin soporte de Network Policies en su plano de datos recibe un factor
+// multiplicativo sobre su puntaje final segun el nivel de seguridad declarado.
+//
+// La version anterior aplicaba un umbral binario en nivel 4 (x0,40) y nada por
+// debajo. Esa discontinuidad hacia que en nivel 3 ("Medio", el valor por
+// defecto) Flannel ---que no aplica politicas--- ganara el 71% de las
+// configuraciones sin ninguna advertencia: el mismo falso positivo de seguridad
+// que este trabajo documenta, reproducido dentro del recomendador.
+//
+// El factor de nivel 4 se mantiene en 0,40 por compatibilidad con la ecuacion
+// publicada; los niveles intermedios interpolan de forma monotona.
+// ─────────────────────────────────────────────────────────────────────────────
+const SECURITY_PENALTY_BY_LEVEL = {
+  1: 1.00, // seguridad no critica: sin penalizacion
+  2: 0.85,
+  3: 0.60, // "Medio": la ausencia de politicas ya pesa
+  4: 0.40, // "Alto": valor publicado en la tesis
+  5: 0.25, // "Muy Alto": descarte efectivo
+};
+
+export function getSecurityPenaltyFactor(securityNeed, supportsNetworkPolicy) {
+  if (supportsNetworkPolicy !== false) return 1;
+  const level = Math.round(Number(securityNeed));
+  if (!Number.isFinite(level) || level < 1) return 1;
+  return SECURITY_PENALTY_BY_LEVEL[clamp(level, 1, 5)] ?? 1;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Motor de cálculo MCDA
 // ─────────────────────────────────────────────────────────────────────────────
 export function calculateScores(profile, benchmarkPayload) {
   const cnis = benchmarkPayload ? buildCniMetricsFromBenchmark(benchmarkPayload) : cniMetrics;
 
-  // El nivel de seguridad requerido por el perfil guiado (1-5). Si el perfil
-  // es uno de los 3 predefinidos, no aplica restricción (undefined).
-  const securityNeed = profile?.securityNeed ?? 0;
-  // Umbral: si securityNeed >= 4, la seguridad es un requisito importante.
-  const securityIsRequired = securityNeed >= 4;
+  // Nivel de seguridad declarado por el perfil (1-5). Los perfiles sin nivel
+  // explicito se tratan como 3 ("Medio"), no como 0: un perfil que no declara
+  // seguridad no es un perfil que la descarte.
+  const securityNeed = profile?.securityNeed ?? 3;
 
   return cnis
     .map((cni) => {
@@ -363,15 +398,15 @@ export function calculateScores(profile, benchmarkPayload) {
         return sum + metricValue * weight;
       }, 0);
 
-      // Aplicar penalización dura si el CNI no soporta seguridad y el usuario la requiere
-      const securityPenalized = securityIsRequired && cni.supportsNetworkPolicy === false;
-      const finalScore = securityPenalized ? rawTotal * 0.4 : rawTotal;
+      const penaltyFactor = getSecurityPenaltyFactor(securityNeed, cni.supportsNetworkPolicy);
+      const finalScore = rawTotal * penaltyFactor;
 
       return {
         ...cni,
         score: Number(finalScore.toFixed(3)),
         rawScore: Number(rawTotal.toFixed(3)),
-        securityPenalized,
+        securityPenalized: penaltyFactor < 1,
+        securityPenaltyFactor: penaltyFactor,
       };
     })
     .sort((a, b) => b.score - a.score);
