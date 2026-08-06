@@ -196,18 +196,17 @@ IoT / Recursos limitados & 20.8\% & 19.0\% & 18.5\% & 28.0\% & 13.7\% \\
 
 \subsubsection{Restricción no compensatoria de seguridad}
 
-Para evitar que un CNI inseguro gane por pura eficiencia computacional, el modelo combina el método compensatorio SAW con una restricción conjuntiva, siguiendo los modelos no compensatorios de decisión multiatributo~\cite{ref31}. Si el perfil exige un nivel de seguridad \emph{Alto} o \emph{Muy Alto} (valor $\ge 4$ en el recomendador, como ocurre en el perfil Fintech), cualquier CNI que carezca de soporte nativo para Network Policies (como Flannel) sufre una penalización. Esto reduce su puntaje general al $40\%$ del valor ponderado calculado:
+Para evitar que un CNI inseguro gane por pura eficiencia computacional, el modelo combina el método compensatorio SAW con una restricción conjuntiva, siguiendo los modelos no compensatorios de decisión multiatributo~\cite{ref31}. Todo CNI que carezca de soporte nativo para Network Policies en su plano de datos (como Flannel) recibe un factor multiplicativo $f(s)$ sobre su puntaje ponderado, determinado por el nivel de seguridad $s\in\{1,\dots,5\}$ que la organización declara en el recomendador:
 
 \begin{equation}
-  P_{\text{final}} =
-  \begin{cases}
-    P_{\text{MCDA}} \times 0,40 & \text{si la seguridad es prioritaria y el CNI carece de políticas} \\
-    P_{\text{MCDA}}               & \text{en caso normal}
-  \end{cases}
+  P_{\text{final}} = P_{\text{MCDA}} \times f(s), \qquad
+  f(s) = \{1{,}00;\ 0{,}85;\ 0{,}60;\ 0{,}40;\ 0{,}25\}
   \label{eq:mcda-penalizacion}
 \end{equation}
 
-Esta restricción matemática asegura que los plugins con falencias críticas en el plano de seguridad sean descartados automáticamente en entornos regulados, invalidando victorias engañosas logradas puramente mediante ventajas en la eficiencia de recursos computacionales. El factor $\alpha = 0.40$ (reducción del 60\,\%) es un umbral de diseño calibrado para que la penalización sea severa sin anular por completo el puntaje, lo que permite que el recomendador conserve el ordenamiento relativo del resto de dimensiones para fines de diagnóstico.
+Los CNI que aplican políticas efectivamente conservan $f(s)=1$ para todo $s$. La penalización es progresiva y no un umbral: el costo de prescindir de políticas de red crece de forma monótona con la importancia que la propia organización les asigna, en lugar de activarse de golpe a partir de un valor determinado. El diseño inicial empleaba precisamente ese umbral binario ---$f=0{,}40$ desde $s\ge 4$ y $f=1$ por debajo--- y la verificación sistemática del espacio de configuraciones demostró que dejaba un tramo ciego: con una necesidad de seguridad declarada como \emph{media}, un plugin sin aplicación de políticas podía encabezar el ranking sin advertencia. La \cref{sec:apb_ponderaciones} documenta la corrección y sus efectos medidos.
+
+El valor $f(4)=0{,}40$ se conserva como referencia de diseño: una penalización severa que no anula por completo el puntaje, de modo que el recomendador mantiene el ordenamiento relativo del resto de dimensiones para fines de diagnóstico.
 
 \subsection{Modelo matemático de decisión multicriterio (MCDA)} \label{sec:apb_mcda}
 

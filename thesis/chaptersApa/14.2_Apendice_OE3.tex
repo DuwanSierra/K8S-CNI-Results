@@ -83,7 +83,8 @@ Latencia base promedio ($\downarrow$) & 21.53 ms & 12.54 ms & 18.73 ms & 35.09 m
 Latencia máxima ($\downarrow$) & 50.80 ms & 44.20 ms & 47.00 ms & 83.50 ms \\
 Jitter (MDEV) ($\downarrow$) & 7.76 ms & 7.31 ms & 8.47 ms & 17.25 ms \\
 Throughput TCP promedio ($\uparrow$) & 1452.97 Mbps & 1804.40 Mbps & 843.56 Mbps & 1588.45 Mbps \\
-Retransmisiones TCP promedio ($\downarrow$) & 11774 paq. & 68993 paq. & 15142 paq. & 42229 paq. \\
+Retransmisiones TCP promedio (conteo bruto) & 11774 paq. & 68993 paq. & 15142 paq. & 42229 paq. \\
+Retransmisiones por GB transferido ($\downarrow$) & 212.0 & 1021.2 & 441.7 & 679.1 \\
 CPU bajo estrés ($\downarrow$) & 19.45\% & 29.05\% & 25.79\% & 27.75\% \\
 RAM bajo estrés ($\downarrow$) & 1176.54 MB & 1672.83 MB & 1497.19 MB & 1429.95 MB \\
 \hline
@@ -141,18 +142,26 @@ IoT / Recursos limitados & 20.8\% & 19.0\% & 18.5\% & 28.0\% & 13.7\% \\
 \end{table}
 
 \subsection{Restricción no compensatoria de seguridad}
-Si se define un nivel de seguridad \emph{Alto} o \emph{Muy Alto} (como en el perfil Fintech), el modelo aplica una penalización directa al puntaje final de cualquier CNI que carezca de soporte nativo para Network Policies (como Flannel). Esto reduce su puntaje general al $40\%$ del valor ponderado calculado:
+Todo CNI que carezca de soporte nativo para Network Policies en su plano de datos (como Flannel) recibe un factor multiplicativo $f(s)$ sobre su puntaje ponderado, determinado por el nivel de seguridad $s$ que la organización declara en el recomendador:
 
 \begin{equation}
-  P_{\text{final}} =
+  P_{\text{final}} = P_{\text{MCDA}} \times f(s), \qquad
+  f(s) =
   \begin{cases}
-    P_{\text{MCDA}} \times 0,40 & \text{si la seguridad es prioritaria y el CNI carece de políticas} \\
-    P_{\text{MCDA}}               & \text{en caso normal}
+    1{,}00 & s = 1 \quad \text{(seguridad no crítica)} \\
+    0{,}85 & s = 2 \\
+    0{,}60 & s = 3 \\
+    0{,}40 & s = 4 \quad \text{(valor de referencia)} \\
+    0{,}25 & s = 5 \quad \text{(descarte efectivo)}
   \end{cases}
   \label{eq:penalizacion_apb}
 \end{equation}
 
-Esta restricción matemática asegura que los plugins con falencias críticas en el plano de seguridad sean descartados automáticamente en entornos regulados, invalidando victorias engañosas logradas puramente mediante ventajas en la eficiencia de recursos computacionales.
+Los CNI que sí aplican políticas conservan $f(s)=1$ para todo $s$.
+
+Una versión preliminar del modelo aplicaba esta penalización como un umbral binario: $f=0{,}40$ a partir de $s\geq 4$ y $f=1$ por debajo. La verificación sistemática de las $625$ combinaciones posibles de los cinco deslizadores reveló que esa discontinuidad producía un comportamiento indeseado. Con $s=3$ ---el valor intermedio que la interfaz ofrece por defecto--- Flannel encabezaba el $71\%$ de las configuraciones sin advertencia alguna, de modo que un equipo que declarara una necesidad de seguridad \emph{media} recibía como recomendación el único plugin del conjunto que no aplica ninguna política. El instrumento reproducía así, en su propia lógica de decisión, el falso positivo de seguridad que este trabajo documenta en la \cref{sec:Discusion}. La formulación graduada de la \cref{eq:penalizacion_apb} elimina esa discontinuidad: bajo la misma verificación, la proporción de configuraciones encabezadas por Flannel desciende al $23\%$ en $s=2$ y al $0\%$ desde $s=3$. El valor $f(4)=0{,}40$ se conserva por continuidad con la formulación previa.
+
+La restricción asegura que los plugins con falencias en el plano de seguridad no obtengan victorias sustentadas únicamente en ventajas de eficiencia computacional, y que el costo de prescindir de políticas de red sea proporcional a la importancia que la propia organización les asigna.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Modelo matemático de decisión multicriterio (MCDA)} \label{sec:apb_mcda}
@@ -200,11 +209,11 @@ La Tabla~\ref{tab:apb_resultados} detalla las puntuaciones finales reales del an
 \hline
 \textbf{Perfil de Usuario} & \textbf{Flannel} & \textbf{Calico} & \textbf{Cilium} & \textbf{Antrea} \\
 \hline
-Fintech / Seguridad crítica & 1.331 & 3.168 & * \textbf{3.631} & 2.211 \\
+Fintech / Seguridad crítica & 0.832 & 3.168 & * \textbf{3.521} & 2.186 \\
 \hline
-Streaming / Alto rendimiento & * \textbf{3.686} & 3.567 & 3.294 & 2.256 \\
+Streaming / Alto rendimiento & 3.133 & * \textbf{3.567} & 3.194 & 2.233 \\
 \hline
-IoT / Recursos limitados & * \textbf{3.834} & 2.952 & 3.232 & 2.224 \\
+IoT / Recursos limitados & * \textbf{3.259} & 2.952 & 3.148 & 2.205 \\
 \hline
 \end{tabularx}
 \end{table}
@@ -212,11 +221,11 @@ IoT / Recursos limitados & * \textbf{3.834} & 2.952 & 3.232 & 2.224 \\
 \subsection{Interpretación y desglose de resultados}
 
 \begin{itemize}
-  \item \textbf{Perfil Fintech / Seguridad:} Cilium obtiene la puntuación óptima con $3.631$ (en la escala de 1 a 5). A pesar de que Calico ofrece un rendimiento crudo superior en latencia base, Cilium sobresale debido a sus políticas dinámicas de capa 7 basadas en eBPF~\cite{ref10} y su menor degradación del tráfico cuando el aislamiento lógico está activo.
-  
-  Por el contrario, Flannel obtiene un puntaje críticamente bajo de $1.331$. Esto se debe a que carece por diseño de soporte de Network Policies. Su puntuación base ponderada original de $3.328$ (impulsada principalmente por su bajo consumo de CPU y RAM) se somete a la penalización de seguridad de la Ecuación~\eqref{eq:mcda-penalizacion}, multiplicándose por $0,4$. Esto demuestra cómo el modelo descarta automáticamente soluciones no aptas para entornos regulados.
-  
-  \textbf{Réplica en el Recomendador SPA:} Para obtener exactamente este resultado de $3.631$, el usuario debe establecer en el panel de control del recomendador las siguientes prioridades en los deslizadores (sliders):
+  \item \textbf{Perfil Fintech / Seguridad:} Cilium obtiene la puntuación óptima con $3.521$ (en la escala de 1 a 5). A pesar de que Calico ofrece un rendimiento crudo superior en latencia base, Cilium sobresale debido a sus políticas dinámicas de capa 7 basadas en eBPF~\cite{ref10} y su menor degradación del tráfico cuando el aislamiento lógico está activo.
+
+  Por el contrario, Flannel obtiene un puntaje críticamente bajo de $0.832$. Esto se debe a que carece por diseño de soporte de Network Policies. Su puntuación base ponderada original de $3.328$ (impulsada principalmente por su bajo consumo de CPU y RAM) se somete a la penalización de seguridad de la Ecuación~\eqref{eq:mcda-penalizacion}, multiplicándose por el factor $f(5)=0{,}25$ correspondiente al nivel de seguridad máximo. Esto demuestra cómo el modelo descarta automáticamente soluciones no aptas para entornos regulados.
+
+  \textbf{Réplica en el Recomendador SPA:} Para obtener exactamente este resultado de $3.521$, el usuario debe establecer en el panel de control del recomendador las siguientes prioridades en los deslizadores (sliders):
   \begin{itemize}
     \item Latencia: \emph{Medio} ($3/5$)
     \item Estabilidad (Jitter): \emph{Muy Alto} ($5/5$)
@@ -224,7 +233,7 @@ IoT / Recursos limitados & * \textbf{3.834} & 2.952 & 3.232 & 2.224 \\
     \item Límite de Recursos: \emph{Muy Bajo} ($1/5$)
     \item Nivel de Seguridad: \emph{Muy Alto} ($5/5$)
   \end{itemize}
-  Esta selección genera ponderaciones específicas (Latencia $20.8\%$, Estabilidad $24.8\%$, Throughput $21.0\%$, Recursos $8.1\%$ y Seguridad $25.3\%$). Al requerirse un nivel de seguridad crítico, se activa automáticamente la penalización del factor $\times 0,40$ sobre Flannel. La configuración y los resultados se demuestran visualmente en la Figura~\ref{fig:rec_fintech_preguntas} (configuración de entrada) y la Figura~\ref{fig:rec_fintech_resultados} (salida final del prototipo web).
+  Esta selección genera ponderaciones específicas (Latencia $20.8\%$, Estabilidad $24.8\%$, Throughput $21.0\%$, Recursos $8.1\%$ y Seguridad $25.3\%$). Al declararse el nivel de seguridad máximo ($s=5$), se aplica sobre Flannel el factor $\times 0{,}25$ de la \cref{eq:mcda-penalizacion}, que reduce su puntaje a $0.832$. La configuración y los resultados se demuestran visualmente en la Figura~\ref{fig:rec_fintech_preguntas} (configuración de entrada) y la Figura~\ref{fig:rec_fintech_resultados} (salida final del prototipo web).
 
   \begin{figure}[htbp]
   \centering
@@ -236,13 +245,15 @@ IoT / Recursos limitados & * \textbf{3.834} & 2.952 & 3.232 & 2.224 \\
   \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.95\textwidth]{figures/rec_fintech.png}
-  \caption{Resultados del ranking MCDA en el prototipo interactivo para el perfil Fintech / Seguridad (Ganador: Cilium con 3.631).}
+  \caption{Resultados del ranking MCDA en el prototipo interactivo para el perfil Fintech / Seguridad (Ganador: Cilium con 3.521).}
   \label{fig:rec_fintech_resultados}
   \end{figure}
   
-  \item \textbf{Perfil Streaming / Rendimiento:} Flannel resulta recomendado con un puntaje de $3.686$. En el testbed, Flannel demostró un rendimiento balanceado y la estabilidad de red más alta al registrar solo 11,774 retransmisiones TCP frente a las 68,993 de Calico. Dado que la tasa de reenvío influye en la estabilidad de la transmisión de flujos continuos, la robustez de Flannel sumada a su eficiencia computacional compensa el mayor throughput bruto de Calico.
-  
-  \textbf{Réplica en el Recomendador SPA:} Para replicar el puntaje de $3.686$ de Flannel y $3.567$ de Calico, el usuario debe establecer las siguientes prioridades:
+  \item \textbf{Perfil Streaming / Rendimiento:} Calico resulta recomendado con un puntaje de $3.567$, por delante de Cilium ($3.194$) y Flannel ($3.133$). Calico aporta el mayor throughput del testbed ($1804.40$ Mbps) y la menor latencia de establecimiento ($12.54$ ms), las dos dimensiones que este perfil pondera con mayor peso ($25.1\%$ y $27.7\%$).
+
+  Flannel conserva la mejor tasa de retransmisión y la menor huella de recursos, y su puntuación ponderada bruta ($3.686$) sigue siendo la más alta del perfil. No obstante, el perfil declara una prioridad de seguridad \emph{Baja} ($s=2$) y no nula, de modo que la penalización no compensatoria de la Ecuación~\eqref{eq:mcda-penalizacion} aplica el factor $f(2)=0{,}85$ sobre un plugin que no aplica NetworkPolicies en su plano de datos, reduciendo su puntaje final a $3.133$. El resultado ilustra el comportamiento pretendido del modelo: incluso una exigencia de seguridad moderada basta para que la ausencia de aplicación de políticas desplace a un plugin que aventajaba al resto en las dimensiones restantes.
+
+  \textbf{Réplica en el Recomendador SPA:} Para replicar el puntaje de $3.567$ de Calico y $3.133$ de Flannel, el usuario debe establecer las siguientes prioridades:
   \begin{itemize}
     \item Latencia: \emph{Muy Alto} ($5/5$)
     \item Estabilidad (Jitter): \emph{Alto} ($4/5$)
@@ -250,11 +261,11 @@ IoT / Recursos limitados & * \textbf{3.834} & 2.952 & 3.232 & 2.224 \\
     \item Límite de Recursos: \emph{Bajo} ($2/5$)
     \item Nivel de Seguridad: \emph{Bajo} ($2/5$)
   \end{itemize}
-  Esta configuración prioriza la QoS de red cruda (throughput y latencia con pesos del $25.1\%$ y $27.7\%$ respectivamente) sin requerir seguridad restrictiva, lo que resulta en la victoria de Flannel por estabilidad.
+  Esta configuración prioriza la QoS de red cruda (throughput y latencia con pesos del $25.1\%$ y $27.7\%$ respectivamente) sin exigir una postura de seguridad restrictiva, lo que resulta en la victoria de Calico por rendimiento efectivo.
   
-  \item \textbf{Perfil IoT / Recursos limitados:} Flannel se posiciona como el CNI recomendado con $3.834$ frente a Cilium ($3.232$), Calico ($2.952$) y Antrea ($2.224$). Flannel destaca como el plugin que induce el menor estrés general bajo carga ($19.45\%$ de CPU del nodo y $1176.54$ MB de RAM global), lo cual se alinea con la prioridad de este perfil (28\% de peso a la eficiencia de recursos). Como se discute en el Capítulo~\ref{sec:Resultados}, esta métrica de RAM captura la huella del host bajo tráfico activo; un despliegue en nodos muy pequeños deberá aislar adicionalmente el consumo del binario en reposo.
+  \item \textbf{Perfil IoT / Recursos limitados:} Flannel se posiciona como el CNI recomendado con $3.259$ frente a Cilium ($3.148$), Calico ($2.952$) y Antrea ($2.205$). El margen sobre Cilium es de poco más de una décima sobre la escala $1$--$5$, por lo que esta recomendación debe leerse como una preferencia condicionada al ahorro de recursos y no como una superioridad establecida. Flannel destaca como el plugin que induce el menor estrés general bajo carga ($19.45\%$ de CPU del nodo y $1176.54$ MB de RAM global), lo cual se alinea con la prioridad de este perfil (28\% de peso a la eficiencia de recursos). Como se discute en el Capítulo~\ref{sec:Resultados}, esta métrica de RAM captura la huella del host bajo tráfico activo; un despliegue en nodos muy pequeños deberá aislar adicionalmente el consumo del binario en reposo.
   
-  \textbf{Réplica en el Recomendador SPA:} Para replicar el puntaje de $3.834$ de Flannel, el usuario debe configurar los sliders con los siguientes valores:
+  \textbf{Réplica en el Recomendador SPA:} Para replicar el puntaje de $3.259$ de Flannel, el usuario debe configurar los sliders con los siguientes valores:
   \begin{itemize}
     \item Latencia: \emph{Medio} ($3/5$)
     \item Estabilidad (Jitter): \emph{Medio} ($3/5$)
@@ -274,14 +285,14 @@ IoT / Recursos limitados & * \textbf{3.834} & 2.952 & 3.232 & 2.224 \\
   \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.95\textwidth]{figures/rec_iot.png}
-  \caption{Resultados del ranking MCDA en el prototipo interactivo para el perfil IoT / Recursos Limitados (Ganador: Flannel con 3.834).}
+  \caption{Resultados del ranking MCDA en el prototipo interactivo para el perfil IoT / Recursos Limitados (Ganador: Flannel con 3.259).}
   \label{fig:rec_iot_resultados}
   \end{figure}
 \end{itemize}
 
 \section{Lista de verificación para la configuración del recomendador CNI} \label{sec:apb_checklist}
 
-El recomendador interactivo opera mediante cinco deslizadores de prioridad, cada uno en la escala \emph{Muy Bajo} (1) --- \emph{Bajo} (2) --- \emph{Medio} (3) --- \emph{Alto} (4) --- \emph{Muy Alto} (5). La combinación de valores genera los pesos porcentuales del modelo MCDA y, cuando la seguridad supera el nivel~4, activa la penalización no compensatoria $\times 0{,}40$ sobre plugins sin soporte de \texttt{NetworkPolicy}.
+El recomendador interactivo opera mediante cinco deslizadores de prioridad, cada uno en la escala \emph{Muy Bajo} (1) --- \emph{Bajo} (2) --- \emph{Medio} (3) --- \emph{Alto} (4) --- \emph{Muy Alto} (5). La combinación de valores genera los pesos porcentuales del modelo MCDA y determina el factor de penalización no compensatoria que la \cref{eq:mcda-penalizacion} aplica sobre los plugins sin soporte de \texttt{NetworkPolicy}: dicho factor decrece de forma monótona con el nivel de seguridad declarado, desde $\times 1{,}00$ en el nivel~1 hasta $\times 0{,}25$ en el nivel~5.
 
 Esta lista de verificación es un instrumento cualitativo: mediante preguntas orientadas al contexto operativo del equipo, guía la asignación de cada deslizador antes de acceder al recomendador. No requiere mediciones previas; basta con que el equipo responda a cuál de las descripciones de cada fila se ajusta mejor a su caso de uso.
 
@@ -327,12 +338,12 @@ Esta lista de verificación es un instrumento cualitativo: mediante preguntas or
 \begin{enumerate}
     \item Para cada deslizador, leer las dos columnas de indicadores y decidir cuál describe mejor el entorno operativo del clúster.
     \item Anotar el nivel elegido (1--5) en la última columna. Si el contexto queda entre ambas descripciones, usar el valor intermedio (\emph{Medio}, 3/5).
-    \item Si \textbf{Seguridad} queda en nivel 4 o 5, verificar que el CNI seleccionado aplique \texttt{NetworkPolicy} en su plano de datos; de lo contrario, la penalización $\times 0{,}40$ lo descartará automáticamente.
+    \item Si \textbf{Seguridad} queda en nivel 3 o superior, verificar que el CNI seleccionado aplique \texttt{NetworkPolicy} en su plano de datos; de lo contrario, la penalización de la \cref{eq:mcda-penalizacion} lo desplazará del primer lugar.
     \item Introducir los cinco valores en el recomendador interactivo (\url{https://duwansierra.github.io/K8S-CNI-Results/}) para obtener el ranking MCDA personalizado.
     \item Comparar el resultado con los perfiles de referencia de la Tabla~\ref{tab:apb_pesos}: si los valores elegidos en los deslizadores se acercan a uno de los tres perfiles documentados (Fintech, Streaming, IoT), el recomendador producirá un ranking análogo al de la Tabla~\ref{tab:apb_resultados}.
 \end{enumerate}
 
-\noindent\textbf{Nota sobre la penalización de seguridad.} Los perfiles con nivel de seguridad 4 o 5 activan automáticamente la restricción no compensatoria: Flannel recibe el $40\%$ de su puntaje bruto, lo que lo sitúa por debajo de 2.0 en la escala 1--5 en contextos regulados, independientemente de su ventaja en recursos o estabilidad.
+\noindent\textbf{Nota sobre la penalización de seguridad.} La restricción no compensatoria opera desde el nivel~2 y se endurece de forma progresiva con el nivel declarado. En contextos regulados (niveles 4 y 5) Flannel conserva entre el $40\%$ y el $25\%$ de su puntaje bruto, lo que lo sitúa por debajo de 1.5 en la escala 1--5 con independencia de su ventaja en recursos o estabilidad. Desde el nivel~3 ningún plugin sin aplicación efectiva de políticas encabeza el ranking en ninguna combinación de los deslizadores restantes.
 
 \section{Guía de reproducción y verificación científica} \label{sec:apb_reproducibilidad}
 

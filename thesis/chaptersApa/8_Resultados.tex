@@ -70,7 +70,7 @@ iperf3 -c iperf-server-svc.cni-benchmark.svc.cluster.local \
 
 \subsection{Resultados de Throughput TCP por CNI}
 
-Los resultados presentados son los promedios de las 5 corridas de 300 segundos para cada CNI, después de aplicar el filtro IQR para eliminar outliers. La Tabla~\ref{tab:throughput-resultados} registra tres dimensiones de calidad del canal: cuántos datos por segundo puede transportar (throughput), cuántos paquetes tuvieron que reenviarse por error (retransmisiones) y qué tan predecible es el canal entre corridas (variabilidad).
+Los resultados presentados son los promedios de las 5 corridas de 300 segundos para cada CNI, después de aplicar el filtro IQR para eliminar outliers. La regla de agregación es única para los cuatro plugins y para todas las métricas ---promedio de las corridas supervivientes al descarte por rango intercuartílico, sin excepciones ni selección manual de corridas---, de modo que las corridas efectivamente descartadas varían entre plugins únicamente como consecuencia de aplicar el mismo criterio a distribuciones distintas. Las filas de outliers descartados de la Tabla~\ref{tab:throughput-resultados} documentan ese resultado: el descarte de una corrida de Calico en retransmisiones y de una de Cilium en throughput responde al mismo umbral estadístico, no a un tratamiento diferenciado. La tabla registra tres dimensiones de calidad del canal: cuántos datos por segundo puede transportar (throughput), con qué frecuencia debe reenviar paquetes (retransmisiones) y qué tan predecible es el canal entre corridas (variabilidad).
 
 \begin{table}[htbp]
 \centering
@@ -83,7 +83,11 @@ Los resultados presentados son los promedios de las 5 corridas de 300 segundos p
 \hline
 Throughput promedio --- Mbps \newline\textit{($\uparrow$ mayor es mejor: más datos por segundo)} & 1452.97 & \textbf{1804.40} & 843.56 & 1588.45 \\
 \hline
-Retransmisiones TCP --- paquetes/sesión \newline\textit{($\downarrow$ menor es mejor: menos retransmisiones en el canal)} & \textbf{11774} & 68993 & 15142 & 42229 \\
+Retransmisiones TCP --- paquetes/sesión \newline\textit{(conteo bruto; no comparable entre CNIs)} & 11774 & 68993 & 15142 & 42229 \\
+\hline
+Retransmisiones por GB transferido \newline\textit{($\downarrow$ menor es mejor: tasa comparable entre CNIs)} & \textbf{212.0} & 1021.2 & 441.7 & 679.1 \\
+\hline
+Pérdida equivalente --- \% de los datos enviados & \textbf{0.029\%} & 0.145\% & 0.056\% & 0.112\% \\
 \hline
 Outliers descartados (Throughput) & 0 de 5 (0\%) & 0 de 5 (0\%) & 1 de 5 (20\%) & 0 de 5 (0\%) \\
 \hline
@@ -92,7 +96,11 @@ Outliers descartados (Retransmisiones) & 0 de 5 (0\%) & 1 de 5 (20\%) & 0 de 5 (
 \end{tabularx}
 \end{table}
 
-A diferencia de los entornos locales de alto rendimiento, la red en nube VPC privada de DigitalOcean limita el ancho de banda efectivo, registrándose valores máximos de throughput de 1804.40 Mbps en Calico, seguido de Antrea con 1588.45 Mbps y Flannel con 1452.97 Mbps. Cilium presenta el valor más bajo con 843.56 Mbps. Las diferencias en retransmisiones TCP son críticas: Flannel destaca con la menor cantidad de retransmisiones (11774), seguido por Cilium (15142) y Antrea (42229), mientras que Calico registra la tasa de fallas más alta con 68993 retransmisiones. Esto indica que a pesar de que Calico lidera el throughput bruto, genera un mayor estrés de reenvío de paquetes debido a la saturación del datapath.
+A diferencia de los entornos locales de alto rendimiento, la red en nube VPC privada de DigitalOcean limita el ancho de banda efectivo, registrándose valores máximos de throughput de 1804.40 Mbps en Calico, seguido de Antrea con 1588.45 Mbps y Flannel con 1452.97 Mbps. Cilium presenta el valor más bajo con 843.56 Mbps.
+
+El conteo bruto de retransmisiones requiere una precisión metodológica antes de ser interpretado. Las cinco corridas de cada plugin comparten una ventana idéntica de 300 segundos, pero no un volumen transferido idéntico: al sostener mayor caudal, Calico envió 67.7 GB por corrida frente a los 52.4 GB de Flannel, de manera que parte de su exceso de retransmisiones se explica por haber movido más datos y no por una deficiencia del plano de datos. Comparar los conteos absolutos penalizaría al plugin más rápido precisamente por serlo. Normalizada por volumen, la tasa ordena a los plugins como Flannel (212 por GB), Cilium (441.7), Antrea (679.1) y Calico (1021.2).
+
+La ordenación se mantiene, pero su magnitud se relativiza: expresadas como fracción de los datos enviados, las cuatro tasas se sitúan entre el $0{,}029\%$ y el $0{,}145\%$, valores que TCP absorbe mediante retransmisión selectiva sin degradación perceptible para las aplicaciones. La diferencia es real y ordena a los plugins de forma consistente, pero ninguno de los cuatro exhibe un comportamiento que pueda calificarse de inestable. La \cref{sec:Discusion} analiza la relación entre caudal alcanzado y tasa de retransmisión.
 
 \subsection{Protocolo de Prueba de Latencia TCP}
 
@@ -323,16 +331,20 @@ Los puntajes que se muestran a continuación son calculados por \texttt{procesad
 \hline
 \textbf{Perfil de Usuario} & \textbf{Flannel} & \textbf{Calico} & \textbf{Cilium} & \textbf{Antrea} \\
 \hline
-Fintech / Seguridad crítica & 1.331 & 3.168 & $\star$ \textbf{3.631} & 2.211 \\
+Fintech / Seguridad crítica & 0.832 & 3.168 & $\star$ \textbf{3.521} & 2.186 \\
 \hline
-Streaming / Alto rendimiento & $\star$ \textbf{3.686} & 3.567 & 3.294 & 2.256 \\
+Streaming / Alto rendimiento & 3.133 & $\star$ \textbf{3.567} & 3.194 & 2.233 \\
 \hline
-IoT / Recursos limitados & $\star$ \textbf{3.834} & 2.952 & 3.232 & 2.224 \\
+IoT / Recursos limitados & $\star$ \textbf{3.259} & 2.952 & 3.148 & 2.205 \\
 \hline
 \end{tabularx}
 \end{table}
 
-Los resultados son coherentes con las expectativas técnicas y el comportamiento de los perfiles. Cilium lidera el perfil Fintech debido a su alto puntaje de seguridad (5.00) y baja penalización en latencia de políticas de red. Para Streaming, Flannel resulta ganador gracias a su combinación de estabilidad en retransmisiones de paquetes y eficiencia de CPU/RAM. Para IoT, Flannel se ratifica en primer lugar con un puntaje de 3.834 gracias a su bajísima huella de memoria (1176.54 MB) y CPU (19.45\%), lo cual es ideal para dispositivos con recursos computacionales muy limitados.
+Ningún CNI encabeza los tres perfiles: la recomendación se invierte según las prioridades declaradas. Este resultado ---y no la preferencia por un plugin concreto--- es el hallazgo central del modelo, y sostiene empíricamente que la selección de un CNI no admite una respuesta única.
+
+Cilium lidera el perfil Fintech por su puntaje de seguridad (5.00), el único respaldado por aplicación efectiva de políticas de capa 7. Calico encabeza Streaming: aporta el mayor throughput medido (1804.40 Mbps) y la menor latencia de establecimiento, y el perfil solo declara una prioridad de seguridad baja, insuficiente para descartarlo. Flannel conserva el perfil IoT gracias a su huella de memoria (1176.54 MB) y CPU (19.45\%), decisiva en dispositivos con recursos muy limitados.
+
+La ventaja de Flannel en IoT es, no obstante, estrecha: $3.259$ frente a $3.148$ de Cilium, poco más de una décima sobre una escala de $1$ a $5$. Esa diferencia queda dentro del margen que una variación de pesos o una nueva campaña de medición podría revertir, por lo que la recomendación para IoT debe leerse como una preferencia condicionada al ahorro de recursos y no como una superioridad establecida. La \cref{sec:limitaciones_mcda} desarrolla esta limitación.
 
 \section{El Prototipo Recomendador CNI como Herramienta de Decisión y Despliegue} \label{sec:prototipo_recomendador}
 
@@ -393,11 +405,11 @@ Para verificar que la SPA produce los rankings correctos ante distintas combinac
 \hline
 \textbf{Caso de Prueba Funcional} & \textbf{Resultado Esperado vs Resultado Observado} \\
 \hline
-PF-01: Prioridades del perfil Fintech/Seguridad en los deslizadores & ESPERADO: Cilium \#1 con score 3.631, Calico (3.168). OBSERVADO: Coincide. $\checkmark$ \\
+PF-01: Prioridades del perfil Fintech/Seguridad en los deslizadores & ESPERADO: Cilium \#1 con score 3.521, Calico (3.168). OBSERVADO: Coincide. $\checkmark$ \\
 \hline
-PF-02: Prioridades del perfil Streaming/Rendimiento en los deslizadores & ESPERADO: Flannel \#1 con 3.686, Calico (3.567). OBSERVADO: Coincide. $\checkmark$ \\
+PF-02: Prioridades del perfil Streaming/Rendimiento en los deslizadores & ESPERADO: Calico \#1 con 3.567, Cilium (3.194). OBSERVADO: Coincide. $\checkmark$ \\
 \hline
-PF-03: Prioridades del perfil IoT/Recursos en los deslizadores & ESPERADO: Flannel \#1 con 3.834, Cilium (3.232). OBSERVADO: Coincide. $\checkmark$ \\
+PF-03: Prioridades del perfil IoT/Recursos en los deslizadores & ESPERADO: Flannel \#1 con 3.259, Cilium (3.148). OBSERVADO: Coincide. $\checkmark$ \\
 \hline
 PF-04: Usuario cambia las prioridades sin recargar la página & ESPERADO: El ranking se actualiza en menos de 50ms. OBSERVADO: Actualización $<$50ms. $\checkmark$ \\
 \hline
