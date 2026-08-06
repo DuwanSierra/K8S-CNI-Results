@@ -174,7 +174,7 @@ Los resultados normalizados garantizan que el CNI con el mejor desempeño en una
 
 \subsection{Factores de ponderación y restricciones no compensatorias} \label{sec:apb_ponderaciones}
 
-El modelo aplica factores de ponderación (pesos porcentuales) que suman el $100\%$ ($1,0$), asignando mayor peso a las métricas más críticas según el caso de uso. La distribución de pesos calculados dinámicamente por la herramienta para los tres perfiles base se muestra en la Tabla~\ref{tab:apb_pesos}.
+El modelo aplica factores de ponderación (pesos porcentuales) que suman el $100\%$ ($1,0$), asignando mayor peso a las métricas más críticas según el caso de uso. La distribución de pesos que la herramienta calcula para los tres perfiles de referencia empleados en esta tesis se muestra en la Tabla~\ref{tab:apb_pesos}.
 
 \begin{table}[htbp]
 \centering
@@ -462,7 +462,7 @@ El prototipo recomendador es la capa de interacción entre el modelo matemático
 
 \subsection{Propósito y entradas}
 
-El propósito del recomendador es convertir un perfil de uso organizacional en una recomendación de CNI justificada y accionable, sin exigir al operador conocimiento previo del modelo matemático. La entrada es el perfil del usuario, capturado por el componente \texttt{GuidedProfileBuilder} mediante cinco preguntas guiadas que ponderan las prioridades del despliegue (rendimiento, latencia, eficiencia de recursos y seguridad). Las respuestas se transforman en un vector de pesos normalizado que suma la unidad, coherente con los factores de ponderación definidos en el modelo (\cref{sec:apb_ponderaciones}).
+El propósito del recomendador es convertir un perfil de uso organizacional en una recomendación de CNI justificada y accionable, sin exigir al operador conocimiento previo del modelo matemático. La entrada es el perfil del usuario, capturado por el componente \texttt{GuidedProfileBuilder} mediante cinco preguntas guiadas que ponderan las prioridades del despliegue: latencia, estabilidad de la conexión, throughput, límite de recursos y nivel de seguridad. Las respuestas se transforman en un vector de pesos normalizado que suma la unidad, coherente con los factores de ponderación definidos en el modelo (\cref{sec:apb_ponderaciones}).
 
 \subsection{Datos consumidos}
 
@@ -470,7 +470,7 @@ El recomendador consume \texttt{cni-data.json}, el archivo generado por \texttt{
 
 \subsection{Motor de decisión}
 
-El motor de decisión reside en \texttt{recommendationModel.js} y reproduce el modelo MCDA del diseño. Para cada CNI, cada métrica se normaliza a una escala común según sea de beneficio o de costo, se pondera con el vector de pesos del perfil y se agrega en un puntaje único que ordena el ranking. El diseño incorpora la restricción no compensatoria de seguridad (\cref{sec:apb_ponderaciones}): un CNI que no aplica Network Policies en su plano de datos no puede compensar esa carencia con un buen rendimiento, lo que penaliza su puntaje de seguridad. De este modo, la lógica de la interfaz no introduce criterios nuevos: aplica exactamente el mismo procedimiento formalizado en \cref{sec:apb_criterios,sec:apb_mcda}.
+El motor de decisión reside en \texttt{recommendationModel.js} y reproduce el modelo MCDA del diseño. Para cada CNI, cada métrica se normaliza a una escala común según sea de beneficio o de costo, se pondera con el vector de pesos del perfil y se agrega en un puntaje único que ordena el ranking. El diseño incorpora la restricción no compensatoria de seguridad (\cref{sec:apb_ponderaciones}) en dos puntos: un CNI sin soporte de Network Policies recibe el valor mínimo de la escala en el criterio de seguridad y, cuando el perfil declara la seguridad como prioritaria (nivel $\ge 4$), su puntaje final se reduce al $40\%$ del valor ponderado. Así, esa carencia no puede compensarse con un buen rendimiento en las demás dimensiones. De este modo, la lógica de la interfaz no introduce criterios nuevos: aplica exactamente el mismo procedimiento formalizado en \cref{sec:apb_criterios,sec:apb_mcda}.
 
 \subsection{Salida accionable}
 

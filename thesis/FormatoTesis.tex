@@ -9,6 +9,13 @@
 % --- Numeracion de ecuaciones por capitulo (clase book: figuras/tablas ya lo hacen) ---
 \counterwithin{equation}{chapter}
 
+% --- Rotulo de tablas: "Tabla" en lugar del "Cuadro" de babel-spanish ---
+% El cuerpo del texto, cleveref y la lista usan "Tabla"/"Lista de tablas", pero
+% babel-spanish rotula los captions como "Cuadro N", de modo que la misma tabla
+% aparecia como "Cuadro 7.11" en el caption y como "Tabla 7.11" en el parrafo
+% que la cita. Se unifica el rotulo (la numeracion no cambia).
+\addto\captionsspanish{\renewcommand{\tablename}{Tabla}}
+
 % --- Referencias cruzadas uniformes (cargar despues de hyperref) ---
 \usepackage[nameinlink]{cleveref}
 \crefname{equation}{ecuación}{ecuaciones}

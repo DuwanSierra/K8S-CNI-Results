@@ -329,10 +329,10 @@ Esta lista de verificación es un instrumento cualitativo: mediante preguntas or
     \item Anotar el nivel elegido (1--5) en la última columna. Si el contexto queda entre ambas descripciones, usar el valor intermedio (\emph{Medio}, 3/5).
     \item Si \textbf{Seguridad} queda en nivel 4 o 5, verificar que el CNI seleccionado aplique \texttt{NetworkPolicy} en su plano de datos; de lo contrario, la penalización $\times 0{,}40$ lo descartará automáticamente.
     \item Introducir los cinco valores en el recomendador interactivo (\url{https://duwansierra.github.io/K8S-CNI-Results/}) para obtener el ranking MCDA personalizado.
-    \item Comparar el resultado con los perfiles predefinidos de la Tabla~\ref{tab:apb_pesos}: si los valores elegidos se acercan a uno de los tres perfiles base (Fintech, Streaming, IoT), el recomendador producirá un ranking análogo al documentado en la Tabla~\ref{tab:apb_resultados}.
+    \item Comparar el resultado con los perfiles de referencia de la Tabla~\ref{tab:apb_pesos}: si los valores elegidos en los deslizadores se acercan a uno de los tres perfiles documentados (Fintech, Streaming, IoT), el recomendador producirá un ranking análogo al de la Tabla~\ref{tab:apb_resultados}.
 \end{enumerate}
 
-\noindent\textbf{Nota sobre la penalización de seguridad.} Los perfiles predefinidos con nivel de seguridad 4 o 5 activan automáticamente la restricción no compensatoria: Flannel recibe el $40\%$ de su puntaje bruto, lo que lo sitúa por debajo de 2.0 en la escala 1--5 en contextos regulados, independientemente de su ventaja en recursos o estabilidad.
+\noindent\textbf{Nota sobre la penalización de seguridad.} Los perfiles con nivel de seguridad 4 o 5 activan automáticamente la restricción no compensatoria: Flannel recibe el $40\%$ de su puntaje bruto, lo que lo sitúa por debajo de 2.0 en la escala 1--5 en contextos regulados, independientemente de su ventaja en recursos o estabilidad.
 
 \section{Guía de reproducción y verificación científica} \label{sec:apb_reproducibilidad}
 

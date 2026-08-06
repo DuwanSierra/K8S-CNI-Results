@@ -9,11 +9,11 @@ La aplicación está disponible como sitio estático publicado desde la carpeta 
 \section{Flujo de uso paso a paso}
 
 \begin{enumerate}
-\item \textbf{Seleccionar un perfil de uso.} La pantalla principal presenta tres perfiles representativos de la industria: \emph{Fintech / Seguridad crítica}, \emph{Streaming / Alto rendimiento} e \emph{IoT / Recursos limitados}. Cada perfil predefine los factores de ponderación de las métricas (seguridad, latencia, throughput, estabilidad y recursos).
-\item \textbf{Ajustar las prioridades (opcional).} El usuario puede modificar los pesos mediante los deslizadores (\emph{sliders}); la suma se normaliza automáticamente al 100\,\%. Esto permite adaptar la recomendación a una organización con prioridades distintas a las de los perfiles base.
-\item \textbf{Consultar la recomendación.} La aplicación calcula el ranking multicriterio (MCDA) para el perfil seleccionado y resalta el CNI con mayor puntaje como recomendación principal.
+\item \textbf{Responder el cuestionario guiado.} La pantalla principal presenta cinco preguntas en lenguaje no técnico ---velocidad de respuesta, estabilidad de la conexión, volumen de datos, límite de recursos del servidor y nivel de seguridad requerido---, cada una con un deslizador (\emph{slider}) de 1 a 5. Un campo de texto opcional permite indicar para qué es el proyecto.
+\item \textbf{Revisar el perfil calculado.} A partir de las respuestas, la herramienta deriva los factores de ponderación de las métricas (seguridad, latencia, throughput, estabilidad y recursos) y los normaliza automáticamente al 100\,\%. El panel lateral muestra el perfil resultante y el peso asignado a cada criterio. Los perfiles \emph{Fintech / Seguridad crítica}, \emph{Streaming / Alto rendimiento} e \emph{IoT / Recursos limitados} documentados en esta tesis corresponden a combinaciones de referencia de esos mismos deslizadores; la aplicación no los ofrece como opciones preseleccionables.
+\item \textbf{Consultar la recomendación.} La aplicación calcula el ranking multicriterio (MCDA) para el perfil derivado y resalta el CNI con mayor puntaje como recomendación principal.
 \item \textbf{Revisar la justificación.} La interfaz muestra las métricas brutas promedio de cada CNI ---throughput, latencia, retransmisiones, consumo de CPU y RAM, e impacto de las Network Policies--- en gráficas comparativas, de modo que la recomendación sea explicable y no una ``caja negra''.
-\item \textbf{Obtener la orientación de despliegue.} Para el CNI recomendado, la herramienta presenta las consideraciones de configuración e instalación relevantes, que sirven de punto de partida para el despliegue documentado en el \cref{anexo:manual_instalacion}.
+\item \textbf{Obtener la orientación de despliegue.} Para el CNI recomendado, la herramienta presenta el comando de instalación del plugin y una política de denegación por defecto, ambos copiables al portapapeles. Estos elementos sirven de punto de partida para el despliegue documentado en el \cref{anexo:manual_instalacion}; el ajuste fino de cada plugin queda a cargo del operador.
 \end{enumerate}
 
 \section{Interpretación de los resultados}
@@ -23,7 +23,7 @@ El puntaje de cada CNI se expresa en una escala de utilidad de 1 a 5, donde 5 re
 \section{Resolución de problemas frecuentes}
 
 \begin{itemize}
-\item \emph{La aplicación no muestra datos.} Verifique la conexión a Internet y que el archivo \texttt{cni-data.json} esté publicado; este se regenera con \texttt{npm run sync:data} (\cref{anexo:manual_instalacion}).
-\item \emph{Los puntajes no cambian al ajustar los pesos.} Asegúrese de que la suma de prioridades sea mayor que cero; si todos los deslizadores están en cero, el modelo no puede ponderar.
+\item \emph{El indicador de la cabecera muestra ``Datos de referencia''.} La aplicación no pudo descargar \texttt{cni-data.json} y está usando el conjunto de métricas embebido. Verifique la conexión a Internet y que el archivo esté publicado ---se regenera con \texttt{npm run sync:data} (\cref{anexo:manual_instalacion})--- y recargue la página, ya que la descarga no se reintenta automáticamente.
+\item \emph{Los puntajes apenas cambian al ajustar los deslizadores.} Los deslizadores solo alteran el peso relativo de cada criterio: si todos se mueven en la misma dirección, el vector normalizado varía poco. Acentúe la diferencia entre las prioridades que sí importan para el despliegue.
 \item \emph{Quiero evaluar un CNI nuevo o datos más recientes.} La herramienta está diseñada para mejora continua: al incorporar nuevas corridas en el repositorio de resultados y regenerar los datos, el ranking se recalcula sin modificar la aplicación.
 \end{itemize}

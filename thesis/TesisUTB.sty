@@ -180,7 +180,10 @@
 
 % Parámetros de línea y separación
 \renewcommand{\headrulewidth}{0.5pt} % grosor de la línea
-\setlength{\headheight}{40pt}        % altura del encabezado
+% 54pt: los encabezados de capitulos y secciones con titulos largos ocupan hasta
+% tres lineas y con 40pt fancyhdr avisaba de desbordamiento; el texto quedaba
+% pegado a la linea del encabezado en esas paginas.
+\setlength{\headheight}{54pt}        % altura del encabezado
 \setlength{\headsep}{20pt}           % espacio entre encabezado y texto
 
 % Encabezado derecho (capítulo, con ajuste a varias líneas si es largo)

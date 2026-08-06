@@ -274,9 +274,10 @@ La SPA fue implementada con React~19 (gestión de estado por componentes), Vite~
 \subsection{Flujo de la Aplicación}
 
 \begin{enumerate}
-\item \textbf{Selección de Perfil:} La pantalla principal muestra tres tarjetas: Fintech/Seguridad, Streaming/Rendimiento e IoT/Recursos.
-\item \textbf{Visualización de Resultados:} La aplicación carga \texttt{cni-data.json} y calcula el ranking MCDA para el perfil seleccionado. El CNI con mayor puntaje queda marcado como recomendación.
-\item \textbf{Justificación Técnica:} La interfaz expone las métricas brutas promedio de cada CNI en gráficas comparativas.
+\item \textbf{Construcción del Perfil:} El componente \texttt{GuidedProfileBuilder} presenta cinco preguntas con deslizadores (velocidad de respuesta, estabilidad, volumen de datos, límite de recursos y seguridad) y un campo opcional para nombrar el proyecto. \texttt{buildGuidedProfile()} convierte las respuestas en un vector de pesos normalizado a la unidad.
+\item \textbf{Visualización de Resultados:} \texttt{App.jsx} carga \texttt{cni-data.json} y \texttt{calculateScores()} calcula el ranking MCDA para el perfil construido. El CNI con mayor puntaje queda marcado como recomendación.
+\item \textbf{Justificación Técnica:} El componente \texttt{ResultsEngine} expone las métricas brutas promedio de cada CNI en gráficas comparativas.
+\item \textbf{Orientación de Despliegue:} \texttt{ImplementationSteps} muestra, para el CNI recomendado, el comando de instalación del plugin y la política de denegación por defecto.
 \end{enumerate}
 
 \section{Implementación de Network Policies y Seguridad Zero Trust}

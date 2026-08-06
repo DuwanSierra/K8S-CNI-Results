@@ -358,11 +358,11 @@ El diseño web se centra en un panel de control interactivo compuesto por desliz
     \item \textbf{Nivel de Seguridad:} Prioridad en la aplicación de políticas de aislamiento y microsegmentación de red.
 \end{itemize}
 
-El usuario puede seleccionar perfiles predefinidos de la industria (Fintech, Streaming, IoT) o personalizar manualmente cada slider de $1$ (Muy Bajo) a $5$ (Muy Alto). A medida que los sliders cambian, el motor en JavaScript calcula en tiempo real los pesos normalizados, evalúa la matriz MCDA contra los datos experimentales procesados de \path{thesis_data.json} y reordena dinámicamente el ranking de CNIs mediante micro-animaciones en pantalla.
+El usuario ajusta cada deslizador de $1$ (Muy Bajo) a $5$ (Muy Alto); un campo de texto opcional permite además nombrar el tipo de proyecto. A medida que los deslizadores cambian, el motor en JavaScript calcula en tiempo real los pesos normalizados, evalúa la matriz MCDA contra los datos experimentales procesados de \path{cni-data.json} y reordena dinámicamente el ranking de CNIs. La aplicación no ofrece perfiles predefinidos seleccionables: los perfiles Fintech, Streaming e IoT documentados en la Tabla~\ref{tab:apb_pesos} son combinaciones de referencia de los mismos deslizadores, no botones de la interfaz.
 
 \subsection{Asistencia de Despliegue e Instalación Guiada}
 
-Para garantizar la aplicabilidad práctica de la recomendación, el prototipo va más allá de un simple análisis teórico. Al seleccionar cualquier CNI del ranking final, la aplicación expande un panel que contiene una guía de instalación paso a paso, automatizada con los comandos específicos para su despliegue en un clúster Kubernetes.
+Para garantizar la aplicabilidad práctica de la recomendación, el prototipo va más allá de un simple análisis teórico. Junto al ranking, la aplicación presenta para el CNI recomendado un panel de despliegue con el comando de instalación del plugin y una política base de denegación por defecto, ambos copiables al portapapeles.
 
 \begin{figure}[htbp]
 \centering
@@ -371,7 +371,7 @@ Para garantizar la aplicabilidad práctica de la recomendación, el prototipo va
 \label{fig:rec_fintech_instalacion}
 \end{figure}
 
-Por ejemplo, al seleccionar a Cilium en un perfil regulado (Fintech), el recomendador provee los comandos Helm y las configuraciones específicas de habilitación de enrutamiento eBPF y políticas de red L7 (Figura~\ref{fig:rec_fintech_instalacion}). Por otro lado, al seleccionar a Flannel en un clúster Edge (IoT), el recomendador proporciona los manifiestos minimalistas en YAML para desplegar el plugin VXLAN de manera ligera en hardware limitado (Figura~\ref{fig:rec_iot_instalacion}). Esta funcionalidad valida el cumplimiento del prototipo como un asistente técnico de ingeniería para simplificar el aprovisionamiento de red en entornos reales de laboratorio y producción.
+Por ejemplo, cuando el perfil regulado (prioridad de seguridad alta) sitúa a Cilium en el primer puesto, el recomendador entrega el comando \texttt{kubectl apply} del manifiesto de instalación de Cilium junto a la política \texttt{default-deny-ingress-egress} (Figura~\ref{fig:rec_fintech_instalacion}). Cuando el perfil de recursos limitados sitúa a Flannel en el primer puesto, entrega el manifiesto equivalente para desplegar el plugin en hardware restringido (Figura~\ref{fig:rec_iot_instalacion}). El panel no genera configuraciones avanzadas específicas por plugin ---por ejemplo, la habilitación de enrutamiento eBPF o de reglas L7 en Cilium---, que quedan a cargo del operador. Esta funcionalidad sitúa al prototipo como un punto de partida accionable para el aprovisionamiento de red, no como un instalador completo.
 
 \begin{figure}[htbp]
 \centering
@@ -382,7 +382,7 @@ Por ejemplo, al seleccionar a Cilium en un perfil regulado (Fintech), el recomen
 
 \subsection{Pruebas de Corrección Funcional}
 
-Para verificar que la SPA produce los rankings correctos en cada perfil predefinido y que el motor MCDA opera sin pérdida de precisión numérica a lo largo del pipeline, se ejecutaron ocho casos de prueba funcionales y una traza de extremo a extremo sobre un dato real del laboratorio.
+Para verificar que la SPA produce los rankings correctos ante distintas combinaciones de prioridades y que el motor MCDA opera sin pérdida de precisión numérica a lo largo del pipeline, se ejecutaron ocho casos de prueba funcionales y una traza de extremo a extremo sobre un dato real del laboratorio. Seis casos se aprobaron en su totalidad; PF-06 y PF-08 se verificaron con alcance acotado, según se detalla en la Tabla~\ref{tab:pruebas-funcionales-spa}.
 
 \begin{table}[htbp]
 \centering
@@ -393,21 +393,21 @@ Para verificar que la SPA produce los rankings correctos en cada perfil predefin
 \hline
 \textbf{Caso de Prueba Funcional} & \textbf{Resultado Esperado vs Resultado Observado} \\
 \hline
-PF-01: Usuario selecciona perfil Fintech/Seguridad & ESPERADO: Cilium \#1 con score 3.631, Calico (3.168). OBSERVADO: Coincide. $\checkmark$ \\
+PF-01: Prioridades del perfil Fintech/Seguridad en los deslizadores & ESPERADO: Cilium \#1 con score 3.631, Calico (3.168). OBSERVADO: Coincide. $\checkmark$ \\
 \hline
-PF-02: Usuario selecciona perfil Streaming/Rendimiento & ESPERADO: Flannel \#1 con 3.686, Calico (3.567). OBSERVADO: Coincide. $\checkmark$ \\
+PF-02: Prioridades del perfil Streaming/Rendimiento en los deslizadores & ESPERADO: Flannel \#1 con 3.686, Calico (3.567). OBSERVADO: Coincide. $\checkmark$ \\
 \hline
-PF-03: Usuario selecciona perfil IoT/Recursos & ESPERADO: Flannel \#1 con 3.834, Cilium (3.232). OBSERVADO: Coincide. $\checkmark$ \\
+PF-03: Prioridades del perfil IoT/Recursos en los deslizadores & ESPERADO: Flannel \#1 con 3.834, Cilium (3.232). OBSERVADO: Coincide. $\checkmark$ \\
 \hline
-PF-04: Usuario cambia de perfil sin recargar la página & ESPERADO: El ranking se actualiza en menos de 50ms. OBSERVADO: Actualización $<$50ms. $\checkmark$ \\
+PF-04: Usuario cambia las prioridades sin recargar la página & ESPERADO: El ranking se actualiza en menos de 50ms. OBSERVADO: Actualización $<$50ms. $\checkmark$ \\
 \hline
 PF-05: Visualización de métricas detalladas & ESPERADO: Datos expandidos correctamente (throughput, latencia, CPU). OBSERVADO: Correcto. $\checkmark$ \\
 \hline
-PF-06: Actualización automática de datos & ESPERADO: SPA detecta nuevo \texttt{cni-data.json} en menos de 5 minutos. OBSERVADO: 4.7 min. $\checkmark$ \\
+PF-06: Incorporación de datos regenerados & ESPERADO: la SPA consume la versión vigente de \texttt{cni-data.json} sin servir copias en caché. OBSERVADO: la petición se emite con \texttt{cache: 'no-store'} y toma el archivo publicado en cada carga de la página. La aplicación no sondea el archivo durante la sesión: la actualización exige recargar. PARCIAL \\
 \hline
 PF-07: Responsividad en pantalla móvil & ESPERADO: Layout responsivo en iOS Safari y Android Chrome. OBSERVADO: Funcional. $\checkmark$ \\
 \hline
-PF-08: Manejo de error si \texttt{cni-data.json} no disponible & ESPERADO: Mensaje de espera y reintento automático. OBSERVADO: Reintento cada 30 s. $\checkmark$ \\
+PF-08: Manejo de error si \texttt{cni-data.json} no está disponible & ESPERADO: la aplicación sigue operativa ante un fallo de descarga. OBSERVADO: conmuta al conjunto de métricas embebidas y el indicador de la cabecera pasa a ``Datos de referencia''; no ejecuta reintento automático de la petición. PARCIAL \\
 \hline
 \end{tabularx}
 \end{table}
@@ -471,7 +471,7 @@ OE2: Evaluar cómo la configuración segura de las Network Policies reduce la su
 \hline
 OE3: Desarrollar criterios y métricas para la comparación objetiva entre CNIs. & CUMPLIDO --- Algoritmo IQR validado con outlier controlado. Normalización min-max verificada. Scoring MCDA calculado para 3 perfiles. Lista de verificación de selección de CNI elaborada (Apéndice~\ref{chap:apendice_oe3}, \S\ref{sec:apb_checklist}). \\
 \hline
-OE4: Implementar un prototipo funcional que recomiende el CNI más adecuado. & CUMPLIDO --- 8 casos de prueba funcionales, todos aprobados. Prueba de integridad de datos de extremo a extremo completada. Actualización automática validada ($<$5 min). \\
+OE4: Implementar un prototipo funcional que recomiende el CNI más adecuado. & CUMPLIDO en su funcionalidad central --- 8 casos de prueba funcionales: 6 aprobados en su totalidad y 2 (PF-06 y PF-08) verificados con alcance acotado. Prueba de integridad de datos de extremo a extremo completada. El prototipo recomienda y entrega el comando de instalación y una política base; no automatiza la actualización de datos en sesión ni el reintento de descarga. \\
 \hline
 \end{tabularx}
 \end{table}
@@ -496,7 +496,7 @@ OE2 & Pruebas de seguridad con Network Policies (\cref{sec:Resultados}); Apéndi
 \hline
 OE3 & Criterios, umbrales y modelo MCDA (\cref{sec:apb_criterios,sec:apb_mcda}); Apéndice~\ref{chap:apendice_oe3}. & \path{docs/procesador.js} (IQR, min-max, scoring) y \path{results/processed/thesis_data.json}. & CUMPLIDO & Los umbrales de normalización min-max dependen del rango observado en el testbed; recalculan al incorporar nuevas corridas. \\
 \hline
-OE4 & Validación del prototipo y pruebas PF-01 a PF-08 (\cref{sec:prototipo_recomendador}); manuales (Anexos~\ref{anexo:manual_usuario} y~\ref{anexo:manual_instalacion}). & \path{cni-recommender-spa/src/data/recommendationModel.js}, \path{docs/recommender/cni-data.json} y la SPA publicada. & CUMPLIDO & La recomendación se validó en entorno de prueba; no constituye certificación para producción. \\
+OE4 & Validación del prototipo y pruebas PF-01 a PF-08 (\cref{sec:prototipo_recomendador}); manuales (Anexos~\ref{anexo:manual_usuario} y~\ref{anexo:manual_instalacion}). & \path{cni-recommender-spa/src/data/recommendationModel.js}, \path{docs/recommender/cni-data.json} y la SPA publicada. & CUMPLIDO & La recomendación se validó en entorno de prueba; no constituye certificación para producción. La configuración que entrega el prototipo se limita al comando de instalación del plugin y a una política de denegación por defecto: no genera ajustes avanzados por plugin ni ejecuta el despliegue. \\
 \hline
 \end{tabularx}
 \end{table}
