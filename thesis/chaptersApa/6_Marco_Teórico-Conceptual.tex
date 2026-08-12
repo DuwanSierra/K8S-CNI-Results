@@ -137,7 +137,7 @@ Para entender por qué eBPF importa en este contexto, conviene compararlo con ip
 
 Antes de ejecutarse, cada programa eBPF es verificado por el kernel para garantizar que no comprometa su estabilidad, lo que permite extender el procesamiento de red directamente en el kernel sin los riesgos ni el sobrecosto de un módulo tradicional~\cite{ref27}.
 
-En el contexto de los CNI evaluados en este trabajo, Cilium utiliza eBPF tanto para el reenvío de paquetes entre Pods como para la aplicación de NetworkPolicies, incluidas reglas de capa 7 sobre el protocolo HTTP. Calico también ofrece un modo eBPF opcional como alternativa a su dataplane basado en iptables~\cite{ref10}.
+En el contexto de los CNI evaluados en este trabajo, Cilium utiliza eBPF tanto para el reenvío de paquetes entre Pods como para la aplicación de NetworkPolicies, incluidas reglas de capa 7 sobre el protocolo HTTP. Calico también ofrece un modo eBPF opcional como alternativa a su dataplane basado en iptables~\cite{ref12}.
 
 \section{Arquitectura de Confianza Cero y control de red en Kubernetes}
 

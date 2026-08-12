@@ -208,6 +208,32 @@ Los CNI que aplican políticas efectivamente conservan $f(s)=1$ para todo $s$. L
 
 El valor $f(4)=0{,}40$ se conserva como referencia de diseño: una penalización severa que no anula por completo el puntaje, de modo que el recomendador mantiene el ordenamiento relativo del resto de dimensiones para fines de diagnóstico.
 
+\subsubsection{Sensibilidad de las recomendaciones al factor de penalización} \label{sec:sensibilidad_fs}
+
+Los valores de $f(s)$ son una decisión de diseño y no una magnitud medida. Corresponde por tanto establecer en qué medida cada recomendación es una propiedad de los datos y en qué medida depende de la curva elegida. Para responderlo se recorrió $f$ de forma continua entre $1{,}00$ (sin penalización) y $0{,}00$ (descarte total), manteniendo fijos los pesos de cada perfil y los puntajes normalizados, y se localizó el valor crítico $f^{*}$ en el que se invierte el ganador. Por construcción, $f^{*}$ es el cociente entre el puntaje bruto del mejor plugin con aplicación de políticas y el puntaje bruto de Flannel; para $f>f^{*}$ encabeza Flannel y para $f<f^{*}$ encabeza el primero.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Sensibilidad del ganador de cada perfil al factor de penalización $f(s)$.}
+\label{tab:sensibilidad_fs}
+\begin{tabularx}{\textwidth}{|Y|c|c|c|Y|}
+\hline
+\textbf{Perfil} & \textbf{$f$ aplicado} & \textbf{$f^{*}$} & \textbf{Margen} & \textbf{Lectura} \\
+\hline
+Fintech & $0{,}25$ & $1{,}058$ & --- & Insensible: Cilium encabeza incluso sin penalización \\
+\hline
+Streaming & $0{,}85$ & $0{,}968$ & $0{,}118$ & Robusto: cualquier penalización no nula sostiene a Calico \\
+\hline
+IoT & $0{,}85$ & $0{,}821$ & $0{,}029$ & Condicionado: el margen es estrecho \\
+\hline
+\end{tabularx}
+\end{table}
+
+El resultado separa con nitidez tres situaciones. En \textbf{Fintech}, $f^{*}=1{,}058$ excede la unidad: Flannel no encabezaría el perfil ni aun careciendo por completo de penalización, porque Cilium lo aventaja también en las dimensiones de rendimiento que este perfil pondera. La recomendación es enteramente atribuible a los datos medidos y ningún ajuste de la curva puede alterarla. En \textbf{Streaming}, Calico encabeza para todo $f<0{,}968$; puesto que cualquier nivel de seguridad declarado por encima del mínimo aplica un factor de $0{,}85$ o menor, la recomendación se sostiene en todo el rango operativo y solo se invertiría si la organización declarase que la seguridad carece por completo de valor.
+
+El perfil \textbf{IoT} es el caso distinto y conviene enunciarlo sin atenuantes: su recomendación \emph{sí} depende de la curva. Flannel encabeza porque $f(2)=0{,}85$ supera a $f^{*}=0{,}821$, un margen de $0{,}029$. Un valor de $f(2)$ apenas un $3{,}4\%$ menor bastaría para que Cilium pasara al primer puesto. Este hallazgo es coherente con la estrechez del margen de puntaje ya señalada para este perfil ($3{,}259$ frente a $3{,}148$) y refuerza la misma conclusión desde una segunda dirección: la preferencia por Flannel en entornos de recursos limitados debe interpretarse como una recomendación condicionada a la tolerancia que la organización asigne a la ausencia de políticas de red, y no como una superioridad técnica establecida. Los dos perfiles restantes no admiten esa objeción.
+
 \subsection{Modelo matemático de decisión multicriterio (MCDA)} \label{sec:apb_mcda}
 
 Para la recomendación formal del CNI, el algoritmo aplica el modelo MCDA de sumatoria ponderada clásica o SAW (Simple Additive Weighting), fundamentado en la teoría clásica de decisiones multicriterio~\cite{ref34,ref37}:

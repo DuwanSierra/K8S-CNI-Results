@@ -59,7 +59,7 @@ Desarrollar un modelo de evaluación, selección y validación de plugins CNI en
 
 \begin{enumerate}
   \item Evaluar cuantitativamente el rendimiento de los CNI disponibles para Kubernetes (Calico, Cilium, Flannel y Antrea) mediante pruebas controladas de latencia, velocidad de transferencia y uso de recursos, para identificar sus fortalezas y limitaciones en escenarios reales.
-  \item Evaluar cómo la configuración segura y automatizada de las políticas de red adaptadas a cada plugin CNI reduce la superficie de ataque y la probabilidad de incidentes de seguridad en clústeres Kubernetes, con el fin de determinar su capacidad de reducir vulnerabilidades y prevenir incidentes de seguridad en entornos de laboratorio representativos de producción.
+  \item Verificar la aplicación efectiva de políticas de red automatizadas en el plano de datos de cada plugin CNI y cuantificar el sobrecosto de rendimiento que introducen, con el fin de determinar qué plugins materializan realmente el aislamiento declarado y a qué costo, en entornos de laboratorio representativos de producción.
   \item Desarrollar, como parte del modelo propuesto, un conjunto de criterios y métricas que permitan la comparación objetiva entre diferentes CNI para Kubernetes mediante la definición de umbrales de rendimiento y factores de ponderación, para facilitar la toma de decisiones técnicas basadas en evidencia cuantificable.
   \item Implementar un prototipo funcional que recomiende y configure el CNI más adecuado según las necesidades específicas de cada organización, para simplificar el proceso de implementación y apoyar la definición de configuraciones recomendadas en entornos de prueba.
 \end{enumerate}

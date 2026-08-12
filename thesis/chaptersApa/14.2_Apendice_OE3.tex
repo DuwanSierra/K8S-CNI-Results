@@ -262,7 +262,14 @@ IoT / Recursos limitados & * \textbf{3.259} & 2.952 & 3.148 & 2.205 \\
     \item Nivel de Seguridad: \emph{Bajo} ($2/5$)
   \end{itemize}
   Esta configuración prioriza la QoS de red cruda (throughput y latencia con pesos del $25.1\%$ y $27.7\%$ respectivamente) sin exigir una postura de seguridad restrictiva, lo que resulta en la victoria de Calico por rendimiento efectivo.
-  
+
+  \begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/rec_streaming.png}
+  \caption{Resultados del ranking MCDA en el prototipo interactivo para el perfil Streaming / Rendimiento (Ganador: Calico con 3.567). Es el único perfil en el que la penalización graduada invierte el orden respecto al puntaje bruto: Flannel encabeza sin penalizar ($3.686$) y desciende al tercer puesto ($3.133$) al aplicarse $f(2)=0{,}85$.}
+  \label{fig:rec_streaming_resultados}
+  \end{figure}
+
   \item \textbf{Perfil IoT / Recursos limitados:} Flannel se posiciona como el CNI recomendado con $3.259$ frente a Cilium ($3.148$), Calico ($2.952$) y Antrea ($2.205$). El margen sobre Cilium es de poco más de una décima sobre la escala $1$--$5$, por lo que esta recomendación debe leerse como una preferencia condicionada al ahorro de recursos y no como una superioridad establecida. Flannel destaca como el plugin que induce el menor estrés general bajo carga ($19.45\%$ de CPU del nodo y $1176.54$ MB de RAM global), lo cual se alinea con la prioridad de este perfil (28\% de peso a la eficiencia de recursos). Como se discute en el Capítulo~\ref{sec:Resultados}, esta métrica de RAM captura la huella del host bajo tráfico activo; un despliegue en nodos muy pequeños deberá aislar adicionalmente el consumo del binario en reposo.
   
   \textbf{Réplica en el Recomendador SPA:} Para replicar el puntaje de $3.259$ de Flannel, el usuario debe configurar los sliders con los siguientes valores:
