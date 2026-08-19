@@ -20,11 +20,11 @@
 
 \section{Introducción y el dilema de la selección de CNI} \label{sec:apb_oe3_intro}
 
-En la arquitectura de Kubernetes, el plano de datos depende del \emph{Container Network Interface} (CNI). Al no existir un plugin de red por defecto, la elección recae sobre los ingenieros de infraestructura, quienes a menudo deciden por popularidad o guías rápidas, omitiendo un análisis cuantitativo sistemático de rendimiento.
+El plano de datos de Kubernetes depende del \emph{Container Network Interface} (CNI), y como la plataforma no impone ninguno, la elección queda en manos de quien administra la infraestructura. En la práctica se decide por popularidad o siguiendo una guía rápida, sin ningún análisis cuantitativo detrás.
 
-El reto principal de elegir un CNI es que no existe una única solución óptima en todas las dimensiones simultáneamente. El rendimiento base de velocidad de red (\emph{throughput}) es solo una dimensión del problema. Por ejemplo, una pasarela de transacciones bancarias exige seguridad estricta y aislamiento lógico, mientras que un clúster IoT en nodos con recursos de cómputo limitados prioriza un bajo consumo de memoria RAM y CPU. El compromiso (\emph{trade-off}) cualitativo entre los plugins evaluados se presentó en el \cref{tab:apb_tradeoffs} del capítulo de Diseño de la Solución.
+La dificultad de fondo, ya planteada en el cuerpo del documento, es que ningún CNI gana en todas las dimensiones. El throughput es apenas una de ellas: una pasarela de pagos necesita seguridad estricta y aislamiento, mientras que un clúster IoT sobre nodos pequeños necesita que el agente consuma poca RAM y poca CPU. El \cref{tab:apb_tradeoffs} del capítulo de diseño resume ese compromiso de forma cualitativa.
 
-Para dar solución a este problema de forma cuantitativa, este apéndice documenta el desarrollo y validación del Objetivo Específico 3 de la tesis: un modelo formal compuesto por criterios jerárquicos, métricas normalizadas, umbrales de calidad de servicio (SLA) y ponderaciones específicas de negocio.
+Este anexo recoge el detalle del Objetivo Específico 3: los datos consolidados que alimentan el modelo, el resultado por perfil y la lista de verificación que acompaña la decisión.
 
 % MUDANZA: La sección de Definición de criterios y métricas de evaluación se trasladó a chaptersApa/M2_Diseno.tex
 \iffalse
@@ -66,9 +66,9 @@ Para comparar los plugins de manera objetiva, el modelo agrupa los indicadores e
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Datos experimentales consolidados del testbed} \label{sec:apb_datos}
 
-Para alimentar el modelo matemático de decisión, se recolectaron datos cuantitativos de las pruebas experimentales del testbed. Los detalles técnicos del clúster de laboratorio (número de nodos, tipo de recursos, configuración de red e infraestructura cloud en DigitalOcean) y la metodología de recolección ya han sido ampliamente descritos en los \cref{cap:metodologia,sec:Metodos} de este documento.
+El modelo se alimenta con los datos del testbed. Cómo está montado el clúster de laboratorio ---número de nodos, recursos, red e infraestructura en DigitalOcean--- y cómo se recolectaron las métricas está descrito en los \cref{cap:metodologia,sec:Metodos}.
 
-Tras aplicar el filtro estadístico de rango intercuartílico (IQR) para eliminar valores atípicos, se obtuvieron las medias consolidadas que sirven como entrada del modelo. La Tabla~\ref{tab:apb_datos_reales} presenta estos valores cuantitativos reales obtenidos del testbed.
+La Tabla~\ref{tab:apb_datos_reales} muestra las medias que entran al modelo, ya depuradas con el filtro de rango intercuartílico (IQR) para descartar valores atípicos.
 
 \begin{table}[htbp]
 \centering
@@ -91,10 +91,10 @@ RAM bajo estrés ($\downarrow$) & 1176.54 MB & 1672.83 MB & 1497.19 MB & 1429.95
 \end{tabularx}
 \end{table}
 
-Para facilitar la interpretación de los datos, cada métrica incluye un indicador del sentido óptimo del valor:
+Cada métrica lleva una flecha que indica hacia dónde está lo bueno:
 \begin{itemize}
-  \item \textbf{Sentido descendente $(\downarrow)$:} Indica que un valor menor representa un mejor comportamiento técnico. Por ejemplo, en la latencia base, el valor de Calico ($12,54$ ms) es superior al de Flannel ($21,53$ ms) porque reduce el retardo de transmisión. Lo mismo aplica para el jitter, consumo de CPU, RAM y retransmisiones TCP.
-  \item \textbf{Sentido ascendente $(\uparrow)$:} Indica que un valor mayor representa un mejor comportamiento técnico. Se utiliza principalmente en el \emph{throughput} (ancho de banda disponible).
+  \item \textbf{Flecha hacia abajo $(\downarrow)$:} menos es mejor. En latencia base, por ejemplo, los $12{,}54$ ms de Calico son preferibles a los $21{,}53$ ms de Flannel porque el retardo es menor. Lo mismo vale para el jitter, la CPU, la RAM y las retransmisiones TCP.
+  \item \textbf{Flecha hacia arriba $(\uparrow)$:} más es mejor. Se aplica sobre todo al \emph{throughput}, donde interesa mover la mayor cantidad de datos posible.
 \end{itemize}
 
 % MUDANZA: Las secciones de Normalización continua Min-Max, Factores de ponderación y Modelo MCDA se trasladaron a chaptersApa/M2_Diseno.tex
@@ -221,9 +221,9 @@ IoT / Recursos limitados & * \textbf{3.259} & 2.952 & 3.148 & 2.205 \\
 \subsection{Interpretación y desglose de resultados}
 
 \begin{itemize}
-  \item \textbf{Perfil Fintech / Seguridad:} Cilium obtiene la puntuación óptima con $3.521$ (en la escala de 1 a 5). A pesar de que Calico ofrece un rendimiento crudo superior en latencia base, Cilium sobresale debido a sus políticas dinámicas de capa 7 basadas en eBPF~\cite{ref10} y su menor degradación del tráfico cuando el aislamiento lógico está activo.
+  \item \textbf{Perfil Fintech / Seguridad:} Cilium gana con $3.521$ sobre 5. Calico rinde mejor en latencia base, pero Cilium se impone por sus políticas de capa 7 en eBPF~\cite{ref10} y porque el tráfico se degrada menos cuando el aislamiento está activo.
 
-  Por el contrario, Flannel obtiene un puntaje críticamente bajo de $0.832$. Esto se debe a que carece por diseño de soporte de Network Policies. Su puntuación base ponderada original de $3.328$ (impulsada principalmente por su bajo consumo de CPU y RAM) se somete a la penalización de seguridad de la Ecuación~\eqref{eq:mcda-penalizacion}, multiplicándose por el factor $f(5)=0{,}25$ correspondiente al nivel de seguridad máximo. Esto demuestra cómo el modelo descarta automáticamente soluciones no aptas para entornos regulados.
+  Flannel, en cambio, se hunde hasta $0.832$, y la razón es una sola: no soporta Network Policies. Su puntaje bruto era $3.328$, empujado por su bajo consumo de CPU y RAM, pero al declararse el nivel de seguridad máximo la Ecuación~\eqref{eq:mcda-penalizacion} lo multiplica por $f(5)=0{,}25$. Es exactamente lo que el modelo debe hacer: apartar solo las opciones que no sirven para un entorno regulado.
 
   \textbf{Réplica en el Recomendador SPA:} Para obtener exactamente este resultado de $3.521$, el usuario debe establecer en el panel de control del recomendador las siguientes prioridades en los deslizadores (sliders):
   \begin{itemize}
@@ -251,7 +251,7 @@ IoT / Recursos limitados & * \textbf{3.259} & 2.952 & 3.148 & 2.205 \\
   
   \item \textbf{Perfil Streaming / Rendimiento:} Calico resulta recomendado con un puntaje de $3.567$, por delante de Cilium ($3.194$) y Flannel ($3.133$). Calico aporta el mayor throughput del testbed ($1804.40$ Mbps) y la menor latencia de establecimiento ($12.54$ ms), las dos dimensiones que este perfil pondera con mayor peso ($25.1\%$ y $27.7\%$).
 
-  Flannel conserva la mejor tasa de retransmisión y la menor huella de recursos, y su puntuación ponderada bruta ($3.686$) sigue siendo la más alta del perfil. No obstante, el perfil declara una prioridad de seguridad \emph{Baja} ($s=2$) y no nula, de modo que la penalización no compensatoria de la Ecuación~\eqref{eq:mcda-penalizacion} aplica el factor $f(2)=0{,}85$ sobre un plugin que no aplica NetworkPolicies en su plano de datos, reduciendo su puntaje final a $3.133$. El resultado ilustra el comportamiento pretendido del modelo: incluso una exigencia de seguridad moderada basta para que la ausencia de aplicación de políticas desplace a un plugin que aventajaba al resto en las dimensiones restantes.
+  Aquí ocurre algo interesante. Flannel mantiene la mejor tasa de retransmisión y la menor huella de recursos, y de hecho su puntaje bruto ($3.686$) es el más alto del perfil. Pero este perfil declara una prioridad de seguridad \emph{baja} ($s=2$), que no es lo mismo que nula: la Ecuación~\eqref{eq:mcda-penalizacion} le aplica el factor $f(2)=0{,}85$ por no aplicar NetworkPolicies y su puntaje final cae a $3.133$. El modelo se comporta justo como se pretendía: basta una exigencia de seguridad moderada para desplazar al plugin que ganaba en todo lo demás.
 
   \textbf{Réplica en el Recomendador SPA:} Para replicar el puntaje de $3.567$ de Calico y $3.133$ de Flannel, el usuario debe establecer las siguientes prioridades:
   \begin{itemize}
@@ -270,7 +270,7 @@ IoT / Recursos limitados & * \textbf{3.259} & 2.952 & 3.148 & 2.205 \\
   \label{fig:rec_streaming_resultados}
   \end{figure}
 
-  \item \textbf{Perfil IoT / Recursos limitados:} Flannel se posiciona como el CNI recomendado con $3.259$ frente a Cilium ($3.148$), Calico ($2.952$) y Antrea ($2.205$). El margen sobre Cilium es de poco más de una décima sobre la escala $1$--$5$, por lo que esta recomendación debe leerse como una preferencia condicionada al ahorro de recursos y no como una superioridad establecida. Flannel destaca como el plugin que induce el menor estrés general bajo carga ($19.45\%$ de CPU del nodo y $1176.54$ MB de RAM global), lo cual se alinea con la prioridad de este perfil (28\% de peso a la eficiencia de recursos). Como se discute en el Capítulo~\ref{sec:Resultados}, esta métrica de RAM captura la huella del host bajo tráfico activo; un despliegue en nodos muy pequeños deberá aislar adicionalmente el consumo del binario en reposo.
+  \item \textbf{Perfil IoT / Recursos limitados:} Flannel encabeza con $3.259$, seguido de Cilium ($3.148$), Calico ($2.952$) y Antrea ($2.205$). La ventaja sobre Cilium es de poco más de una décima en una escala de $1$ a $5$, así que conviene leerla como una preferencia condicionada al ahorro de recursos y no como una superioridad demostrada. Flannel es el que menos estresa al nodo bajo carga ($19.45\%$ de CPU y $1176.54$ MB de RAM), y este perfil le da a la eficiencia de recursos un peso del 28\%. Hay una advertencia que el \cref{sec:Resultados} ya señala: esa cifra de RAM incluye la huella del host bajo tráfico, no solo la del agente, de modo que un despliegue en nodos muy pequeños debería medir aparte el consumo del binario en reposo.
   
   \textbf{Réplica en el Recomendador SPA:} Para replicar el puntaje de $3.259$ de Flannel, el usuario debe configurar los sliders con los siguientes valores:
   \begin{itemize}
@@ -299,9 +299,9 @@ IoT / Recursos limitados & * \textbf{3.259} & 2.952 & 3.148 & 2.205 \\
 
 \section{Lista de verificación para la configuración del recomendador CNI} \label{sec:apb_checklist}
 
-El recomendador interactivo opera mediante cinco deslizadores de prioridad, cada uno en la escala \emph{Muy Bajo} (1) --- \emph{Bajo} (2) --- \emph{Medio} (3) --- \emph{Alto} (4) --- \emph{Muy Alto} (5). La combinación de valores genera los pesos porcentuales del modelo MCDA y determina el factor de penalización no compensatoria que la \cref{eq:mcda-penalizacion} aplica sobre los plugins sin soporte de \texttt{NetworkPolicy}: dicho factor decrece de forma monótona con el nivel de seguridad declarado, desde $\times 1{,}00$ en el nivel~1 hasta $\times 0{,}25$ en el nivel~5.
+El recomendador funciona con cinco deslizadores de prioridad, cada uno en la escala \emph{Muy Bajo} (1), \emph{Bajo} (2), \emph{Medio} (3), \emph{Alto} (4) y \emph{Muy Alto} (5). De la combinación salen los pesos del modelo MCDA y también el factor de penalización que la \cref{eq:mcda-penalizacion} aplica a los plugins sin soporte de \texttt{NetworkPolicy}, que baja de $\times 1{,}00$ en el nivel~1 hasta $\times 0{,}25$ en el nivel~5.
 
-Esta lista de verificación es un instrumento cualitativo: mediante preguntas orientadas al contexto operativo del equipo, guía la asignación de cada deslizador antes de acceder al recomendador. No requiere mediciones previas; basta con que el equipo responda a cuál de las descripciones de cada fila se ajusta mejor a su caso de uso.
+La lista de verificación que sigue ayuda a decidir dónde poner cada deslizador antes de abrir la herramienta. Es cualitativa y no exige medir nada: basta con que el equipo elija, en cada fila, la descripción que mejor retrata su caso.
 
 \begin{table}[htbp]
 \centering

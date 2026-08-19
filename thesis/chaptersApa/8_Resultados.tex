@@ -1,6 +1,6 @@
 \chapter{Resultados y Verificación de Objetivos} \label{sec:Resultados}
 
-En cada ciclo de prueba se modificó únicamente el CNI bajo evaluación; hardware, sistema operativo, versión de Kubernetes, tamaño de paquetes, duración y condiciones de red permanecieron constantes, lo que hace posible atribuir las diferencias observadas al plugin y no al entorno.
+Llega el momento de los números. Antes de leerlos conviene recordar la regla que hizo posible compararlos: en cada ciclo de prueba lo único que cambió fue el CNI. El hardware, el sistema operativo, la versión de Kubernetes, el tamaño de los paquetes, la duración y las condiciones de red se mantuvieron iguales, de modo que las diferencias que aparecen a continuación son atribuibles al plugin y no al entorno.
 
 \section{Metodología General de Pruebas}
 
@@ -52,9 +52,9 @@ Todas las pruebas se orquestaron mediante CronJobs de Kubernetes. La secuencia d
 \item \texttt{procesador.js} actualiza \texttt{cni-data.json} con los nuevos datos procesados.
 \end{enumerate}
 
-La orquestación automática elimina la variabilidad humana de la ejecución: cada corrida sigue exactamente la misma secuencia con los mismos intervalos, de modo que las diferencias observadas entre CNIs se deben al plugin y no al operador.
+Automatizar la ejecución quita de la ecuación al operador: cada corrida repite la misma secuencia con los mismos intervalos, así que lo que separa a un CNI de otro no es la mano que ejecutó la prueba.
 
-La elección de cinco corridas por CNI responde a un equilibrio entre rigor estadístico y viabilidad operativa. Una sola corrida permitiría que un dato atípico o evento anómalo dominara el resultado, mientras que un número muy elevado extendería el tiempo de prueba sin un beneficio proporcional. Con cinco corridas distribuidas en el tiempo, el algoritmo IQR puede identificar y descartar una corrida anómala, y el promedio de las restantes resulta estadísticamente representativo; este criterio es habitual en la investigación de redes sobre entornos cloud \cite{ref7,ref8}.
+¿Por qué cinco corridas y no una ni cincuenta? Es un punto de equilibrio. Con una sola corrida, cualquier evento anómalo se convertiría en el resultado. Con muchas más, el tiempo de prueba se dispara sin ganar demasiado. Cinco corridas repartidas en el tiempo le dan margen al filtro IQR para descartar una corrida rara y dejan un promedio representativo con las demás, un criterio habitual en la investigación de redes sobre entornos cloud~\cite{ref7,ref8}.
 
 \section{Pruebas de Rendimiento de Red --- Objetivo Específico 1}
 
@@ -72,7 +72,7 @@ iperf3 -c iperf-server-svc.cni-benchmark.svc.cluster.local \
 
 \subsection{Resultados de Throughput TCP por CNI}
 
-Los resultados presentados son los promedios de las 5 corridas de 300 segundos para cada CNI, después de aplicar el filtro IQR para eliminar outliers. La regla de agregación es única para los cuatro plugins y para todas las métricas ---promedio de las corridas supervivientes al descarte por rango intercuartílico, sin excepciones ni selección manual de corridas---, de modo que las corridas efectivamente descartadas varían entre plugins únicamente como consecuencia de aplicar el mismo criterio a distribuciones distintas. Las filas de outliers descartados de la Tabla~\ref{tab:throughput-resultados} documentan ese resultado: el descarte de una corrida de Calico en retransmisiones y de una de Cilium en throughput responde al mismo umbral estadístico, no a un tratamiento diferenciado. La tabla registra tres dimensiones de calidad del canal: cuántos datos por segundo puede transportar (throughput), con qué frecuencia debe reenviar paquetes (retransmisiones) y qué tan predecible es el canal entre corridas (variabilidad).
+Cada cifra de esta sección es el promedio de las cinco corridas de 300 segundos de ese CNI, una vez aplicado el filtro IQR. La regla de agregación fue la misma para los cuatro plugins y para todas las métricas: se promedian las corridas que sobreviven al descarte por rango intercuartílico, sin excepciones ni selección manual. Que a un plugin se le descarte una corrida y a otro ninguna es consecuencia de aplicar el mismo umbral a distribuciones distintas, no de un trato diferente. Las filas de outliers de la Tabla~\ref{tab:throughput-resultados} lo dejan a la vista: la corrida descartada a Calico en retransmisiones y la descartada a Cilium en throughput cayeron por el mismo criterio. La tabla resume tres cosas del canal: cuántos datos mueve por segundo, con qué frecuencia debe reenviar paquetes y qué tan parecido es su comportamiento de una corrida a otra.
 
 \begin{table}[htbp]
 \centering
@@ -102,17 +102,17 @@ Outliers descartados (Retransmisiones) & 0 de 5 (0\%) & 1 de 5 (20\%) & 0 de 5 (
 \end{tabularx}
 \end{table}
 
-A diferencia de los entornos locales de alto rendimiento, la red en nube VPC privada de DigitalOcean limita el ancho de banda efectivo, registrándose valores máximos de throughput de 1804.40 Mbps en Calico, seguido de Antrea con 1588.45 Mbps y Flannel con 1452.97 Mbps. Cilium presenta el valor más bajo con 843.56 Mbps.
+La red VPC de DigitalOcean pone un techo al ancho de banda que no existe en un laboratorio local de alto rendimiento, y eso se nota en las cifras. Calico encabezó con 1804.40 Mbps, seguido de Antrea con 1588.45 Mbps y Flannel con 1452.97 Mbps. Cilium quedó último, con 843.56 Mbps.
 
-La dispersión entre corridas debe leerse junto a los promedios, porque no es homogénea entre plugins. Calico produjo la medición más estable del conjunto (coeficiente de variación del $0{,}9\%$), mientras que Cilium ---incluso tras el descarte de su corrida atípica--- conserva un coeficiente del $18{,}4\%$, veinte veces superior. Con cinco corridas por plugin, esa diferencia de estabilidad determina qué comparaciones admiten una conclusión y cuáles no. Construyendo intervalos de confianza del $95\%$ sobre las medias, de las seis comparaciones por pares posibles solo dos resultan separables: Calico frente a Flannel y Calico frente a Cilium. Las cuatro restantes ---entre ellas Calico frente a Antrea--- presentan intervalos solapados. Por consiguiente, el liderazgo de Calico en throughput se afirma frente a Flannel y Cilium, pero \textbf{no} frente a Antrea: la diferencia de $215{,}95$ Mbps entre ambos queda dentro de la variabilidad experimental de esta campaña y no puede sostenerse como un ordenamiento con el número de corridas ejecutado. Elevar el número de corridas por plugin es el camino directo para separar ese par, y se registra como trabajo futuro en la \cref{sec:TrabajosFuturos}.
+El promedio, sin embargo, no cuenta la historia completa. La dispersión entre corridas es muy distinta según el plugin: Calico entregó la medición más estable de todas, con un coeficiente de variación del $0{,}9\%$, mientras que Cilium ---incluso descartando su corrida atípica--- se queda en el $18{,}4\%$, veinte veces más. Con cinco corridas por plugin, esa diferencia decide qué comparaciones se pueden afirmar y cuáles no. Al construir intervalos de confianza del $95\%$ sobre las medias, de las seis comparaciones posibles solo dos quedan separadas: Calico frente a Flannel y Calico frente a Cilium. En las otras cuatro los intervalos se solapan. Conviene entonces decirlo con precisión: Calico lidera en throughput frente a Flannel y Cilium, pero \textbf{no} frente a Antrea, porque los $215{,}95$ Mbps que los separan caben dentro de la variabilidad de esta campaña. Separar ese par requiere más corridas, y así queda anotado en el trabajo futuro (\cref{sec:TrabajosFuturos}).
 
-El conteo bruto de retransmisiones requiere una precisión metodológica antes de ser interpretado. Las cinco corridas de cada plugin comparten una ventana idéntica de 300 segundos, pero no un volumen transferido idéntico: al sostener mayor caudal, Calico envió 67.7 GB por corrida frente a los 54.5 GB de Flannel, de manera que parte de su exceso de retransmisiones se explica por haber movido más datos y no por una deficiencia del plano de datos. Comparar los conteos absolutos penalizaría al plugin más rápido precisamente por serlo. Normalizada por volumen, la tasa ordena a los plugins como Flannel (212 por GB), Cilium (441.7), Antrea (679.1) y Calico (1021.2).
+Las retransmisiones piden una aclaración antes de leerlas. Las cinco corridas duran lo mismo, 300 segundos, pero no mueven la misma cantidad de datos: Calico transfirió 67.7 GB por corrida y Flannel 54.5 GB. Parte del exceso de retransmisiones de Calico viene, sencillamente, de haber enviado más. Comparar conteos absolutos castigaría al plugin más rápido justamente por serlo. Normalizando por volumen, el orden queda así: Flannel (212 por GB), Cilium (441.7), Antrea (679.1) y Calico (1021.2).
 
-La ordenación se mantiene, pero su magnitud se relativiza: expresadas como fracción de los datos enviados, las cuatro tasas se sitúan entre el $0{,}029\%$ y el $0{,}145\%$, valores que TCP absorbe mediante retransmisión selectiva sin degradación perceptible para las aplicaciones. La diferencia es real y ordena a los plugins de forma consistente, pero ninguno de los cuatro exhibe un comportamiento que pueda calificarse de inestable. La \cref{sec:Discusion} analiza la relación entre caudal alcanzado y tasa de retransmisión.
+Ese orden se mantiene, pero conviene mirar la magnitud antes de sacar conclusiones. Expresadas como porcentaje de los datos enviados, las cuatro tasas van del $0{,}029\%$ al $0{,}145\%$, cifras que TCP absorbe con retransmisión selectiva sin que ninguna aplicación lo note. La diferencia entre plugins es real y consistente, pero ninguno de los cuatro se comporta de forma inestable. La \cref{sec:Discusion} vuelve sobre la relación entre caudal y retransmisiones.
 
 \subsection{Protocolo de Prueba de Latencia TCP}
 
-La latencia reportada en este experimento no mide el tiempo de tránsito físico puro de la red (latencia de enlace L3/L4 intra-VPC, habitualmente inferior a 1 ms), sino el tiempo total de establecimiento de conexión TCP a nivel de aplicación. El cliente ejecuta un \emph{script} Bash iterando \texttt{nc -z -w 2} hacia el servicio \texttt{iperf3-server}, lo que captura no solo el \emph{handshake} de tres vías, sino el overhead del \emph{spawn} del proceso en el sistema operativo y la resolución DNS interna de Kubernetes en cada ciclo. Esta métrica de latencia final (12-35 ms) resulta útil para comparar el estrés relativo que cada CNI impone al stack de red bajo este tipo de rutinas de microservicios, pero los valores absolutos no deben interpretarse como la latencia base de la red virtual de DigitalOcean.
+Un aviso importante para no malinterpretar estos números: lo que se mide aquí no es el tiempo puro de tránsito por la red, que dentro de una VPC suele estar por debajo de 1 ms, sino el tiempo total que tarda una aplicación en dejar lista una conexión TCP. El cliente corre un \emph{script} Bash que repite \texttt{nc -z -w 2} contra el servicio \texttt{iperf3-server}, de modo que en cada ciclo se cuentan el \emph{handshake} de tres vías, el costo de arrancar el proceso en el sistema operativo y la resolución DNS interna de Kubernetes. Los valores resultantes (12--35 ms) sirven para comparar cuánto estresa cada CNI al stack de red en este tipo de rutinas típicas de microservicios, pero no deben leerse como la latencia base de la red virtual de DigitalOcean.
 
 \subsection{Resultados de Latencia TCP por CNI}
 
@@ -138,7 +138,7 @@ Outliers descartados (Latencia Max) & 0 de 5 (0\%) & 0 de 5 (0\%) & 0 de 5 (0\%)
 \end{tabularx}
 \end{table}
 
-Los datos de latencia revelan la mayor brecha de rendimiento entre CNIs. Calico logra la menor latencia promedio (12.54 ms) y el menor jitter (7.31 ms). Cilium se sitúa en segundo lugar con una latencia promedio de 18.73 ms, seguido por Flannel con 21.53 ms. Antrea registra el desempeño más bajo, alcanzando una latencia promedio de 35.09 ms y un jitter elevado de 17.25 ms (más del doble que Calico). Esto indica que para entornos donde el tiempo de establecimiento de conexión TCP es un factor de éxito (como APIs web interactivas), Calico ofrece la respuesta más rápida y estable.
+Es en la latencia donde los CNI se separan más. Calico consigue la mejor latencia promedio (12.54 ms) y el menor jitter (7.31 ms). Cilium queda segundo con 18.73 ms y Flannel tercero con 21.53 ms. Antrea es el más lento: 35.09 ms de promedio y un jitter de 17.25 ms, más del doble que Calico. La lectura práctica es directa: donde el tiempo de establecer conexiones TCP pesa, como en APIs web interactivas, Calico responde más rápido y de forma más predecible.
 
 \section{Pruebas de Seguridad con Network Policies --- Objetivo Específico 2}
 
@@ -208,17 +208,18 @@ Network Policies L7 (HTTP paths) & NO SOPORTA & NO SOPORTA & SOPORTA & NO SOPORT
 \end{tabularx}
 \end{table}
 
-El hallazgo más crítico es que Flannel no implementa Network Policies en su plano de datos: las políticas se crean sin error en Kubernetes, pero el tráfico que debería bloquearse continúa fluyendo. Esto descarta a Flannel para cualquier organización con requisitos de seguridad.
+El hallazgo más serio de toda la campaña está en esta tabla: Flannel no aplica Network Policies en su plano de datos. Las políticas se crean sin error en Kubernetes, el operador las ve listadas y todo parece en orden, pero el tráfico que debería bloquearse sigue pasando. Es un falso positivo de seguridad, y basta por sí solo para descartar a Flannel en cualquier organización con requisitos de aislamiento.
 
-Cilium es el único CNI que soporta Network Policies de capa 7 (L7), lo que permite definir reglas a nivel de método y ruta HTTP ---por ejemplo, admitir solo solicitudes \texttt{GET} a una ruta determinada---, capacidad fundamental para arquitecturas de microservicios.
+En el extremo opuesto, Cilium es el único que soporta políticas de capa 7 (L7): permite escribir reglas por método y ruta HTTP, por ejemplo aceptar solo peticiones \texttt{GET} hacia una ruta concreta. En arquitecturas de microservicios esa granularidad marca una diferencia real.
 
 \subsection{Prueba de Overhead de Seguridad} \label{sec:apb2_overhead}
 
-Se ejecutaron las pruebas de rendimiento nuevamente con las políticas de seguridad activas y se compararon con los resultados base. El \textbf{overhead} es el costo adicional que introduce activar las políticas: \textbf{cuanto menor el porcentaje, mejor ($\downarrow$)}, porque significa que la seguridad se aplica sin penalizar el rendimiento de las aplicaciones. La Tabla~\ref{tab:overhead-seguridad} detalla esta variación, contextualizándola con el \emph{baseline} OE1 sin políticas para poder interpretar los porcentajes en su magnitud absoluta y no solo como variaciones relativas.
+Saber que un CNI aplica políticas no basta: falta saber cuánto cuesta aplicarlas. Por eso las pruebas de rendimiento se repitieron con las políticas activas y se compararon con el escenario base. Ese costo adicional es el \textbf{overhead}, y \textbf{cuanto menor sea el porcentaje, mejor ($\downarrow$)}, porque significa que la seguridad no se paga con rendimiento. La Tabla~\ref{tab:overhead-seguridad} recoge la variación junto al \emph{baseline} del OE1, para que los porcentajes se puedan leer en su magnitud real y no solo como cambios relativos.
 
 \begin{table}[htbp]
 \centering
 \scriptsize
+\setlength{\tabcolsep}{3pt}
 \caption{Overhead detallado de Network Policies por CNI y caso de uso, contextualizado con el baseline OE1.}
 \label{tab:overhead-seguridad}
 \begin{tabularx}{\textwidth}{|l|c|c|Y|Y|Y|}
@@ -236,12 +237,14 @@ Flannel & 1452.97 & 21.53 & \multicolumn{3}{c|}{No aplica: Flannel no implementa
 \end{tabularx}
 \end{table}
 
-El impacto de habilitar políticas de seguridad varía considerablemente. En Calico y Antrea el overhead de throughput se mantiene por debajo del $5\%$ y la latencia varía dentro de un rango operativo aceptable, de modo que las Network Policies en el plano de datos no imponen un costo prohibitivo. Flannel no registra datos al no poder compilar o aplicar políticas de seguridad en su plano de datos: se trata de una exclusión estructural, no de un valor numérico desfavorable. Cilium muestra un comportamiento distinto, con incrementos de throughput de entre $+92.07\%$ y $+111.53\%$ y reducciones de latencia de hasta $-43.16\%$ al activar las políticas. Estas cifras conviene leerlas junto a su \emph{baseline} OE1 ($843.56$~Mbps, el más bajo de los cuatro CNIs): la activación de políticas, o algún ajuste del encapsulamiento VXLAN y eBPF, acerca a Cilium al rango del resto de plugins. Estas cifras ratifican que el baseline original de Cilium en este testbed fue subóptimo, por lo que esta variación porcentual es un artefacto de las condiciones de prueba y no una ventaja inherente de las políticas. Por ende, este dato no se generaliza a otros entornos de producción.
+El costo de activar las políticas cambia mucho según el plugin. En Calico y Antrea el throughput cae menos del $5\%$ y la latencia se mueve dentro de un rango operativo aceptable: aplicar Network Policies en el plano de datos no sale caro. Flannel simplemente no aparece en la tabla, y no por tener un mal número sino porque no hay nada que medir; su exclusión es estructural.
+
+Cilium es el caso llamativo: al activar las políticas su throughput sube entre $+92.07\%$ y $+111.53\%$ y su latencia baja hasta $-43.16\%$. Un plugin no mejora por aplicar reglas de seguridad, así que la explicación hay que buscarla en el punto de partida. Su \emph{baseline} del OE1 fue de $843.56$~Mbps, el más bajo de los cuatro, y estas corridas ---con las políticas activas y, con ellas, algún ajuste del encapsulamiento VXLAN y eBPF--- lo devuelven al rango de los demás. Dicho de otro modo: lo que confirman esas cifras es que la medición base de Cilium en este testbed quedó por debajo de lo que el plugin puede dar. Es un artefacto de las condiciones de prueba, no una ventaja de las políticas, y no debe extrapolarse a otros entornos.
 
 
 \section{Pruebas de Eficiencia Computacional --- Consumo del Agente CNI}
 
-Las métricas de consumo fueron capturadas por Prometheus durante las sesiones activas de iperf3 (cuando la red estaba bajo carga máxima). Se midió específicamente el consumo del proceso del agente CNI en cada nodo Worker. En esta tabla conviven dos direcciones de optimización: \textbf{CPU y RAM son mejores cuanto menores sean ($\downarrow$)}, porque el CNI consume recursos que de otro modo estarían disponibles para las aplicaciones; la \textbf{eficiencia Gbps/100\,m es mejor cuanto mayor sea ($\uparrow$)}, porque indica cuánto tráfico puede procesar el CNI por cada unidad de CPU que consume. Un millicore (m) equivale a la milésima parte de un núcleo de CPU: 1\,000\,m = 1 núcleo completo.
+Prometheus capturó estas métricas mientras iperf3 tenía la red al máximo, midiendo el consumo del proceso del agente CNI en cada nodo Worker. Al leer la tabla hay que tener presente que conviven dos direcciones: en \textbf{CPU y RAM, menos es mejor ($\downarrow$)}, porque cada recurso que toma el CNI se lo quita a las aplicaciones; en \textbf{eficiencia Gbps/100\,m, más es mejor ($\uparrow$)}, porque indica cuánto tráfico procesa el plugin por cada unidad de CPU gastada. Un millicore (m) es la milésima parte de un núcleo, de modo que 1\,000\,m equivalen a un núcleo completo.
 
 \begin{table}[htbp]
 \centering
@@ -261,13 +264,13 @@ Uso de RAM promedio --- MB \newline\textit{($\downarrow$ menor es mejor)} & \tex
 \end{tabularx}
 \end{table}
 
-Los resultados de consumo revelan que Flannel es el CNI más liviano en el host, consumiendo solo un 19.45\% de CPU del nodo y 1176.54 MB de memoria RAM promedio bajo estrés. Por el contrario, Calico registra la huella más pesada con un 29.05\% de CPU y 1672.83 MB de RAM. Cilium y Antrea ocupan puestos intermedios, donde Cilium consume un 25.79\% de CPU y 1497.19 MB de RAM, y Antrea consume un 27.75\% de CPU y 1429.95 MB de RAM. Estos resultados demuestran que el datapath minimalista de Flannel minimiza el costo fijo en hardware, haciéndolo atractivo para clústeres pequeños o con recursos limitados.
+Flannel es, con diferencia, el más liviano: bajo estrés consume el 19.45\% de la CPU del nodo y 1176.54 MB de RAM. Calico está en el otro extremo, con 29.05\% de CPU y 1672.83 MB de RAM. En el medio quedan Cilium (25.79\% y 1497.19 MB) y Antrea (27.75\% y 1429.95 MB). El plano de datos minimalista de Flannel se traduce en un costo fijo de hardware más bajo, lo que lo vuelve atractivo para clústeres pequeños o con recursos ajustados. Conviene recordar, eso sí, lo que la sección anterior demostró sobre su seguridad.
 
 \section{Validación del Modelo Matemático MCDA --- Objetivo Específico 3}
 
 \subsection{Validación del Algoritmo IQR}
 
-Para validar que el algoritmo IQR funciona correctamente, se inyectó artificialmente 1 outlier extremo en el conjunto de datos de cada CNI (un valor de latencia 10 veces mayor al promedio real). Se verificó que el IQR lo detectara y excluyera correctamente:
+El filtro IQR tenía que demostrar que hace su trabajo, así que se le puso una trampa: se inyectó en los datos de cada CNI un valor de latencia diez veces mayor que el promedio real, para ver si lo detectaba y lo descartaba.
 
 \begin{table}[htbp]
 \centering
@@ -291,7 +294,7 @@ Porcentaje de corridas descartadas en datos reales & Entre 0\% y 20\% por CNI \\
 \end{tabularx}
 \end{table}
 
-Esta validación confirma que el promedio reportado para cada CNI es robusto ante eventos atípicos del entorno cloud, y que las diferencias entre CNIs en los resultados finales reflejan comportamiento estructural del plugin y no ruido experimental.
+El filtro lo detectó y el promedio no se movió. Eso confirma que las cifras reportadas aguantan los sobresaltos propios de un entorno cloud y que las diferencias entre plugins responden a su comportamiento y no al ruido del experimento.
 
 \subsection{Validación de la Normalización Min-Max}
 
@@ -324,11 +327,11 @@ Soporte de NetworkPolicies L7 (1--5) & 1.00 & 1.00 & \textbf{5.00} & 1.89 \\
 \end{tabularx}
 \end{table}
 
-La tabla de normalización muestra las seis métricas del modelo en una escala uniforme y directamente comparable (1 a 5). Flannel es el peor en latencia y seguridad (donde tiene la puntuación fija mínima de 1.00 al carecer de Network Policies nativas), pero destaca como el mejor en retransmisiones y eficiencia de recursos (5.00). Calico lidera en throughput y latencia (5.00) pero tiene el consumo más alto de recursos (1.00). Cilium destaca por su flexibilidad en seguridad (5.00) pero tiene el menor throughput normalizado (1.00), lo que refleja su costo de procesamiento eBPF bajo tráfico intenso. Antrea presenta el peor desempeño en latencia (1.00), consecuencia del overhead de conmutación OVS, pero mantiene valores intermedios en el resto de dimensiones.
+Puestas todas las métricas en la misma escala de 1 a 5, el panorama se lee de un vistazo y confirma que aquí nadie gana en todo. Flannel es el peor en latencia y en seguridad ---donde recibe el 1.00 fijo por no aplicar Network Policies---, pero es el mejor en retransmisiones y eficiencia de recursos, con 5.00. Calico manda en throughput y latencia (5.00) y paga con el consumo más alto de recursos (1.00). Cilium encabeza la dimensión de seguridad (5.00) y se queda último en throughput normalizado (1.00), reflejo de lo que le cuesta su procesamiento eBPF bajo tráfico intenso. Antrea es el peor en latencia (1.00), consecuencia del sobrecosto de conmutación de OVS, y se mantiene en valores intermedios en todo lo demás.
 
 \subsection{Validación del Scoring MCDA por Perfil}
 
-Los puntajes que se muestran a continuación son calculados por \texttt{procesador.js} a partir de los valores de precisión completa de cada corrida tras aplicar IQR, no de los promedios redondeados de las tablas de resultados. Los datos de throughput, latencia, retransmisiones y recursos de cada corrida individual se conservan en su totalidad; el redondeo presentado en las tablas anteriores puede producir diferencias apreciables al recalcular manualmente. En la Tabla~\ref{tab:scores-mcda}, \textbf{el puntaje va de 1 a 5: cuanto mayor el valor, más adecuado es ese CNI para ese perfil}. El símbolo~$\star$ marca la recomendación del sistema para cada perfil.
+Los puntajes siguientes los calcula \texttt{procesador.js} con los valores de precisión completa de cada corrida tras el filtro IQR, no con los promedios redondeados que aparecen en las tablas anteriores. Quien intente rehacer las cuentas a mano con esas cifras redondeadas obtendrá diferencias apreciables. En la Tabla~\ref{tab:scores-mcda} \textbf{el puntaje va de 1 a 5 y cuanto más alto, mejor le conviene ese CNI a ese perfil}; el símbolo~$\star$ señala la recomendación del sistema.
 
 \begin{table}[htbp]
 \centering
@@ -348,19 +351,19 @@ IoT / Recursos limitados & $\star$ \textbf{3.259} & 2.952 & 3.148 & 2.205 \\
 \end{tabularx}
 \end{table}
 
-Ningún CNI encabeza los tres perfiles: la recomendación se invierte según las prioridades declaradas. Este resultado ---y no la preferencia por un plugin concreto--- es el hallazgo central del modelo, y sostiene empíricamente que la selección de un CNI no admite una respuesta única.
+Cada perfil tiene un ganador distinto, y ese es el hallazgo central del modelo, más importante que cualquier preferencia por un plugin concreto: elegir un CNI no tiene una respuesta única, sino una respuesta por contexto.
 
-Cilium lidera el perfil Fintech por su puntaje en el criterio de seguridad (5.00). Conviene precisar qué mide ese puntaje: el modelo lo calcula normalizando el sobrecosto de rendimiento que introduce la activación de políticas, de modo que $5.00$ significa ``el sobrecosto medido más favorable del conjunto'' y no ``la mayor capacidad de filtrado''. La capacidad exclusiva de Cilium para aplicar reglas de capa 7, documentada en el OE2, es una ventaja cualitativa adicional que el puntaje no incorpora y que refuerza ---sin producir--- su primer puesto en este perfil. Incorporar el soporte L7 como criterio explícito del modelo se registra como línea de mejora en la \cref{sec:TrabajosFuturos}. Calico encabeza Streaming: aporta el mayor throughput medido (1804.40 Mbps) y la menor latencia de establecimiento, y el perfil solo declara una prioridad de seguridad baja, insuficiente para descartarlo. Flannel conserva el perfil IoT gracias a su huella de memoria (1176.54 MB) y CPU (19.45\%), decisiva en dispositivos con recursos muy limitados.
+Cilium encabeza Fintech por su puntaje en el criterio de seguridad (5.00), y conviene precisar qué significa ese 5.00. El modelo lo obtiene normalizando el sobrecosto de rendimiento que trae activar las políticas, así que quiere decir ``el sobrecosto más favorable del conjunto'', no ``la mayor capacidad de filtrado''. Su capacidad exclusiva de aplicar reglas de capa 7, documentada en el OE2, es una ventaja adicional que el puntaje no recoge: refuerza el primer puesto, pero no lo produce. Incorporar el soporte L7 como criterio explícito queda anotado como mejora en la \cref{sec:TrabajosFuturos}. Calico gana Streaming con el mayor throughput medido (1804.40 Mbps) y la menor latencia de establecimiento, y como este perfil declara una prioridad de seguridad baja, la penalización no alcanza a moverlo del primer puesto. Flannel se queda con IoT gracias a su huella de memoria (1176.54 MB) y de CPU (19.45\%), decisiva cuando el dispositivo tiene poco de ambas.
 
-La ventaja de Flannel en IoT es, no obstante, estrecha: $3.259$ frente a $3.148$ de Cilium, poco más de una décima sobre una escala de $1$ a $5$. Esa diferencia queda dentro del margen que una variación de pesos o una nueva campaña de medición podría revertir, por lo que la recomendación para IoT debe leerse como una preferencia condicionada al ahorro de recursos y no como una superioridad establecida. La \cref{sec:limitaciones_mcda} desarrolla esta limitación.
+La ventaja de Flannel en IoT es, sin embargo, muy estrecha: $3.259$ frente a $3.148$ de Cilium, poco más de una décima en una escala de $1$ a $5$. Un cambio de pesos o una nueva campaña de medición podría darle la vuelta. Por eso la recomendación para IoT debe leerse como lo que es, una preferencia condicionada al ahorro de recursos, y no como una superioridad demostrada. La \cref{sec:limitaciones_mcda} desarrolla el punto.
 
 \section{El Prototipo Recomendador CNI como Herramienta de Decisión y Despliegue} \label{sec:prototipo_recomendador}
 
-Para habilitar una toma de decisiones técnica, ágil y fundamentada en la evidencia empírica recolectada, el modelo propuesto culmina con la implementación de una aplicación web interactiva Single Page Application (SPA) responsiva. Esta herramienta, disponible públicamente en la URL \url{https://duwansierra.github.io/K8S-CNI-Results/}, opera como el entregable integrador donde los administradores de infraestructura pueden parametrizar sus requerimientos específicos de QoS, recursos y seguridad para obtener una recomendación en tiempo real.
+Todo lo anterior serviría de poco si quedara encerrado en tablas. Por eso el modelo termina en una aplicación web de página única (SPA), publicada en \url{https://duwansierra.github.io/K8S-CNI-Results/}, donde quien administra la infraestructura describe sus requisitos de QoS, recursos y seguridad y obtiene la recomendación al instante. Es el entregable que reúne todo lo demás.
 
 \subsection{Interfaz y Experiencia de Usuario}
 
-La interfaz del prototipo web ha sido diseñada siguiendo estándares modernos de usabilidad y diseño responsivo, asegurando su visualización en pantallas de computadoras de escritorio y dispositivos móviles. Al acceder a la aplicación, el usuario es recibido por una pantalla de bienvenida (Figura~\ref{fig:rec_inicio}) que explica el propósito del recomendador y presenta los controles interactivos de ponderación.
+La interfaz se diseñó para verse bien tanto en un escritorio como en un teléfono. Al entrar, el usuario encuentra una pantalla de bienvenida (Figura~\ref{fig:rec_inicio}) que explica para qué sirve el recomendador y muestra los controles con los que se ajustan las prioridades.
 
 \begin{figure}[htbp]
 \centering
@@ -378,11 +381,11 @@ El diseño web se centra en un panel de control interactivo compuesto por desliz
     \item \textbf{Nivel de Seguridad:} Prioridad en la aplicación de políticas de aislamiento y microsegmentación de red.
 \end{itemize}
 
-El usuario ajusta cada deslizador de $1$ (Muy Bajo) a $5$ (Muy Alto); un campo de texto opcional permite además nombrar el tipo de proyecto. A medida que los deslizadores cambian, el motor en JavaScript calcula en tiempo real los pesos normalizados, evalúa la matriz MCDA contra los datos experimentales procesados de \path{cni-data.json} y reordena dinámicamente el ranking de CNIs. La aplicación no ofrece perfiles predefinidos seleccionables: los perfiles Fintech, Streaming e IoT documentados en la Tabla~\ref{tab:apb_pesos} son combinaciones de referencia de los mismos deslizadores, no botones de la interfaz.
+Cada deslizador va de $1$ (muy bajo) a $5$ (muy alto), y un campo opcional permite ponerle nombre al proyecto. Con cada movimiento, el motor en JavaScript recalcula los pesos normalizados, evalúa la matriz MCDA contra los datos de \path{cni-data.json} y reordena el ranking sin recargar la página. Conviene aclarar algo que suele confundirse: la aplicación no tiene perfiles predefinidos que se puedan pulsar. Fintech, Streaming e IoT, tal como aparecen en la Tabla~\ref{tab:apb_pesos}, son combinaciones de referencia de esos mismos deslizadores, no botones de la interfaz.
 
 \subsection{Asistencia de Despliegue e Instalación Guiada}
 
-Para garantizar la aplicabilidad práctica de la recomendación, el prototipo va más allá de un simple análisis teórico. Junto al ranking, la aplicación presenta para el CNI recomendado un panel de despliegue con el comando de instalación del plugin y una política base de denegación por defecto, ambos copiables al portapapeles.
+Saber cuál CNI conviene no resuelve el siguiente problema, que es instalarlo. Por eso, junto al ranking, la aplicación muestra un panel de despliegue para el plugin recomendado con el comando de instalación y una política base de denegación por defecto, ambos listos para copiar.
 
 \begin{figure}[htbp]
 \centering
@@ -391,7 +394,7 @@ Para garantizar la aplicabilidad práctica de la recomendación, el prototipo va
 \label{fig:rec_fintech_instalacion}
 \end{figure}
 
-Por ejemplo, cuando el perfil regulado (prioridad de seguridad alta) sitúa a Cilium en el primer puesto, el recomendador entrega el comando \texttt{kubectl apply} del manifiesto de instalación de Cilium junto a la política \texttt{default-deny-ingress-egress} (Figura~\ref{fig:rec_fintech_instalacion}). Cuando el perfil de recursos limitados sitúa a Flannel en el primer puesto, entrega el manifiesto equivalente para desplegar el plugin en hardware restringido (Figura~\ref{fig:rec_iot_instalacion}). El panel no genera configuraciones avanzadas específicas por plugin ---por ejemplo, la habilitación de enrutamiento eBPF o de reglas L7 en Cilium---, que quedan a cargo del operador. Esta funcionalidad sitúa al prototipo como un punto de partida accionable para el aprovisionamiento de red, no como un instalador completo.
+Si un perfil con seguridad alta deja a Cilium primero, el recomendador entrega el \texttt{kubectl apply} de su manifiesto junto con la política \texttt{default-deny-ingress-egress} (Figura~\ref{fig:rec_fintech_instalacion}). Si un perfil de recursos limitados deja a Flannel primero, entrega el manifiesto equivalente para hardware restringido (Figura~\ref{fig:rec_iot_instalacion}). Lo que el panel no hace es generar configuraciones avanzadas propias de cada plugin, como habilitar enrutamiento eBPF o reglas L7 en Cilium; eso queda en manos del operador. El prototipo es un punto de partida accionable, no un instalador completo.
 
 \begin{figure}[htbp]
 \centering
@@ -402,7 +405,7 @@ Por ejemplo, cuando el perfil regulado (prioridad de seguridad alta) sitúa a Ci
 
 \subsection{Pruebas de Corrección Funcional}
 
-Para verificar que la SPA produce los rankings correctos ante distintas combinaciones de prioridades y que el motor MCDA opera sin pérdida de precisión numérica a lo largo del pipeline, se ejecutaron ocho casos de prueba funcionales y una traza de extremo a extremo sobre un dato real del laboratorio. Seis casos se aprobaron en su totalidad; PF-06 y PF-08 se verificaron con alcance acotado, según se detalla en la Tabla~\ref{tab:pruebas-funcionales-spa}.
+Faltaba comprobar que la SPA ordena bien ante distintas combinaciones de prioridades y que el motor MCDA no pierde precisión por el camino. Para eso se ejecutaron ocho casos de prueba funcionales, más una traza de extremo a extremo siguiendo un dato real del laboratorio. Cinco casos pasaron sin reservas; PF-05, PF-06 y PF-08 pasaron con alcance acotado, y la Tabla~\ref{tab:pruebas-funcionales-spa} detalla en qué consistió esa limitación en cada uno.
 
 \begin{table}[htbp]
 \centering
@@ -421,7 +424,7 @@ PF-03: Prioridades del perfil IoT/Recursos en los deslizadores & ESPERADO: Flann
 \hline
 PF-04: Usuario cambia las prioridades sin recargar la página & ESPERADO: El ranking se actualiza en menos de 50ms. OBSERVADO: Actualización $<$50ms. $\checkmark$ \\
 \hline
-PF-05: Visualización de métricas detalladas & ESPERADO: Datos expandidos correctamente (throughput, latencia, CPU). OBSERVADO: Correcto. $\checkmark$ \\
+PF-05: Presentación del ranking y del perfil calculado & ESPERADO: la vista de resultados expone el puntaje MCDA de los cuatro CNI y los pesos del perfil construido. OBSERVADO: se presentan el ranking con puntajes, la gráfica comparativa, los pesos del perfil y el aviso de penalización de seguridad. La aplicación no despliega las métricas brutas (throughput, latencia, CPU) en sus unidades. PARCIAL \\
 \hline
 PF-06: Incorporación de datos regenerados & ESPERADO: la SPA consume la versión vigente de \texttt{cni-data.json} sin servir copias en caché. OBSERVADO: la petición se emite con \texttt{cache: 'no-store'} y toma el archivo publicado en cada carga de la página. La aplicación no sondea el archivo durante la sesión: la actualización exige recargar. PARCIAL \\
 \hline
@@ -434,7 +437,7 @@ PF-08: Manejo de error si \texttt{cni-data.json} no está disponible & ESPERADO:
 
 \subsection{Prueba de Integridad de Datos de Extremo a Extremo}
 
-Se trazó el flujo completo de un dato específico desde su origen hasta su visualización: iperf3 reporta throughput de 1804.40 Mbps para Calico $\rightarrow$ script guarda el JSON sin modificaciones $\rightarrow$ \texttt{procesador.js} aplica IQR, calcula promedio = 1804.40 Mbps, normaliza a 5.00, calcula score MCDA para el perfil Streaming = 3.567 $\rightarrow$ \texttt{cni-data.json} registra los valores $\rightarrow$ SPA muestra ``1804.40 Mbps | Score: 3.567''. Los 5 valores son idénticos. Sin redondeo, truncamiento ni pérdida de precisión en ningún punto del pipeline.
+Para descartar que el pipeline deformara los datos por el camino, se siguió un valor concreto desde su origen hasta la pantalla: iperf3 reporta 1804.40 Mbps para Calico $\rightarrow$ el script guarda el JSON sin tocarlo $\rightarrow$ \texttt{procesador.js} aplica IQR, obtiene un promedio de 1804.40 Mbps, lo normaliza a 5.00 y calcula un score MCDA de 3.567 para el perfil Streaming $\rightarrow$ \texttt{cni-data.json} registra esos valores $\rightarrow$ la SPA muestra ``1804.40 Mbps | Score: 3.567''. Los cinco puntos de control coinciden: no hubo redondeo, truncamiento ni pérdida de precisión en ninguna etapa.
 
 \section{Análisis Consolidado de Resultados}
 
@@ -462,17 +465,17 @@ Se trazó el flujo completo de un dato específico desde su origen hasta su visu
 
 \subsection{Lecciones Aprendidas de las Pruebas}
 
-\textbf{El horario de ejecución influye en la variabilidad.} Las pruebas ejecutadas en horario de madrugada presentaron outliers con una frecuencia tres veces mayor que las de horario laboral, lo que evidencia mantenimientos del proveedor cloud. Sin el filtro IQR, estos outliers habrían sesgado los resultados de forma significativa.
+\textbf{La hora a la que se mide importa.} Las corridas de madrugada produjeron outliers con una frecuencia tres veces mayor que las de horario laboral, muy probablemente por mantenimientos del proveedor. Sin el filtro IQR, esos valores habrían torcido los resultados de forma notoria.
 
-\textbf{La latencia promedio y la latencia máxima ofrecen lecturas divergentes.} La latencia promedio de Flannel (21.53 ms) resulta aceptable, pero su latencia máxima (50.80 ms) revela picos que duplican el tiempo de respuesta. Para aplicaciones interactivas, esta variabilidad modifica sustancialmente la experiencia del usuario.
+\textbf{El promedio de latencia esconde los picos.} La latencia promedio de Flannel (21.53 ms) parece aceptable, hasta que se mira su máximo de 50.80 ms, que duplica el tiempo de respuesta. En aplicaciones interactivas es ese pico, y no el promedio, el que el usuario percibe.
 
-\textbf{El riesgo de seguridad de Flannel es silencioso.} Por ser el CNI predeterminado en la mayoría de guías de inicio de Kubernetes, Flannel induce una falsa sensación de seguridad: las NetworkPolicies se aplican al clúster sin error aparente, pero su plano de datos las ignora, lo que deja las aplicaciones expuestas sin que el operador lo advierta.
+\textbf{El riesgo de Flannel es silencioso.} Al ser el CNI que traen casi todas las guías de inicio de Kubernetes, Flannel genera una falsa sensación de seguridad: las NetworkPolicies se aplican sin error aparente, pero su plano de datos las ignora y las aplicaciones quedan expuestas sin que nadie se entere.
 
-\textbf{El overhead de las Network Policies es bajo.} La activación de las políticas introdujo un impacto controlado en la latencia promedio, registrándose reducciones significativas (de hasta $-43.16\%$ en Cilium) y un incremento máximo moderado ($+31.45\%$ en Calico). Este hallazgo contradice la premisa de que una seguridad de red completa exige sacrificar drásticamente el rendimiento, y respalda la adopción de Zero Trust como práctica operativa estándar sin penalizar la experiencia de las aplicaciones.
+\textbf{Proteger la red cuesta menos de lo que se cree.} Activar las políticas tuvo un impacto contenido sobre la latencia promedio, con reducciones de hasta $-43.16\%$ en Cilium y un aumento máximo de $+31.45\%$ en Calico. Va en contra de la idea extendida de que una seguridad de red completa obliga a sacrificar rendimiento, y respalda adoptar Zero Trust como práctica estándar sin miedo a degradar la experiencia de las aplicaciones.
 
 \subsection{Implicaciones organizacionales}
 
-Más allá de la comparación técnica, los resultados habilitan decisiones de negocio cuantificables. En primer lugar, el \emph{dimensionamiento basado en evidencia}: la brecha de $9.6\%$ de CPU y $496.29$ MB de RAM por nodo entre el CNI más liviano (Flannel) y el más demandante (Calico) se proyecta, en un clúster de 50 nodos, en aproximadamente $9.6$ vCPU y $24.8$ GB de RAM liberados ---capacidad que de otro modo se adquiriría de forma preventiva, con su costo asociado de infraestructura y energía. En segundo lugar, la \emph{seguridad sin penalización}: el overhead acotado de las Network Policies (pérdida máxima de throughput del $4.35\%$) muestra que adoptar micro-segmentación Zero Trust no obliga a sacrificar la calidad de servicio. En tercer lugar, la \emph{reproducibilidad}: al estar disponibles el testbed y el recomendador como código, cualquier organización puede repetir esta medición sobre su propia infraestructura y ajustar la recomendación a su perfil de uso, en lugar de heredar el CNI configurado por defecto.
+Estos números también se traducen en decisiones de negocio. La primera es el \emph{dimensionamiento basado en evidencia}: entre el CNI más liviano (Flannel) y el más demandante (Calico) hay una brecha de $9.6\%$ de CPU y $496.29$ MB de RAM por nodo, que en un clúster de 50 nodos equivale a unos $9.6$ vCPU y $24.8$ GB de RAM liberados. Es capacidad que, sin este dato, se compraría por precaución, con su costo en infraestructura y energía. La segunda es la \emph{seguridad sin penalización}: con una pérdida máxima de throughput del $4.35\%$, adoptar micro-segmentación Zero Trust no obliga a resignar calidad de servicio. La tercera es la \emph{reproducibilidad}: el testbed y el recomendador están publicados como código, de modo que cualquier organización puede repetir la medición en su propia infraestructura y ajustar la recomendación a su caso, en lugar de quedarse con el CNI que vino por defecto.
 
 \section{Tabla Resumen de Cumplimiento de Objetivos}
 
@@ -487,18 +490,18 @@ Más allá de la comparación técnica, los resultados habilitan decisiones de n
 \hline
 OE1: Evaluar cuantitativamente el rendimiento de los 4 CNIs mediante pruebas controladas. & CUMPLIDO --- 5 corridas $\times$ 300 segundos por CNI. Datos de throughput, latencia, jitter y consumo de recursos de CPU/RAM. Outliers filtrados por IQR. \\
 \hline
-OE2: Verificar la aplicación efectiva de políticas de red en el plano de datos y cuantificar su sobrecosto. & CUMPLIDO dentro del alcance operativo declarado (Apéndice~\ref{chap:apendice_oe2}, \S\ref{sec:apb2_alcance}). 8 casos de prueba de seguridad ejecutados en los 4 CNIs; Flannel no implementa Network Policies en su plano de datos; Cilium es el único con soporte L7. Overhead medido por escenario (Apéndice~\ref{chap:apendice_oe2}, \S\ref{sec:apb2_overhead}): variación de latencia entre $-43.16\%$ y $+31.45\%$; pérdida máxima de throughput $4.35\%$. La cuantificación numérica de la superficie de ataque y de la probabilidad de incidentes queda fuera del alcance del objetivo y se traslada a trabajo futuro. Delimitación y comparación con marcos de referencia en \S\ref{sec:delimitacion_oe2} de la Discusión. \\
+OE2: Verificar la aplicación efectiva de políticas de red en el plano de datos y cuantificar su sobrecosto. & CUMPLIDO dentro del alcance operativo declarado (\S\ref{sec:apb2_alcance}). 8 casos de prueba de seguridad ejecutados en los 4 CNIs; Flannel no implementa Network Policies en su plano de datos; Cilium es el único con soporte L7. Overhead medido por escenario (\S\ref{sec:apb2_overhead}): variación de latencia entre $-43.16\%$ y $+31.45\%$; pérdida máxima de throughput $4.35\%$. La cuantificación numérica de la superficie de ataque y de la probabilidad de incidentes queda fuera del alcance del objetivo y se traslada a trabajo futuro. Delimitación y comparación con marcos de referencia en \S\ref{sec:delimitacion_oe2} de la Discusión. \\
 \hline
 OE3: Desarrollar criterios y métricas para la comparación objetiva entre CNIs. & CUMPLIDO --- Algoritmo IQR validado con outlier controlado. Normalización min-max verificada. Scoring MCDA calculado para 3 perfiles. Lista de verificación de selección de CNI elaborada (Apéndice~\ref{chap:apendice_oe3}, \S\ref{sec:apb_checklist}). \\
 \hline
-OE4: Implementar un prototipo funcional que recomiende el CNI más adecuado. & CUMPLIDO en su funcionalidad central --- 8 casos de prueba funcionales: 6 aprobados en su totalidad y 2 (PF-06 y PF-08) verificados con alcance acotado. Prueba de integridad de datos de extremo a extremo completada. El prototipo recomienda y entrega el comando de instalación y una política base; no automatiza la actualización de datos en sesión ni el reintento de descarga. \\
+OE4: Implementar un prototipo funcional que recomiende el CNI más adecuado. & CUMPLIDO en su funcionalidad central --- 8 casos de prueba funcionales: 5 aprobados en su totalidad y 3 (PF-05, PF-06 y PF-08) verificados con alcance acotado. Prueba de integridad de datos de extremo a extremo completada. El prototipo recomienda y entrega el comando de instalación y una política base; no automatiza la actualización de datos en sesión ni el reintento de descarga. \\
 \hline
 \end{tabularx}
 \end{table}
 
 \subsection{Matriz de Trazabilidad de Objetivos}
 
-La \cref{tab:trazabilidad-objetivos} traza cada objetivo específico ---enunciado íntegramente en \cref{sec:Objetivos}--- hasta su evidencia documental y su evidencia en el repositorio o el aplicativo, junto con el estado alcanzado y las limitaciones que acotan su interpretación. La matriz permite verificar el cumplimiento contra fuentes reproducibles y no solo contra la narrativa del documento.
+Decir que un objetivo se cumplió es fácil; demostrarlo requiere señalar dónde está la prueba. La \cref{tab:trazabilidad-objetivos} lleva cada objetivo específico ---enunciados en \cref{sec:Objetivos}--- hasta la sección que lo documenta y hasta el archivo del repositorio o la parte del aplicativo que lo respalda, con su estado y las limitaciones que conviene tener en cuenta. Así el cumplimiento se puede verificar contra fuentes reproducibles y no solo contra lo que afirma este texto.
 
 \begin{table}[htbp]
 \centering
@@ -520,3 +523,5 @@ OE4 & Validación del prototipo y pruebas PF-01 a PF-08 (\cref{sec:prototipo_rec
 \hline
 \end{tabularx}
 \end{table}
+
+Los datos ya están sobre la mesa. Lo que sigue es interpretarlos: por qué el plugin más rápido retransmite más, qué significa que Flannel acepte políticas sin aplicarlas y hasta dónde llegan estas conclusiones fuera del testbed. De eso se ocupa el capítulo siguiente.

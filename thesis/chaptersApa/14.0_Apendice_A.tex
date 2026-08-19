@@ -5,12 +5,12 @@
 
 \chapter{Anexo Técnico de Entregables y Repositorios} \label{chap:apendice_a}
 
-Para garantizar la reproducibilidad y el rigor científico de esta investigación,
-todos los desarrollos técnicos, configuraciones de infraestructura, scripts de
-pruebas y el algoritmo del modelo matemático han sido publicados bajo licencias
-de código abierto. Este apéndice detalla la estructura de directorios, los
-recursos aprovisionados, los parámetros exactos de medición y las instrucciones
-de reproducción correspondientes a cada Objetivo Específico (OE).
+Un resultado que no se puede repetir vale poco, así que todo lo construido en
+este trabajo ---código, configuración de infraestructura, scripts de prueba y el
+algoritmo del modelo--- está publicado bajo licencias de código abierto. Este
+anexo indica dónde está cada cosa: la estructura de directorios, los recursos
+que se aprovisionan, los parámetros exactos con que se midió y los pasos para
+reproducir el experimento, organizados por Objetivo Específico (OE).
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Repositorio Principal del Proyecto}
@@ -189,9 +189,9 @@ K8s-bootstrap/
 
 Los archivos fuente de cada etapa se encuentran en el repositorio
 \url{https://github.com/DuwanSierra/K8s-bootstrap}, bajo las rutas
-\texttt{00.bootstrap/main.tf}, \texttt{10.k3s-ha-do/main.tf},
-\texttt{20.argo-cd-install/main.tf}, \texttt{30.apps-of-apps-install/main.tf}
-y \texttt{40.install-secrets/main.tf} respectivamente.
+\path{00.bootstrap/main.tf}, \path{10.k3s-ha-do/main.tf},
+\path{20.argo-cd-install/main.tf}, \path{30.apps-of-apps-install/main.tf}
+y \path{40.install-secrets/main.tf} respectivamente.
 
 % ── 1.3 Inventario de recursos ───────────────────────────────────────────────
 \subsubsection{Inventario de Recursos Aprovisionados}
@@ -292,9 +292,9 @@ cada prueba.
 
 \noindent Los manifiestos de los tres CronJobs se encuentran en
 \url{https://github.com/DuwanSierra/K8s-Tesis-Apps} bajo las rutas
-\texttt{cni\_test\_iperf/iperf-client-cronjob.yaml},
-\texttt{cni\_test\_iperf/latency-client-cronjob.yaml} y
-\texttt{grafana-exporter/resource-usage-exporter-cronjob.yaml}.
+\path{cni_test_iperf/iperf-client-cronjob.yaml},
+\path{cni_test_iperf/latency-client-cronjob.yaml} y
+\path{grafana-exporter/resource-usage-exporter-cronjob.yaml}.
 
 \medskip\noindent\textbf{Condiciones de validez experimental.}
 Los pods cliente usan \texttt{podAntiAffinity} preferente respecto
@@ -447,11 +447,11 @@ network_policies/
     \item \textbf{Activación mediante ArgoCD Application:}
     El caso de uso activo se controla desde el orquestador; el path
     de Kustomize se construye como
-    \texttt{network\_policies/overlays/\$\{cni\_provider\}/\$\{use-case\}}.
+    \path{network_policies/overlays/${cni_provider}/${use-case}}.
     Ver archivo
     \path{30.apps-of-apps-install/main.tf} en el repositorio
     \url{https://github.com/DuwanSierra/K8s-bootstrap},
-    recurso \texttt{kubernetes\_manifest.cni\_np\_test\_app}.
+    recurso \path{kubernetes_manifest.cni_np_test_app}.
 \end{itemize}
 
 % ─── OE3 ─────────────────────────────────────────────────────────────────────

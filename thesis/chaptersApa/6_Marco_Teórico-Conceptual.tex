@@ -1,8 +1,10 @@
 \chapter{Marco Teórico - Conceptual} \label{cap:marco_teorico}
 
+La introducción planteó el problema: hay que elegir un CNI y faltan datos para hacerlo. Antes de medir conviene fijar el vocabulario, porque los resultados de los capítulos finales solo se entienden si está claro qué hace un CNI, qué es una NetworkPolicy y cómo se combinan varios criterios en una sola decisión. Este capítulo cubre lo mínimo necesario para eso y deja el detalle reproducible en los anexos.
+
 \section{El modelo de red de Kubernetes}
 
-Kubernetes (K8S) no implementa por sí mismo la conectividad entre cargas de trabajo; define un modelo de red y delega su realización en componentes externos. Comprender este modelo es necesario para interpretar las métricas del experimento, dado que el plano de red ---y en particular el plugin que lo implementa--- determina el rendimiento, la seguridad y la eficiencia en la utilización de recursos dentro del clúster~\cite{ref2}.
+Kubernetes (K8S) no implementa la conectividad entre cargas de trabajo: define un modelo de red y deja que otros componentes lo realicen. Entender ese modelo es indispensable para leer las métricas del experimento, porque el plano de red ---y en concreto el plugin que lo implementa--- es el que marca el rendimiento, la seguridad y el consumo de recursos del clúster~\cite{ref2}.
 
 El modelo de red de Kubernetes establece tres principios fundamentales:
 \begin{enumerate}
@@ -12,15 +14,15 @@ El modelo de red de Kubernetes establece tres principios fundamentales:
 \end{enumerate}
 Sobre estas garantías se construyen las abstracciones de descubrimiento, balanceo y control de acceso del clúster~\cite{ref2}.
 
-La siguiente analogía ayuda a visualizar cómo interactúan estos componentes:
+Una analogía urbana ayuda a ver cómo encajan las piezas:
 \begin{itemize}
-    \item \textbf{Pods (Viviendas):} Constituyen las residencias particulares del clúster. Cada Pod cuenta con una dirección IP única y efímera que le permite comunicarse directamente con cualquier otra vivienda del entorno sin intermediarios.
-    \item \textbf{Nodos (Barrios):} Alojan múltiples viviendas y proveen los recursos físicos y de cómputo (CPU, memoria y conectividad) indispensables para la subsistencia de los servicios.
-    \item \textbf{Servicios (Central telefónica):} Operan como un conmutador estable con un número de contacto único e invariable. Esto permite canalizar el tráfico hacia las réplicas adecuadas, independientemente de los cambios internos en su ciclo de vida.
-    \item \textbf{Ingress y Gateway API (Portería):} Representan el acceso administrado y seguro desde el exterior (Internet), asegurando el gobierno del tráfico entrante y la separación de responsabilidades funcionales.
+    \item \textbf{Pods (viviendas):} son las casas del clúster. Cada una tiene una dirección IP propia y pasajera, y desde ella se puede hablar directamente con cualquier otra casa, sin intermediarios.
+    \item \textbf{Nodos (barrios):} albergan muchas viviendas y ponen los recursos que estas necesitan para funcionar: CPU, memoria y conectividad.
+    \item \textbf{Services (central telefónica):} ofrecen un número de contacto fijo. Quien llama siempre marca el mismo número y la central lo pasa a la réplica que esté disponible en ese momento.
+    \item \textbf{Ingress y Gateway API (portería):} controlan la entrada desde Internet, deciden quién pasa y separan responsabilidades entre quienes operan la infraestructura y quienes desarrollan los servicios.
 \end{itemize}
 
-El sustrato vial que hace posible la comunicación física entre las viviendas y barrios corresponde a la Interfaz de Red de Contenedores (CNI, Container Network Interface), la cual se detalla en la Figura~\ref{fig:red_cluster_k8s} y define la infraestructura de red subyacente.
+Falta el asfalto que une viviendas y barrios, y ese es el papel de la Interfaz de Red de Contenedores (CNI, Container Network Interface). La Figura~\ref{fig:red_cluster_k8s} muestra cómo se relacionan todos estos elementos.
 
 \begin{figure}[htbp]
     \centering
@@ -31,31 +33,31 @@ El sustrato vial que hace posible la comunicación física entre las viviendas y
 
 \subsection{Identidad de red del Pod}
 
-Kubernetes adopta el modelo de direccionamiento IP por Pod, asignando una dirección única a cada unidad de ejecución. Este enfoque facilita que las cargas de trabajo interactúen de forma directa y nativa sin recurrir a NAT. Dado que la identidad del Pod es efímera ---las réplicas se crean, destruyen y sustituyen de manera dinámica por los controladores---, la plataforma requiere abstracciones estables para asegurar el descubrimiento y direccionamiento consistente de los destinos~\cite{ref2}.
+Kubernetes asigna una IP propia a cada Pod. Gracias a eso las cargas de trabajo se hablan de forma directa, sin NAT de por medio. El detalle importante es que esa identidad dura poco: los controladores crean, destruyen y reemplazan réplicas continuamente, así que hacen falta abstracciones estables para poder encontrar siempre el destino correcto~\cite{ref2}.
 
 \subsection{Nodos y reenvío de paquetes}
 
-Cada nodo (Host o máquina virtual/física) hospeda múltiples Pods y aporta recursos de CPU, memoria y conectividad. En este nivel se instalan las rutas del sistema operativo y los mecanismos de reenvío local que garantizan la entrega de paquetes al Pod de destino, conforme al modelo de red del clúster: alcance directo entre Pods, ausencia de superposición de rangos de red y conectividad bidireccional este-oeste~\cite{ref2}. El agente del plugin de red se ejecuta precisamente en este nivel; por ello, su consumo de CPU y memoria por nodo Worker constituye una de las métricas centrales de la comparativa.
+Cada nodo (una máquina virtual o física) aloja varios Pods y aporta CPU, memoria y conectividad. Ahí se instalan las rutas del sistema operativo y los mecanismos de reenvío que llevan cada paquete al Pod correcto, respetando las reglas del modelo: alcance directo entre Pods, rangos de red que no se solapan y comunicación este-oeste en ambos sentidos~\cite{ref2}. El agente del plugin de red corre justamente en este nivel, y por eso su consumo de CPU y memoria en cada nodo \emph{worker} es una de las métricas centrales de la comparación.
 
 \subsection{Direccionamiento estable: Services y EndpointSlices}
 
-Un Service expone un identificador estable ---una dirección IP virtual (VIP, Virtual IP) conocida como ClusterIP--- que representa a un conjunto de Pods equivalentes. El cliente se conecta a esa IP virtual y la plataforma balancea la solicitud hacia una de las réplicas disponibles, desacoplando a los consumidores de los cambios en el ciclo de vida de los Pods~\cite{ref3,ref13}. 
+Un Service ofrece un punto de contacto fijo ---una IP virtual (VIP) llamada ClusterIP--- que representa a un grupo de Pods equivalentes. El cliente se conecta a esa IP y la plataforma reparte la solicitud entre las réplicas disponibles, de modo que a quien consume el servicio no le afecta que los Pods vayan y vengan~\cite{ref3,ref13}.
 
-Para mantener actualizada la relación de destinos, Kubernetes emplea \emph{EndpointSlices}, los cuales mantienen un inventario actualizado de las direcciones IP y puertos de los Pods que respaldan cada Service. Este mecanismo reduce significativamente la sobrecarga de control frente a los antiguos Endpoint monolíticos en clústeres de gran escala~\cite{ref1}. Esta capa es relevante para interpretar la latencia medida: el tiempo en que una solicitud alcanza el Pod correcto comprende tanto la resolución del balanceador (iptables, IPVS o eBPF) como el reenvío realizado por el plugin de red.
+Para saber a qué Pods enviar el tráfico, Kubernetes usa \emph{EndpointSlices}, que llevan el inventario de IPs y puertos detrás de cada Service. Frente a los antiguos Endpoint monolíticos, reducen bastante la carga del plano de control en clústeres grandes~\cite{ref1}. Esta capa importa al interpretar la latencia medida más adelante, porque el tiempo que tarda una solicitud en llegar al Pod correcto incluye tanto la resolución del balanceador (iptables, IPVS o eBPF) como el reenvío que hace el plugin de red.
 
 \subsection{Ingreso de tráfico externo: Ingress y Gateway API}
 
-El tráfico procedente de Internet no accede directamente a los Pods, sino a través de una capa de ingreso administrada. La \emph{Gateway API} formaliza los roles asociados ---infraestructura, operaciones y desarrollo--- y las reglas de capa 7 (como hostnames, rutas y terminación TLS) que determinan el enrutamiento de cada solicitud hacia el Service correspondiente~\cite{ref17}. 
+El tráfico que viene de Internet no llega directo a los Pods: pasa antes por una capa de ingreso administrada. La \emph{Gateway API} ordena esa capa, separa los roles de infraestructura, operaciones y desarrollo, y define las reglas de capa 7 ---nombres de host, rutas, terminación TLS--- que deciden a qué Service va cada solicitud~\cite{ref17}.
 
 En despliegues de alta disponibilidad, esta capa suele estar precedida por un balanceador de carga externo de capa 3/4 que distribuye el tráfico antes de que alcance los nodos del clúster~\cite{ref5}.
 
 \subsection{Aislamiento lógico: Namespaces y NetworkPolicies}
 
-Un \emph{Namespace} representa una delimitación lógica dentro del plano de control, orientada a organizar y estructurar recursos por proyectos, equipos o entornos (como desarrollo, pruebas y producción)~\cite{ref2}. Esta separación garantiza la unicidad de nombres DNS internos en la forma \texttt{<servicio>.<namespace>.svc.cluster.local}, lo cual previene ambigüedades en la resolución de nombres~\cite{ref13,ref2}.
+Un \emph{Namespace} es una división lógica dentro del plano de control que sirve para ordenar recursos por proyecto, equipo o entorno ---desarrollo, pruebas, producción---~\cite{ref2}. Además garantiza que los nombres DNS internos, con la forma \texttt{<servicio>.<namespace>.svc.cluster.local}, sean únicos y no haya ambigüedad al resolverlos~\cite{ref13,ref2}.
 
-Sin embargo, los Namespaces no restringen la comunicación física de red por defecto. La conectividad este-oeste permanece abierta a menos que se definan reglas explícitas de control de acceso mediante NetworkPolicies, aplicando principios de Confianza Cero (\emph{Zero Trust}) para limitar el tráfico exclusivamente a lo autorizado~\cite{ref4,ref24,ref25,ref26}.
+Ahora bien, esa división es solo organizativa: un Namespace no bloquea nada. El tráfico este-oeste sigue abierto mientras no se escriban reglas explícitas de control de acceso con NetworkPolicies, que es la forma de llevar el principio de Confianza Cero (\emph{Zero Trust}) al clúster y dejar pasar únicamente lo autorizado~\cite{ref4,ref24,ref25,ref26}.
 
-Las NetworkPolicies funcionan como firewalls lógicos distribuidos de capa 3/4 que permiten o restringen conexiones basándose en selectores de etiquetas (\emph{labels}), puertos y protocolos, como se ilustra en la Figura~\ref{fig:network_policy}.
+Las NetworkPolicies actúan como cortafuegos lógicos distribuidos de capa 3/4: permiten o cortan conexiones según etiquetas (\emph{labels}), puertos y protocolos, tal como ilustra la Figura~\ref{fig:network_policy}.
 
 \begin{figure}[htbp]
     \centering
@@ -64,11 +66,11 @@ Las NetworkPolicies funcionan como firewalls lógicos distribuidos de capa 3/4 q
     \label{fig:network_policy}
 \end{figure}
 
-Su aplicación efectiva depende de que el CNI implemente el plano de control y de datos correspondiente. Si el plugin CNI seleccionado carece de soporte para NetworkPolicies, la API de Kubernetes aceptará el recurso, pero no se aplicará ninguna regla de seguridad en los nodos, dejando el clúster expuesto~\cite{ref4,ref18}.
+Que la regla se cumpla depende por completo del CNI instalado. Si el plugin elegido no soporta NetworkPolicies, la API de Kubernetes acepta el recurso sin protestar, pero en los nodos no se aplica ninguna regla y el clúster queda expuesto~\cite{ref4,ref18}. Esta trampa reaparecerá en los resultados, porque es exactamente lo que ocurre con uno de los plugins evaluados.
 
 \subsection{Recorrido de una solicitud}
 
-El ciclo completo del tráfico responde a la siguiente secuencia operativa:
+Con las piezas anteriores ya se puede seguir el camino completo de una petición:
 \begin{enumerate}
     \item El cliente externo envía una solicitud que llega al balanceador y se dirige a la portería lógica (Ingress o Gateway API)~\cite{ref17}.
     \item La portería inspecciona el paquete en capa 7 y lo reenvía al Service adecuado~\cite{ref3,ref13}.
@@ -80,7 +82,7 @@ El ciclo completo del tráfico responde a la siguiente secuencia operativa:
 
 \subsection{Especificación y funciones núcleo}
 
-La especificación Container Network Interface (CNI) define el estándar mediante el cual el runtime de contenedores interactúa con diversos plugins para automatizar la configuración de red. La especificación se fundamenta en operaciones simples y encadenables como la adición (\texttt{ADD}) y la eliminación (\texttt{DEL}) de interfaces de red de los contenedores~\cite{ref18,ref20,ref21,ref28}, un proceso ilustrado esquemáticamente en la Figura~\ref{fig:workflow_cni}.
+La especificación Container Network Interface (CNI) fija cómo dialoga el \emph{runtime} de contenedores con los plugins de red para configurarla automáticamente. Es un contrato sencillo, construido sobre dos operaciones encadenables: agregar (\texttt{ADD}) y eliminar (\texttt{DEL}) interfaces de red en los contenedores~\cite{ref18,ref20,ref21,ref28}. La Figura~\ref{fig:workflow_cni} esquematiza ese flujo.
 
 \begin{figure}[htbp]
     \centering
@@ -89,30 +91,30 @@ La especificación Container Network Interface (CNI) define el estándar mediant
     \label{fig:workflow_cni}
 \end{figure}
 
-Las funciones básicas que implementa cualquier plugin CNI son:
+Todo plugin CNI, sea cual sea, cumple tres funciones básicas:
 \begin{itemize}
-    \item \textbf{Identidad de Red:} Asignación de IPs del clúster que viabilizan el modelo IP-por-Pod y aseguran la comunicación este-oeste~\cite{ref2}.
-    \item \textbf{Enlace e Interfaces:} Creación de veth-pairs para conectar el espacio de nombres de red (\emph{network namespace}) del Pod con la pila de red del host~\cite{ref4,ref18}.
-    \item \textbf{Gestión de Direcciones (IPAM):} Reserva y liberación sistemática de direcciones de red a través de componentes como host-local~\cite{ref18,ref20}.
+    \item \textbf{Identidad de red:} reparte las IPs del clúster, que es lo que hace posible el modelo de una IP por Pod y la comunicación este-oeste~\cite{ref2}.
+    \item \textbf{Enlace e interfaces:} crea los pares veth que conectan el espacio de nombres de red del Pod con la pila de red del host~\cite{ref4,ref18}.
+    \item \textbf{Gestión de direcciones (IPAM):} reserva y libera direcciones mediante componentes como host-local~\cite{ref18,ref20}.
 \end{itemize}
 
 \subsection{Modelos de dataplane: redes superpuestas (Overlay) vs. enrutamiento nativo}
 
-El plano de datos del CNI se suele clasificar en dos estrategias principales:
+Los planos de datos de los CNI siguen básicamente dos estrategias:
 \begin{itemize}
-    \item \textbf{Redes Superpuestas (Overlay):} Encapsulan los paquetes de los Pods dentro de protocolos de transporte como VXLAN o Geneve sobre UDP. Esto permite aislar el direccionamiento del clúster de la infraestructura física. Su principal ventaja radica en la simplicidad operativa y el desacoplamiento; a cambio, introduce cabeceras adicionales, posibles ajustes de MTU y cierta carga de CPU por encapsulación/descapsulación.
-    \item \textbf{Enrutamiento Nativo (Directo):} Prescinde de túneles lógicos y expone las IPs de los Pods directamente a la red física mediante enrutamiento L3 convencional. Aunque mejora el rendimiento de red y reduce el consumo de CPU, demanda un diseño de direccionamiento rígido y una estrecha integración con la red corporativa.
+    \item \textbf{Redes superpuestas (\emph{overlay}):} meten los paquetes de los Pods dentro de otro paquete, con protocolos como VXLAN o Geneve sobre UDP, y así el direccionamiento del clúster queda aislado de la infraestructura física. A favor: es simple de operar y no depende de la red subyacente. En contra: añade cabeceras, obliga a ajustar la MTU y gasta CPU al encapsular y desencapsular.
+    \item \textbf{Enrutamiento nativo (directo):} elimina los túneles y expone las IPs de los Pods a la red física con enrutamiento L3 corriente. Rinde mejor y consume menos CPU, pero exige un plan de direccionamiento rígido y una integración estrecha con la red de la organización.
 \end{itemize}
 
-Estudios previos muestran diferencias significativas en el desempeño según el dataplane adoptado, condicionando la viabilidad técnica en entornos con recursos limitados como edge computing o nubes públicas~\cite{ref7,ref8}. En contraste, la aceleración mediante planos de datos avanzados como Open vSwitch (OVS) o programas eBPF (extended Berkeley Packet Filter) incide sustancialmente en la latencia de procesamiento~\cite{ref11,ref22}.
+Los estudios previos reportan diferencias notables de desempeño según el plano de datos elegido, algo que pesa sobre todo en entornos con recursos escasos, como \emph{edge computing} o nubes públicas~\cite{ref7,ref8}. Los planos acelerados, sea con Open vSwitch (OVS) o con programas eBPF, cambian de forma apreciable la latencia de procesamiento~\cite{ref11,ref22}. Este trabajo, según se explicó en el alcance, se mueve en el terreno \emph{overlay}.
 
 \subsection{Gestión de direcciones (IPAM)}
 
-La gestión de direcciones (IPAM) asigna y libera las IPs de los Pods de forma sistemática; una administración eficiente evita colisiones de red, habilita despliegues dual-stack y sostiene la escalabilidad ante la creación o destrucción masiva de réplicas~\cite{ref18,ref20}.
+El IPAM se encarga de asignar y devolver las IPs de los Pods. Hacerlo bien evita colisiones de direcciones, permite despliegues \emph{dual-stack} y aguanta la creación o destrucción masiva de réplicas sin quedarse sin direcciones~\cite{ref18,ref20}.
 
 \subsection{MTU y fragmentación en redes con encapsulación}
 
-En redes superpuestas, el overhead de la encapsulación disminuye el tamaño máximo de segmento de datos útil. Se debe ajustar la Unidad Máxima de Transmisión (MTU, Maximum Transmission Unit) efectiva restando el tamaño de las cabeceras adicionales para prevenir la fragmentación de paquetes, caídas de rendimiento y pérdidas de conexión bajo carga~\cite{ref12}, un proceso ilustrado en la Figura~\ref{fig:ajuste_mtu}.
+En una red superpuesta las cabeceras extra ocupan espacio y dejan menos sitio para los datos útiles. Por eso hay que bajar la Unidad Máxima de Transmisión (MTU) efectiva tanto como ocupen esas cabeceras. Si no se hace, los paquetes se fragmentan, el rendimiento cae y bajo carga se pierden conexiones~\cite{ref12}. La Figura~\ref{fig:ajuste_mtu} ilustra el ajuste.
 
 \begin{figure}[htbp]
     \centering
@@ -123,11 +125,11 @@ En redes superpuestas, el overhead de la encapsulación disminuye el tamaño má
 
 \subsection{Observabilidad del plano de datos}
 
-La operación confiable de microservicios exige visibilidad sobre los flujos de red. Cuando el CNI integra monitoreo de flujos, la telemetría de origen y destino se correlaciona con las identidades nativas del clúster (Namespaces y etiquetas); así, la observabilidad de red se convierte en un componente telemático de primer orden para diagnosticar la calidad de servicio y sustentar las decisiones de configuración~\cite{ref6,ref23}.
+Operar microservicios con confianza exige ver qué pasa en la red. Cuando el CNI trae monitoreo de flujos, la telemetría de origen y destino se puede cruzar con las identidades propias del clúster ---Namespaces y etiquetas---, y entonces deja de ser una lista de IPs para volverse información útil. Esa observabilidad es el insumo con el que se diagnostica la calidad de servicio y se justifican las decisiones de configuración~\cite{ref6,ref23}.
 
 \subsection{Métricas de rendimiento y sobredimensionamiento}
 
-La comparación entre CNIs descansa en tres métricas principales: la latencia media y de percentiles críticos (P95 y P99), el throughput TCP/UDP sostenido y el uso de recursos (CPU y RAM) por paquete procesado~\cite{ref7,ref8}. Estas mediciones son determinantes para mitigar el sobredimensionamiento preventivo de hardware en la nube, optimizando la relación costo-rendimiento de la infraestructura~\cite{ref7,ref8,ref12,ref23,ref24,ref25}.
+Comparar CNIs se reduce, en la práctica, a tres métricas: la latencia (promedio y en los percentiles críticos P95 y P99), el \emph{throughput} TCP/UDP sostenido y el gasto de CPU y RAM por paquete procesado~\cite{ref7,ref8}. Tenerlas medidas es lo que permite dejar de comprar hardware ``por si acaso'' y ajustar la relación costo-rendimiento de la infraestructura~\cite{ref7,ref8,ref12,ref23,ref24,ref25}.
 
 \section{eBPF como mecanismo de aceleración en el kernel}
 
@@ -151,20 +153,20 @@ Un aspecto crítico, y directamente relevante para este trabajo, es que la Netwo
 
 \section{Análisis de Decisión Multicriterio (MCDA)}
 
-El Análisis de Decisión Multicriterio (MCDA) es un conjunto de métodos formales para seleccionar entre alternativas cuando existen múltiples criterios de evaluación con distinta importancia relativa~\cite{ref34}. Es el enfoque adecuado cuando ninguna alternativa es la mejor en todas las dimensiones al mismo tiempo: en este trabajo, ningún CNI lidera simultáneamente en throughput, latencia, consumo de CPU, consumo de RAM y capacidades de seguridad. Ignorar ese compromiso y elegir únicamente por throughput equivale a comprar un automóvil mirando solo la velocidad máxima.
+El Análisis de Decisión Multicriterio (MCDA) reúne métodos formales para escoger entre alternativas cuando hay varios criterios en juego y no todos pesan igual~\cite{ref34}. Es justo lo que hace falta cuando ninguna alternativa gana en todo, que es el caso aquí: ningún CNI encabeza a la vez el \emph{throughput}, la latencia, el consumo de CPU, el de RAM y las capacidades de seguridad. Elegir solo por throughput e ignorar el resto sería como comprar un carro mirando únicamente la velocidad máxima.
 
-El modelo implementado en este trabajo utiliza el método de \textbf{suma ponderada} ---conocido en la literatura como \emph{Simple Additive Weighting} (SAW) o \emph{Weighted Sum Model} (WSM)---, formalizado por Fishburn como agregación aditiva de utilidades~\cite{ref30} y reconocido como el método MCDA más difundido por su transparencia interpretativa~\cite{ref34}. La puntuación de cada alternativa se obtiene mediante la \cref{eq:mcda-suma}:
+El modelo de este trabajo usa el método de \textbf{suma ponderada}, que la literatura llama \emph{Simple Additive Weighting} (SAW) o \emph{Weighted Sum Model} (WSM). Fishburn lo formalizó como agregación aditiva de utilidades~\cite{ref30} y es el método MCDA más extendido, sobre todo porque cualquiera puede seguir de dónde sale el número~\cite{ref34}. La puntuación de cada alternativa sale de la \cref{eq:mcda-suma}:
 \begin{equation}\label{eq:mcda-suma}
 P_{CNI} = \sum_{i=1}^{n} (V_i \times W_i)
 \end{equation}
 donde $P_{CNI}$ es el puntaje final del plugin CNI, $V_i$ es el valor normalizado de la métrica $i$ y $W_i$ es el peso asignado a esa métrica según el perfil de usuario evaluado, con la condición $\sum_{i=1}^{n} W_i = 1$.
 
-Para que métricas con unidades distintas (Gbps, milisegundos, millicores) sean comparables en esa fórmula, se aplica \textbf{normalización min-max}, una de las técnicas estándar de normalización en MCDA por preservar las distancias relativas entre alternativas~\cite{ref35}. En este trabajo se re-escala al intervalo $[1,\,5]$ mediante la \cref{eq:mcda-norm}:
+Sumar Gbps con milisegundos y con millicores no tiene sentido, así que antes hay que llevar todas las métricas a una misma escala. Para eso se aplica \textbf{normalización min-max}, una de las técnicas estándar en MCDA porque conserva las distancias relativas entre alternativas~\cite{ref35}. Aquí se re-escala al intervalo $[1,\,5]$ con la \cref{eq:mcda-norm}:
 \begin{equation}\label{eq:mcda-norm}
 V_i = 1 + 4 \cdot \frac{x - x_{\min}}{x_{\max} - x_{\min}}
 \end{equation}
-donde $x_{\min}$ y $x_{\max}$ son los valores mínimo y máximo observados entre los CNIs para esa métrica. En métricas donde un valor mayor es mejor (throughput), la normalización es directa; en métricas donde un valor menor es mejor (latencia, CPU, RAM), se invierte el cociente ---usando $x_{\max} - x$ en el numerador--- de modo que $V_i = 5$ representa siempre la mejor alternativa y $V_i = 1$ la peor. La elección del intervalo $[1,\,5]$ ---en lugar del clásico $[0,\,1]$--- responde a una escala de utilidad acotada de cinco niveles, equivalente a una escala Likert, que facilita la lectura por parte de equipos no especializados sin alterar el ordenamiento de las alternativas~\cite{ref35}. Con $\sum_{i=1}^{n} W_i = 1$, el puntaje $P_{CNI}$ también queda en $[1,\,5]$, lo que permite interpretar el resultado final en la misma escala.
+donde $x_{\min}$ y $x_{\max}$ son el menor y el mayor valor observados entre los CNIs para esa métrica. Cuando más es mejor, como en el throughput, la fórmula se aplica tal cual; cuando menos es mejor, como en latencia, CPU o RAM, se invierte el cociente usando $x_{\max} - x$ en el numerador. Así, $V_i = 5$ siempre señala a la mejor alternativa y $V_i = 1$ a la peor. Se prefirió el intervalo $[1,\,5]$ sobre el clásico $[0,\,1]$ porque cinco niveles, al estilo de una escala Likert, se leen con más naturalidad en un equipo no especializado, y el orden de las alternativas no cambia por ello~\cite{ref35}. Como los pesos suman 1, el puntaje $P_{CNI}$ también cae en $[1,\,5]$ y se interpreta en la misma escala.
 
-Los pesos $W_i$ son los parámetros que capturan las prioridades de cada organización. En este trabajo se definen tres perfiles: Fintech, que asigna mayor peso a la seguridad; Streaming, orientado al rendimiento de red; e IoT, centrado en el menor consumo de recursos por nodo. La parametrización explícita de los pesos hace que el modelo sea ajustable ante nuevos perfiles sin modificar el procedimiento de medición.
+Los pesos $W_i$ son los que recogen las prioridades de cada organización. Aquí se trabaja con tres perfiles: Fintech, que le da el mayor peso a la seguridad; Streaming, volcado al rendimiento de red; e IoT, atento al menor consumo de recursos por nodo. Como los pesos son un parámetro y no una constante del modelo, aparecen nuevos perfiles sin necesidad de repetir las mediciones.
 
-El método SAW es \emph{compensatorio}: un valor alto en una métrica puede compensar un valor bajo en otra. Para impedir que esa compensación opere sobre la seguridad ---de modo que un CNI sin soporte de NetworkPolicies obtenga un buen puntaje únicamente por su eficiencia computacional---, el modelo incorpora una \textbf{restricción no compensatoria}, en la línea de los modelos conjuntivos de decisión multiatributo~\cite{ref31}. Cuando el perfil exige un nivel de seguridad alto, todo CNI que no implemente NetworkPolicies en su plano de datos recibe una penalización multiplicativa sobre su puntaje final, lo que lo descarta como opción viable con independencia de su rendimiento. La formulación y el valor de este factor de penalización se detallan en la metodología (\cref{sec:Metodos}).
+Queda un riesgo por cubrir. El método SAW es \emph{compensatorio}: una nota alta en una métrica puede tapar una nota baja en otra. Sin un freno, un CNI que no aplica NetworkPolicies podría quedar bien clasificado solo por ser liviano en CPU. Para evitarlo el modelo añade una \textbf{restricción no compensatoria}, en la línea de los modelos conjuntivos de decisión multiatributo~\cite{ref31}: cuando el perfil exige seguridad alta, todo CNI que no aplique políticas en su plano de datos recibe una penalización multiplicativa sobre el puntaje final, lo bastante severa como para descartarlo por bueno que sea su rendimiento. La fórmula y el valor de ese factor aparecen en el diseño de la solución (\cref{sec:Metodos}).

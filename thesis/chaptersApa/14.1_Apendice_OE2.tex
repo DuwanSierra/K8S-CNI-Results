@@ -16,7 +16,7 @@
 
 \chapter{Configuración y evaluación de las Network Policies por CNI} \label{chap:apendice_oe2}
 
-Este apéndice reúne la evidencia técnica que respalda el Objetivo Específico 2: \emph{Evaluar cómo la configuración segura y automatizada de las políticas de red adaptadas a cada plugin CNI reduce la superficie de ataque y la probabilidad de incidentes de seguridad en clústeres Kubernetes}. Se documentan el alcance operativo bajo el que se interpretaron los resultados, los requisitos verificables que se derivan del enunciado, la matriz extendida de casos de prueba, el detalle del overhead por escenario, los fragmentos de configuración adaptados a cada CNI y el mapeo a marcos de referencia de la industria. El objetivo es dar trazabilidad entre cada decisión de configuración y cada resultado del cuerpo principal, de manera que las conclusiones puedan contrastarse con la evidencia. Las decisiones de alcance se declaran de forma explícita para acotar lo que esa evidencia sostiene.
+Este anexo guarda la evidencia técnica del Objetivo Específico 2: \emph{Evaluar cómo la configuración segura y automatizada de las políticas de red adaptadas a cada plugin CNI reduce la superficie de ataque y la probabilidad de incidentes de seguridad en clústeres Kubernetes}. Aquí están las políticas escritas para cada CNI, los fragmentos de configuración que aprovechan sus capacidades propias y el detalle que no cabía en el cuerpo del documento. Sirve para que cualquier afirmación del capítulo de resultados se pueda rastrear hasta la configuración concreta que la produjo.
 
 % MUDANZA: Las secciones de Alcance Operativo, Requisitos Verificables y Matriz Extendida se trasladaron a chaptersApa/M2_Diseno.tex
 \iffalse
@@ -104,7 +104,7 @@ La columna ``Requisito'' funciona como traza directa entre cada prueba y el enun
 
 \section{Adaptación específica por CNI (R2)} \label{sec:apb2_adaptacion}
 
-El requisito R2 establece que las políticas no deben ser idénticas para los cuatro CNIs, sino aprovechar las capacidades diferenciales de cada plugin cuando estén disponibles. La Tabla~\ref{tab:apb2_adaptacion} resume las decisiones de adaptación adoptadas y la capacidad concreta que explota cada una; los fragmentos de configuración que siguen materializan los casos más representativos.
+Escribir la misma política para los cuatro CNIs habría desaprovechado lo que cada uno sabe hacer, y eso es justamente lo que pide el requisito R2. La Tabla~\ref{tab:apb2_adaptacion} resume qué se adaptó en cada caso y qué capacidad propia del plugin se aprovechó; los fragmentos de configuración que vienen después muestran los ejemplos más representativos.
 
 \begin{table}[htbp]
 \centering
@@ -154,7 +154,7 @@ spec:
 
 \subsection{Fragmento de \texttt{ClusterNetworkPolicy} de Antrea (Tier securityops)} \label{subsec:apb2_yaml_antrea}
 
-La política corporativa de Antrea opera en un Tier de mayor prioridad que las \texttt{NetworkPolicy} estándar de namespace, lo que impide que un desarrollador la sobrescriba inadvertidamente desde su namespace.
+La política corporativa de Antrea vive en un Tier de mayor prioridad que las \texttt{NetworkPolicy} de namespace. Así, ningún desarrollador puede anularla sin querer desde su propio namespace.
 
 \begin{lstlisting}
 apiVersion: crd.antrea.io/v1beta1
@@ -307,7 +307,7 @@ Los manifiestos y \emph{overlays} de \texttt{Kustomize} que materializan las pol
     \item \texttt{network\_policies/use-case-1-zero-trust/}: \emph{default deny} y permiso explícito al tráfico de \emph{benchmark}.
     \item \texttt{network\_policies/use-case-2-multi-tier/}: reglas \texttt{frontend $\to$ backend $\to$ database} por etiquetas.
     \item \texttt{network\_policies/use-case-3-egress-block/}: bloqueo de egreso externo manteniendo DNS y tráfico interno.
-    \item \texttt{network\_policies/overlays/\{calico,cilium,antrea\}/\{zero-trust,multi-tier,egress-block\}/}: especialización por CNI, incluyendo \texttt{cilium-l7-policy.yaml} y \texttt{antrea-security-tier.yaml}.
+    \item \path{network_policies/overlays/{calico,cilium,antrea}/{zero-trust,multi-tier,egress-block}/}: especialización por CNI, incluyendo \texttt{cilium-l7-policy.yaml} y \texttt{antrea-security-tier.yaml}.
 \end{itemize}
 
-La rotación entre CNIs se realiza desde el flujo de provisionamiento descrito en el Apéndice~\ref{chap:apendice_a}; el reciclaje del clúster garantiza que las pruebas se ejecuten sobre el plano de datos correspondiente a cada plugin en su configuración nativa.
+El cambio de un CNI a otro se hace con el flujo de provisionamiento del Apéndice~\ref{chap:apendice_a}. Como el clúster se recicla por completo, cada prueba corre sobre el plano de datos del plugin correspondiente en su configuración nativa, sin restos del anterior.

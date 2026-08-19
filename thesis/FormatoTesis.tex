@@ -2,6 +2,12 @@
 \documentclass[letterpaper,12pt, oneside]{book}
 \usepackage{TesisUTB}
 \usepackage{url}
+% Cortes de linea mas finos dentro de \url/\path (rutas largas de repositorio).
+% Solo afecta a esos comandos; no altera el interlineado del texto corrido.
+\makeatletter
+\g@addto@macro\UrlBreaks{\do\{\do\}\do\-\do\:}
+\makeatother
+\Urlmuskip=0mu plus 2mu\relax
 \usepackage{listings}
 \usepackage{booktabs}
 \usepackage{ragged2e}

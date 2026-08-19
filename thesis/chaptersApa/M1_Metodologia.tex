@@ -1,10 +1,10 @@
 \chapter{Metodología del Proyecto} \label{cap:metodologia}
 
-El proyecto se desarrolló bajo el marco de trabajo Scrum, estructurado en ciclos iterativos (sprints) de dos semanas que permitieron el diseño y calibración adaptativa del banco de pruebas de red. Las actividades se organizaron a partir de un Product Backlog trazado con los objetivos del trabajo, validando de forma incremental tanto la infraestructura automatizada del testbed como el algoritmo del recomendador interactivo.
+Este capítulo cuenta cómo se organizó el trabajo; los dos siguientes cuentan qué se construyó. El proyecto se llevó con Scrum, en ciclos de dos semanas, porque montar un banco de pruebas de red obliga a ajustar sobre la marcha: cada CNI trae sorpresas y conviene corregir el rumbo cada sprint en vez de al final. Todo partió de un Product Backlog atado a los objetivos del trabajo, y en cada ciclo se validó una pieza más del testbed automatizado o del algoritmo recomendador.
 
 \section{Product Backlog y trazabilidad con los objetivos}
 
-El \emph{Product Backlog} se derivó directamente de los cuatro objetivos específicos del trabajo, de modo que cada conjunto de tareas contribuye de forma trazable a un objetivo. La \cref{tab:backlog-oe} resume esta correspondencia.
+El \emph{Product Backlog} salió directamente de los cuatro objetivos específicos, de manera que cualquier tarea se puede rastrear hasta el objetivo al que sirve. La \cref{tab:backlog-oe} resume esa correspondencia.
 
 \begin{table}[htbp]
 \centering
@@ -82,7 +82,7 @@ El diseño técnico que materializa estos sprints se presenta en los \cref{sec:M
 
 \section{Desarrollo iterativo por fases} \label{sec:desarrollo}
 
-El desarrollo se ejecutó a lo largo de los diecisiete sprints planificados (\cref{tab:sprints}). Para facilitar la lectura, esta sección agrupa los sprints en fases temáticas y cierra cada fase con una retrospectiva que sintetiza los aprendizajes ---el artefacto de mejora continua propio de Scrum---, en lugar de narrar sprint por sprint. El detalle técnico de cada componente se encuentra en los \cref{sec:Metodos,cap:herramienta}.
+El desarrollo ocupó los diecisiete sprints planificados (\cref{tab:sprints}). Narrarlos uno por uno sería tedioso y poco informativo, así que esta sección los agrupa en fases temáticas y cierra cada fase con su retrospectiva, que es el artefacto de mejora continua propio de Scrum y donde suele estar lo aprendido. El detalle técnico de cada componente está en los \cref{sec:Metodos,cap:herramienta}.
 
 \subsection{Fase de preparación del laboratorio (Sprints 0--1)}
 
@@ -124,4 +124,6 @@ Se ampliaron las métricas de red (L3--L7), los \emph{dashboards} y las reglas d
 
 Los últimos sprints integraron todos los componentes, ejecutaron las pruebas finales y consolidaron resultados, cerrando con el control de calidad documental y de laboratorio y la entrega v1.0.
 
-\textbf{Retrospectiva.} La integración incremental a lo largo del proyecto ---y no en una única fase final--- redujo el riesgo de incompatibilidades. El control de calidad final se concentró en la consistencia entre los datos del \emph{testbed}, el modelo y el prototipo.
+\textbf{Retrospectiva.} Integrar poco a poco durante todo el proyecto, en vez de dejarlo para una fase final, redujo el riesgo de incompatibilidades. El control de calidad de cierre se concentró en que los datos del \emph{testbed}, el modelo y el prototipo dijeran lo mismo.
+
+Con el plan de trabajo descrito, el siguiente capítulo entra en el diseño: qué se construyó, con qué métricas se mide y cómo se convierte una tabla de números en una recomendación.

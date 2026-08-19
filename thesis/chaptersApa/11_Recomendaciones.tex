@@ -1,15 +1,15 @@
 \chapter{Recomendaciones} \label{sec:Recomendaciones}
 
-A partir de la evidencia técnica recolectada, se formulan las siguientes recomendaciones para la arquitectura y operación de clústeres Kubernetes:
+Estas son las recomendaciones prácticas que se desprenden de la evidencia recogida, pensadas para quien tiene que diseñar u operar un clúster de Kubernetes:
 
 \begin{itemize}
-    \item \textbf{Evitar Flannel en entornos con requisitos de seguridad:} Dado que Flannel carece de soporte para aplicar Network Policies, su uso en producción debe prohibirse si la arquitectura requiere aislamiento entre namespaces o pods.
-    
-    \item \textbf{Implementar Cilium para microsegmentación L7:} En clústeres que soporten cargas transaccionales o APIs críticas (perfil Fintech), se recomienda adoptar Cilium para habilitar el filtrado eBPF de protocolos de capa de aplicación (HTTP/gRPC) sin requerir el despliegue paralelo de un Service Mesh.
-    
-    \item \textbf{Priorizar Flannel en hardware con limitaciones severas:} Para nodos de Edge computing o IoT, Flannel ofrece la mayor eficiencia base, consumiendo solo un 19.45\% de CPU y 1176.54 MB de RAM bajo estrés de red, en comparación con los requerimientos de Calico (1672.83 MB) o Cilium (1497.19 MB).
-    
-    \item \textbf{Auditar empíricamente el \emph{enforcement} de red:} Las configuraciones de seguridad no deben darse por válidas únicamente consultando el estado de la API de Kubernetes. Es necesario incorporar rutinas de prueba activa de conectividad TCP/UDP para confirmar que el datapath del CNI aplica efectivamente las reglas.
-    
-    \item \textbf{Declarar infraestructura vía GitOps:} La instalación del CNI y sus políticas de red asociadas deben estar versionadas en Git y sincronizadas a través de controladores como ArgoCD. Esto previene derivas de configuración (configuration drift) y asegura que las reglas de seguridad sean reproducibles ante desastres.
+    \item \textbf{No usar Flannel donde la seguridad importe.} Flannel no aplica Network Policies, así que si la arquitectura necesita aislar namespaces o Pods, queda descartado para producción.
+
+    \item \textbf{Elegir Cilium cuando se necesite microsegmentación L7.} En clústeres con cargas transaccionales o APIs críticas (el perfil Fintech), Cilium permite filtrar protocolos de aplicación como HTTP o gRPC mediante eBPF, sin tener que desplegar además un Service Mesh.
+
+    \item \textbf{Preferir Flannel en hardware muy limitado.} En nodos de \emph{edge computing} o IoT, Flannel es el más económico: bajo estrés de red consume el 19.45\% de CPU y 1176.54 MB de RAM, frente a los 1672.83 MB de Calico o los 1497.19 MB de Cilium. Vale la pena solo si el aislamiento de red no es un requisito.
+
+    \item \textbf{Comprobar que las políticas realmente se aplican.} Consultar la API de Kubernetes no basta para dar por buena una configuración de seguridad. Hay que probar conectividad TCP/UDP de forma activa y confirmar que el plano de datos del CNI está bloqueando lo que debe bloquear.
+
+    \item \textbf{Declarar la infraestructura con GitOps.} La instalación del CNI y sus políticas deben vivir versionadas en Git y sincronizarse con un controlador como ArgoCD. Así se evita la deriva de configuración y las reglas de seguridad se pueden reconstruir después de cualquier incidente.
 \end{itemize}

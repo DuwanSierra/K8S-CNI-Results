@@ -1,13 +1,10 @@
 \chapter{Implementación de la Solución} \label{cap:herramienta}
 
-El diseño del capítulo anterior se materializa en una herramienta concreta, automatizada y reproducible: un \emph{testbed} de evaluación desplegado como infraestructura como código, un motor de decisión multicriterio y un prototipo recomendador que expone las recomendaciones a las organizaciones. Este es el producto central del trabajo de grado. La infraestructura está codificada en Terraform, la configuración en manifiestos YAML versionados en Git y las pruebas automatizadas en CronJobs de Kubernetes ---condición necesaria para que los resultados sean reproducibles y atribuibles al CNI. El manual de usuario y el manual de instalación se incluyen como anexos.
-
-
-La infraestructura está codificada en Terraform, la configuración en manifiestos YAML versionados en Git y las pruebas automatizadas en CronJobs de Kubernetes ---condición necesaria para que los resultados sean reproducibles y atribuibles al CNI.
+Lo diseñado en el capítulo anterior existe: es una herramienta concreta, automatizada y reproducible, y es el producto central de este trabajo de grado. Tiene tres partes: un \emph{testbed} de evaluación desplegado como infraestructura como código, un motor de decisión multicriterio y un prototipo recomendador que presenta los resultados a quien tiene que decidir. La infraestructura está escrita en Terraform, la configuración en manifiestos YAML versionados en Git y las pruebas en CronJobs de Kubernetes. Nada de esto es un capricho de ingeniería: sin automatización no habría forma de garantizar que las diferencias medidas vienen del CNI y no de la mano que configuró el entorno. Los manuales de usuario e instalación están en los anexos.
 
 \section{Aprovisionamiento de Infraestructura con Terraform}
 
-El aprovisionamiento de servidores y redes se realizó mediante Terraform (IaC). Al describir la infraestructura en archivos versionados, Terraform la recrea de manera idéntica en cada ejecución y elimina la posibilidad de que variaciones manuales introduzcan diferencias entre los entornos de cada CNI.
+Los servidores y las redes se crean con Terraform. Al estar la infraestructura descrita en archivos versionados, cada ejecución levanta exactamente lo mismo y ningún ajuste manual se cuela entre el entorno de un CNI y el del siguiente.
 
 \subsection{Estructura del Código Terraform (K8s-bootstrap/00.bootstrap)}
 
@@ -35,7 +32,7 @@ El aprovisionamiento de servidores y redes se realizó mediante Terraform (IaC).
 \end{tabularx}
 \end{table}
 
-El proceso de aprovisionamiento tiene tres etapas: \texttt{terraform plan} (compara estado actual vs. código), \texttt{terraform apply} (crea Droplets, VPC y firewall) y \texttt{terraform output} (extrae IPs y kubeconfig). Terraform mantiene un archivo \texttt{terraform.tfstate} que permite destruir y recrear toda la infraestructura de manera controlada, garantizando la repetibilidad científica: cada CNI se evaluó en condiciones idénticas de arranque.
+El aprovisionamiento son tres pasos: \texttt{terraform plan} compara el estado actual con el código, \texttt{terraform apply} crea Droplets, VPC y firewall, y \texttt{terraform output} entrega las IPs y el kubeconfig. Terraform guarda el estado en \texttt{terraform.tfstate}, y gracias a eso toda la infraestructura se puede destruir y volver a crear de forma controlada. Ese detalle es el que permite afirmar que cada CNI arrancó en condiciones idénticas.
 
 \section{Configuración del Clúster K3s en Alta Disponibilidad}
 
@@ -43,13 +40,13 @@ Una vez aprovisionados los servidores, se instaló y configuró K3s, una distrib
 
 \subsection{Base de Datos Externa para el Plano de Control}
 
-El plano de control se configuró con una base de datos PostgreSQL gestionada de DigitalOcean (también provisionada via Terraform) como datastore externo. Esto elimina la complejidad de mantener un clúster etcd y garantiza un plano de control sin punto único de fallo (SPOF).
+El plano de control usa como datastore externo una base de datos PostgreSQL gestionada de DigitalOcean, también creada con Terraform. Así se evita mantener un clúster etcd y el plano de control queda sin punto único de fallo.
 
 \subsection{Instalación: clúster sin CNI para plugins externos y modo nativo para Flannel}
 
-La implementación establece una distinción metodológica deliberada: Flannel se evalúa en su modo de despliegue más habitual ---integrado nativamente en K3s con \texttt{flannel-iface: eth1}---, mientras que Calico, Cilium y Antrea se instalan como plugins externos sobre un clúster sin CNI. La asimetría refleja las condiciones reales de uso: Flannel es el CNI predeterminado de K3s y la mayoría de equipos lo adopta sin configuración adicional, en tanto que los otros tres requieren instalación explícitamente y de forma declarativa. Evaluar cada CNI en su escenario de despliegue típico aumenta la validez ecológica del experimento; debe considerarse, no obstante, que Flannel se beneficia de la integración nativa de K3s ---gestión automática de CIDR y \emph{hooks} de kubelet--- que los plugins externos deben replicar por su cuenta.
+Aquí hay una decisión metodológica que conviene explicar. Flannel se evaluó tal como se usa en la vida real, integrado en K3s con \texttt{flannel-iface: eth1}, mientras que Calico, Cilium y Antrea se instalaron como plugins externos sobre un clúster sin CNI. La asimetría es intencional: Flannel viene activado por defecto en K3s y la mayoría de equipos lo deja así, mientras que los otros tres hay que instalarlos a propósito. Evaluar a cada uno en su escenario habitual acerca el experimento a la práctica, aunque hay que tenerlo presente al leer los números: Flannel juega en casa, con la gestión automática de CIDR y los \emph{hooks} de kubelet que K3s le da gratis y que los demás deben resolver por su cuenta.
 
-Para los CNIs externos, la configuración crítica es el parámetro \texttt{--flannel-backend=none}, que desactiva completamente el CNI integrado de K3s y evita interferencias con el plugin bajo evaluación. Adicionalmente, se configura \texttt{--disable-network-policy} para que K3s no intente implementar NetworkPolicies por sí mismo.
+Para los CNI externos el parámetro decisivo es \texttt{--flannel-backend=none}, que apaga por completo el CNI integrado de K3s para que no interfiera con el plugin en evaluación. También se activa \texttt{--disable-network-policy}, de modo que K3s no intente aplicar NetworkPolicies por su cuenta.
 
 La configuración resultante en \texttt{/etc/rancher/k3s/config.yaml} para CNIs externos incluye:
 \begin{lstlisting}
@@ -79,21 +76,21 @@ Antrea & Manifest v2.2.0 & \texttt{transportInterface: eth1}, \texttt{serviceCID
 \end{tabularx}
 \end{table}
 
-El protocolo de rotación de CNIs se implementó mediante el reemplazo completo de la infraestructura entre ciclos. Para cambiar de un CNI al siguiente, se modificó la variable \texttt{cni\_provider} en \texttt{terraform.tfvars} y se ejecutó \texttt{terraform destroy} seguido de \texttt{terraform apply}: el primero eliminó todos los recursos de DigitalOcean (Droplets, VPC y base de datos PostgreSQL), y el segundo los recreó desde cero con el nuevo CNI preconfigurado en el script de inicialización de K3s. Este enfoque garantiza que cada ciclo de prueba parte de nodos completamente limpios, sin residuos de configuración del CNI anterior que pudieran contaminar las métricas.
+Cambiar de un CNI al siguiente no consistió en desinstalar y reinstalar, sino en tirar abajo toda la infraestructura y volver a levantarla. Basta con modificar la variable \texttt{cni\_provider} en \texttt{terraform.tfvars} y ejecutar \texttt{terraform destroy} y luego \texttt{terraform apply}: el primero borra Droplets, VPC y base de datos PostgreSQL, y el segundo lo recrea todo con el nuevo CNI ya configurado en el script de arranque de K3s. Es más lento, pero garantiza que ninguna corrida herede restos de configuración de la anterior.
 
 \section{Orquestación y Entrega Continua: GitOps con ArgoCD}
 
-Con el clúster K3s funcionando y sin CNI, el siguiente componente instalado fue ArgoCD. ArgoCD implementa el paradigma GitOps: el repositorio Git es la única fuente de verdad sobre el estado del clúster. Todo lo que debe existir en el clúster está definido en archivos YAML dentro del repositorio \texttt{K8s-Tesis-Apps}. Esta centralización en Git facilita la auditoría del experimento: cualquier cambio en la configuración queda registrado con autor, fecha y motivo, haciendo el proceso de prueba completamente trazable.
+Con el clúster K3s en pie y todavía sin CNI, lo siguiente fue instalar ArgoCD, que lleva el clúster al modelo GitOps: el repositorio Git es la única fuente de verdad y todo lo que debe existir en el clúster está declarado en archivos YAML dentro de \texttt{K8s-Tesis-Apps}. Para un experimento esto tiene una ventaja adicional a la operativa: cada cambio de configuración queda registrado con autor, fecha y motivo, así que el proceso completo se puede auditar después.
 
 \subsection{El Patrón App of Apps}
 
-La implementación de ArgoCD utiliza el patrón App of Apps: existe UNA sola aplicación raíz (ubicada en \texttt{K8s-bootstrap/30.apps-of-apps-install}) que ArgoCD conoce directamente, y esa aplicación raíz contiene las definiciones de todas las demás aplicaciones (CNIs, stack de métricas, benchmarks, políticas de red).
+ArgoCD se configuró con el patrón App of Apps: hay una única aplicación raíz, en \texttt{K8s-bootstrap/30.apps-of-apps-install}, que es la que ArgoCD conoce, y dentro de ella se declaran todas las demás ---CNIs, stack de métricas, benchmarks y políticas de red---. Se administra un solo punto de entrada en lugar de una docena.
 
 \subsection{Configuración de selfHeal y prune}
 
-\textbf{\emph{selfHeal: true}} --- Ante la modificación manual de un recurso del clúster ---por ejemplo, la eliminación de una NetworkPolicy---, ArgoCD detecta la diferencia con el repositorio Git y restaura el estado original, lo que resultó crítico para la integridad del experimento.
+\textbf{\emph{selfHeal: true}} --- Si alguien modifica un recurso a mano en el clúster, por ejemplo borrando una NetworkPolicy, ArgoCD nota la diferencia con Git y restaura el estado original. Para la integridad del experimento esto fue decisivo.
 
-\textbf{\emph{prune: true}} --- Al eliminar un archivo YAML del repositorio Git, ArgoCD elimina también el recurso correspondiente del clúster, lo que evita la acumulación de recursos huérfanos.
+\textbf{\emph{prune: true}} --- Cuando se borra un archivo YAML del repositorio, ArgoCD elimina también el recurso en el clúster, con lo que no se acumulan recursos huérfanos de corridas anteriores.
 
 \begin{lstlisting}
 # Definicion de la Application raiz en ArgoCD (App of Apps)
@@ -115,7 +112,7 @@ spec:
 
 \subsection{Overlays de Kustomize para los CNIs}
 
-Cada CNI tiene una configuración ligeramente diferente. Para gestionarlas sin duplicar código, se utilizó Kustomize con el patrón base/overlay: existe una configuración base con los parámetros comunes, y sobre esa base se aplican overlays específicas para cada CNI.
+Cada CNI necesita ajustes propios, y copiar y pegar manifiestos para cada uno habría sido una fuente segura de errores. Por eso se usó Kustomize con el patrón base/overlay: una configuración base con lo común y, encima, una capa por CNI con lo que cambia.
 
 Las apps gestionadas por ArgoCD incluyen: \texttt{cni-test-iperf} (benchmarks de throughput y latencia), \texttt{cni-resource-exporter} (exportación de recursos desde Prometheus), \texttt{cni-np-test} (pruebas de Network Policies, creada solo cuando \texttt{cni\_provider != "flannel"} y el caso de uso está definido), y \texttt{metrics} (Prometheus + Grafana).
 
@@ -125,7 +122,7 @@ El stack de observabilidad se implementó mediante el \texttt{kube-prometheus-st
 
 \subsection{Prometheus: El Recolector de Métricas}
 
-Prometheus opera con un modelo pull: visita periódicamente los endpoints de métricas (cada 15 segundos en la configuración del proyecto). Para que Prometheus sepa qué métricas recolectar de los agentes CNI, se implementaron \texttt{ServiceMonitors} (CRD), apuntando específicamente al endpoint de métricas de cada agente. Un intervalo de 15 segundos proporciona suficiente granularidad para detectar picos de consumo durante las ráfagas de tráfico iperf3, sin generar una carga de scraping que interfiera con las métricas bajo observación.
+Prometheus no espera a que le envíen datos: los va a buscar cada 15 segundos en los endpoints de métricas. Para que sepa dónde mirar en cada agente CNI se declararon \texttt{ServiceMonitors}, que apuntan al endpoint correspondiente. El intervalo de 15 segundos es un punto medio deliberado: alcanza para ver los picos de consumo durante las ráfagas de iperf3 y no tanto como para que el propio \emph{scraping} altere lo que se está midiendo.
 
 Las métricas clave recolectadas del agente CNI incluyen:
 \begin{itemize}
@@ -160,7 +157,7 @@ El banco de throughput se define en \texttt{K8s-Tesis-Apps/cni\_test\_iperf}:
 
 \textbf{El iperf3-client (CronJob):} La programación \texttt{0,30 * * * *} activa el cliente en los minutos 0 y 30. \texttt{concurrencyPolicy: Forbid} bloquea corridas simultáneas. Cada activación crea un Pod y genera tráfico TCP durante 300 segundos. La salida conserva formato JSON con \texttt{iperf3 -t 300 -i 10 -J}. La retención máxima queda en 5 corridas (\texttt{RETENTION\_MAX\_RUNS="5"}).
 
-La anti-afinidad del cliente frente al servidor se implementó como \texttt{preferredDuringSchedulingIgnoredDuringExecution} (suave, weight 100), forzando tráfico inter-nodo en la práctica. Esta ubicación garantiza que todo el tráfico de benchmark atraviese el mecanismo de encapsulación del CNI entre nodos, que es exactamente lo que se quiere medir.
+La anti-afinidad entre cliente y servidor se declaró como \texttt{preferredDuringScheduling\allowbreak IgnoredDuringExecution} (suave, weight 100), lo que en la práctica los separa en nodos distintos. Importa porque solo así el tráfico del benchmark pasa por el mecanismo de encapsulación del CNI, que es precisamente lo que se quiere medir.
 
 \begin{lstlisting}
 # iperf-client-cronjob.yaml -- fragmento relevante
@@ -216,7 +213,7 @@ RAM del agente CNI (RSS) & MiB & Huella de memoria del agente CNI por nodo. \\
 
 \subsection{Limpieza con el Rango Intercuartílico (IQR)}
 
-\texttt{docs/procesador.js} transforma datos crudos en datos consolidados. El script descubre los CNIs disponibles bajo \texttt{results/cni-benchmarks}. Luego extrae métricas desde JSON y CSV. Finalmente aplica IQR:
+El puente entre los datos crudos y la recomendación es \texttt{docs/procesador.js}. El script busca qué CNIs hay bajo \texttt{results/cni-benchmarks}, extrae las métricas de los archivos JSON y CSV y les aplica el filtro IQR:
 
 \begin{lstlisting}
 // procesador.js -- Funcion de limpieza estadistica IQR
@@ -238,7 +235,7 @@ function calcularEstadisticasLimpias(valores) {
 }
 \end{lstlisting}
 
-El pipeline descarta valores atípicos antes de calcular promedios. Dado que un evento cloud anómalo puede sesgar una corrida, el filtro estabiliza el puntaje MCDA del CNI.
+Los valores atípicos se descartan antes de promediar. Basta un evento anómalo en la nube para torcer una corrida entera, y este filtro impide que ese ruido termine moviendo el puntaje MCDA del CNI.
 
 \subsection{Normalización y Cálculo del Score MCDA}
 
@@ -261,7 +258,7 @@ function getNetworkPolicyOverhead(data) {
 // Si meta.supportsNetworkPolicy === false (ej. Flannel), el score es 1.
 \end{lstlisting}
 
-El pipeline calcula el puntaje de la dimensión de seguridad evaluando el impacto (\emph{overhead}) promedio en latencia y throughput al activar los casos de prueba de \texttt{network\_policy}. Entre menor sea la degradación del rendimiento al aislar los Pods, mayor será la calificación normalizada del CNI. Aquellos plugins que por diseño no implementan Network Policies en su plano de datos reciben por defecto la calificación mínima de $1.00$ en esta dimensión, penalizando su uso en entornos que requieran aislamiento lógico.
+El puntaje de seguridad se calcula midiendo cuánto se degradan la latencia y el throughput al activar los casos de \texttt{network\_policy}. Cuanto menos cueste aislar los Pods, mejor califica el CNI. Y los plugins que sencillamente no implementan Network Policies en su plano de datos reciben el mínimo, $1.00$, en esta dimensión: no se les puede premiar por no pagar un costo que tampoco están asumiendo.
 
 \section{Prototipo Recomendador: Aplicación Web SPA}
 
@@ -276,7 +273,7 @@ La SPA fue implementada con React~19 (gestión de estado por componentes), Vite~
 \begin{enumerate}
 \item \textbf{Construcción del Perfil:} El componente \texttt{GuidedProfileBuilder} presenta cinco preguntas con deslizadores (velocidad de respuesta, estabilidad, volumen de datos, límite de recursos y seguridad) y un campo opcional para nombrar el proyecto. \texttt{buildGuidedProfile()} convierte las respuestas en un vector de pesos normalizado a la unidad.
 \item \textbf{Visualización de Resultados:} \texttt{App.jsx} carga \texttt{cni-data.json} y \texttt{calculateScores()} calcula el ranking MCDA para el perfil construido. El CNI con mayor puntaje queda marcado como recomendación.
-\item \textbf{Justificación Técnica:} El componente \texttt{ResultsEngine} expone las métricas brutas promedio de cada CNI en gráficas comparativas.
+\item \textbf{Justificación Técnica:} El componente \texttt{ResultsEngine} presenta el ranking de los cuatro CNI con su puntaje MCDA ---graficado por \texttt{ScoreChart}---, el perfil calculado con sus pesos y el aviso de penalización de seguridad, junto a las viñetas cualitativas del plugin recomendado.
 \item \textbf{Orientación de Despliegue:} \texttt{ImplementationSteps} muestra, para el CNI recomendado, el comando de instalación del plugin y la política de denegación por defecto.
 \end{enumerate}
 
@@ -284,7 +281,7 @@ La SPA fue implementada con React~19 (gestión de estado por componentes), Vite~
 
 \subsection{Políticas Default Deny}
 
-Default Deny operacionaliza el modelo Zero Trust. La política bloquea todo el tráfico inicial y habilita solo comunicaciones necesarias. Con esta regla, toda comunicación no autorizada falla sin intervención del operador.
+El Default Deny es la traducción práctica de Zero Trust: primero se corta todo el tráfico y después se habilita solo lo necesario. Con esa regla activa, cualquier comunicación no autorizada falla por sí sola, sin que nadie tenga que intervenir.
 
 El siguiente manifiesto aplica la política a todos los Pods del namespace \texttt{production}:
 
@@ -308,11 +305,11 @@ Sobre Default Deny, las políticas específicas acotan el tráfico permitido. La
 
 En Cilium, una \texttt{CiliumNetworkPolicy} de capa 7 admite solo métodos \texttt{GET} y \texttt{HEAD} desde frontend hacia backend. En Antrea, una \texttt{ClusterNetworkPolicy} en el Tier \texttt{securityops} prioriza sobre cualquier \texttt{NetworkPolicy} de namespace.
 
-Esta estratificación evalúa seguridad granular en condiciones reales. También cuantifica si esa granularidad introduce overhead detectable, uno de los criterios del modelo MCDA.
+Este escalonamiento sirve para dos cosas a la vez: probar seguridad granular en condiciones parecidas a las reales y medir si esa granularidad cuesta rendimiento, que es uno de los criterios del modelo MCDA.
 
 \subsection{Validación Automatizada de Políticas}
 
-Se implementó un pipeline de validación que emplea \texttt{nc} (netcat) dentro de Pods de prueba para verificar la conectividad. Para cada par de Pods, el pipeline define una expectativa ---la conexión debe permitirse o debe bloquearse--- y reporta un error cuando el comportamiento observado no coincide con ella.
+Escribir una política no demuestra que funcione. Por eso se montó un pipeline de validación que usa \texttt{nc} (netcat) desde Pods de prueba: para cada par de Pods se declara qué debería pasar ---conexión permitida o bloqueada--- y el pipeline reporta un error cuando lo observado no coincide con lo esperado.
 
 \begin{table}[htbp]
 \centering
@@ -392,3 +389,14 @@ Outliers frecuentes en pruebas de madrugada: DigitalOcean mostraba throttling de
 
 \section{Flujo completo de ejecución}
 
+Vistas las piezas por separado, conviene verlas funcionando juntas. Una corrida completa para un CNI encadena los componentes descritos en este capítulo:
+
+\begin{enumerate}
+\item Se fija el CNI en la variable \texttt{cni\_provider} de \texttt{terraform.tfvars} y se ejecuta \texttt{terraform destroy} seguido de \texttt{terraform apply}, que recrea Droplets, VPC, base de datos y el clúster K3s con ese plugin ya configurado.
+\item ArgoCD sincroniza la aplicación raíz y despliega, en orden, el stack de observabilidad, los benchmarks y ---cuando el CNI las soporta--- las Network Policies del caso de uso activo.
+\item Los CronJobs generan tráfico según su calendario: iperf3 en los minutos 0 y 30, latencia en los minutos 10 y 40.
+\item El Resource Usage Exporter consulta Prometheus en los minutos 25 y 55 y deja los archivos crudos, los CSV y el resumen por corrida en el repositorio de resultados.
+\item \texttt{procesador.js} limpia con IQR, normaliza y calcula los puntajes MCDA, y produce \texttt{cni-data.json}; la SPA consume ese archivo y muestra el ranking por perfil.
+\end{enumerate}
+
+Los comandos concretos de cada paso están en el Anexo~B (Manual de Instalación) y el recorrido desde la interfaz, en el Anexo~A (Manual de Usuario). Con la herramienta ya en funcionamiento, el capítulo siguiente presenta lo que arrojaron las mediciones.

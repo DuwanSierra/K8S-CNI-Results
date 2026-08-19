@@ -61,7 +61,7 @@ kubectl create job --from=cronjob/iperf-client-cronjob iperf-manual -n cni-test
 kubectl logs -n cni-test job/iperf-manual
 \end{lstlisting}
 
-Los resultados crudos (JSON/CSV) se versionan en \texttt{K8S-CNI-Results/results/cni-benchmarks/\{cni\}/}.
+Los resultados crudos (JSON/CSV) se versionan en \path{K8S-CNI-Results/results/cni-benchmarks/{cni}/}.
 
 \section{Paso 4: Procesamiento de datos y modelo MCDA}
 
