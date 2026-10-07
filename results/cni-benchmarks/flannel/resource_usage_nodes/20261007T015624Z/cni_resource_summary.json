@@ -1,0 +1,10 @@
+{
+  "timestamp_utc": "20261007T015624Z",
+  "cni_name": "flannel",
+  "cni_pod_pattern": "kube-flannel-.*",
+  "export_window_minutes": 45,
+  "criterio_c2": {
+    "cni_pod_cpu_avg_cores": null,
+    "cni_pod_mem_avg_mib": null
+  }
+}
